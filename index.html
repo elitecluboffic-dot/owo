@@ -4,299 +4,544 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OwoCash Simulator</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
   <style>
-    body { font-family: system-ui, sans-serif; background: #36393e; color: #dcddde; }
-    .owo-message { background: #292b2f; border-radius: 8px; padding: 12px 16px; }
-    .avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #36393e;
+      color: #dcddde;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Tailwind-like utilities */
+    .hidden { display: none !important; }
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .flex-1 { flex: 1; }
+    .items-center { align-items: center; }
+    .justify-center { justify-content: center; }
+    .justify-end { justify-content: flex-end; }
+    .justify-between { justify-content: space-between; }
+    .gap-1 { gap: 4px; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .sticky { position: sticky; }
+    .top-0 { top: 0; }
+    .fixed { position: fixed; }
+    .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+    .z-40 { z-index: 40; }
+    .z-50 { z-index: 50; }
+    .z-100 { z-index: 100; }
+    .overflow-y-auto { overflow-y: auto; }
+    .overflow-x-auto { overflow-x: auto; }
+    .text-sm { font-size: 0.875rem; }
+    .text-xs { font-size: 0.75rem; }
+    .text-xl { font-size: 1.25rem; }
+    .text-2xl { font-size: 1.5rem; }
+    .font-bold { font-weight: 700; }
+    .font-semibold { font-weight: 600; }
+    .text-right { text-align: right; }
+    .w-full { width: 100%; }
+    .max-w-sm { max-width: 384px; }
+    .max-w-lg { max-width: 512px; }
+    .max-h-90vh { max-height: 90vh; }
+    .mx-4 { margin-left: 16px; margin-right: 16px; }
+    .mb-1 { margin-bottom: 4px; }
+    .mb-3 { margin-bottom: 12px; }
+    .mb-4 { margin-bottom: 16px; }
+    .mb-6 { margin-bottom: 24px; }
+    .mt-1 { margin-top: 4px; }
+    .ml-3 { margin-left: 12px; }
+    .p-3 { padding: 12px; }
+    .p-4 { padding: 16px; }
+    .p-6 { padding: 24px; }
+    .px-3 { padding-left: 12px; padding-right: 12px; }
+    .px-4 { padding-left: 16px; padding-right: 16px; }
+    .py-0\.5 { padding-top: 2px; padding-bottom: 2px; }
+    .py-1 { padding-top: 4px; padding-bottom: 4px; }
+    .py-2 { padding-top: 8px; padding-bottom: 8px; }
+    .py-3 { padding-top: 12px; padding-bottom: 12px; }
+    .space-y-3 > * + * { margin-top: 12px; }
+    .space-y-6 > * + * { margin-top: 24px; }
+    .pb-28 { padding-bottom: 112px; }
+    .outline-none { outline: none; }
+
+    /* Colors */
+    .bg-dark { background: #36393e; }
+    .bg-darker { background: #2f3136; }
+    .bg-darkest { background: #202225; }
+    .bg-input { background: #40444b; }
+    .bg-blue { background: #5865f2; }
+    .bg-blue-btn { background: #2563eb; }
+    .bg-green-btn { background: #16a34a; }
+    .bg-yellow-btn { background: #ca8a04; }
+    .bg-purple-btn { background: #7c3aed; }
+    .bg-yellow-admin { background: #d97706; }
+    .bg-overlay { background: rgba(0,0,0,0.8); }
+
+    .text-blue { color: #5865f2; }
+    .text-cyan { color: #00b0f4; }
+    .text-gray { color: #9ca3af; }
+    .text-yellow { color: #facc15; }
+    .text-white { color: #ffffff; }
+
+    /* Components */
+    .topnav {
+      background: #2f3136;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      border-bottom: 1px solid #202225;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      gap: 8px;
+    }
+
+    .topnav-title {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 1.25rem;
+    }
+
+    .topnav-btns {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 4px 16px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      border: none;
+      cursor: pointer;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: filter 0.15s;
+    }
+    .btn:hover { filter: brightness(1.15); }
+    .btn-blue { background: #2563eb; }
+    .btn-green { background: #16a34a; }
+    .btn-yellow { background: #ca8a04; }
+    .btn-purple { background: #7c3aed; }
+    .btn-gray { background: #40444b; }
+    .btn-indigo { background: #5865f2; }
+
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      background: #36393e;
+      padding-bottom: 112px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .msg-row { display: flex; gap: 12px; }
+    .msg-row.user { justify-content: flex-end; }
+
+    .avatar {
+      width: 42px;
+      height: 42px;
+      min-width: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      background: #00b0f4;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .owo-bubble {
+      background: #292b2f;
+      border-radius: 8px;
+      padding: 12px 16px;
+      max-width: 80%;
+    }
+
+    .owo-bubble .meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .owo-name { font-weight: 600; color: #00b0f4; }
+    .owo-badge {
+      background: #5865f2;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .owo-time { font-size: 11px; color: #6b7280; }
+
+    .owo-text { font-size: 0.875rem; line-height: 1.5; }
+    .owo-text code {
+      background: #202225;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    .user-bubble {
+      max-width: 75%;
+    }
+    .user-bubble .text {
+      background: #5865f2;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 18px;
+      border-bottom-right-radius: 4px;
+      font-size: 0.875rem;
+    }
+    .user-bubble .time {
+      font-size: 10px;
+      color: #6b7280;
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    /* Quick buttons bar */
+    #quick-bar {
+      position: fixed;
+      bottom: 68px;
+      left: 0;
+      right: 0;
+      background: #2f3136;
+      padding: 10px 12px;
+      overflow-x: auto;
+      display: flex;
+      gap: 8px;
+      z-index: 40;
+      scrollbar-width: none;
+    }
+    #quick-bar::-webkit-scrollbar { display: none; }
+
+    .quick-btn {
+      background: #40444b;
+      color: #dcddde;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .quick-btn:hover { background: #5865f2; color: white; }
+    .quick-btn.purple { background: #7c3aed; color: white; }
+    .quick-btn.purple:hover { background: #6d28d9; }
+
+    /* Command input */
+    #cmd-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #40444b;
+      padding: 10px 12px;
+      z-index: 50;
+    }
+
+    .cmd-inner {
+      background: #36393e;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+    }
+
+    #command-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #dcddde;
+      font-size: 1rem;
+    }
+    #command-input::placeholder { color: #6b7280; }
+
+    .send-btn {
+      margin-left: 12px;
+      background: #5865f2;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: white;
+      transition: background 0.15s;
+    }
+    .send-btn:hover { background: #4752c4; }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal-box {
+      background: #36393e;
+      width: 100%;
+      max-width: 384px;
+      margin: 0 16px;
+      border-radius: 24px;
+      padding: 24px;
+    }
+
+    .modal-box.large {
+      max-width: 512px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-subtitle {
+      font-size: 0.875rem;
+      color: #9ca3af;
+      margin-bottom: 16px;
+      margin-top: -8px;
+    }
+
+    .modal-input {
+      width: 100%;
+      background: #202225;
+      border: none;
+      border-radius: 16px;
+      padding: 12px 16px;
+      outline: none;
+      color: #dcddde;
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .modal-input.mono { font-family: monospace; font-size: 0.85rem; }
+    .modal-input:last-of-type { margin-bottom: 24px; }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .modal-cancel {
+      flex: 1;
+      padding: 12px;
+      background: transparent;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      border-radius: 16px;
+      font-size: 0.95rem;
+    }
+    .modal-cancel:hover { color: white; background: #40444b; }
+
+    .modal-confirm {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      color: white;
+      font-size: 0.95rem;
+      transition: filter 0.15s;
+    }
+    .modal-confirm:hover { filter: brightness(1.15); }
+    .modal-confirm.blue { background: #2563eb; }
+    .modal-confirm.green { background: #16a34a; }
+    .modal-confirm.yellow { background: #ca8a04; }
+    .modal-confirm.purple { background: #7c3aed; }
+
+    /* Admin dashboard */
+    .player-card {
+      background: #2f3136;
+      border-radius: 16px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .player-info { flex: 1; }
+    .player-name { font-weight: 600; }
+    .player-balance { font-size: 0.875rem; color: #9ca3af; margin-top: 2px; }
+
+    .cash-input {
+      background: #202225;
+      border: none;
+      border-radius: 10px;
+      padding: 8px 10px;
+      width: 110px;
+      outline: none;
+      color: #dcddde;
+      font-size: 0.875rem;
+    }
+
+    .set-btn {
+      background: #ca8a04;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 10px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: filter 0.15s;
+    }
+    .set-btn:hover { filter: brightness(1.15); }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: #9ca3af;
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+    .modal-close:hover { color: white; background: #40444b; }
   </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body>
 
   <!-- TOP NAV -->
-  <div class="bg-[#2f3136] h-14 flex items-center px-4 border-b border-[#202225] sticky top-0 z-50">
-    <div class="flex-1 flex items-center gap-2">
-      <span class="text-[#5865f2] text-2xl">#</span>
-      <span class="font-bold text-xl">main-owo-disini</span>
+  <div class="topnav">
+    <div class="topnav-title">
+      <span class="text-blue" style="font-size:1.5rem">#</span>
+      <span>main-owo-disini</span>
     </div>
-    <div class="flex gap-3">
-      <button onclick="showRegisterModal()" class="bg-blue-600 hover:bg-blue-500 px-4 py-1 rounded-lg text-sm">Daftar</button>
-      <button onclick="showLoginModal()" class="bg-green-600 hover:bg-green-500 px-4 py-1 rounded-lg text-sm">Login</button>
-      <button onclick="showAdminLoginModal()" class="bg-yellow-600 hover:bg-yellow-500 px-4 py-1 rounded-lg text-sm flex items-center gap-1">
+    <div class="topnav-btns">
+      <button class="btn btn-blue" onclick="showRegisterModal()">Daftar</button>
+      <button class="btn btn-green" onclick="showLoginModal()">Login</button>
+      <button class="btn btn-yellow" onclick="showAdminLoginModal()">
         <i class="fa-solid fa-crown"></i> Admin
       </button>
     </div>
   </div>
 
   <!-- CHAT -->
-  <div id="chat" class="flex-1 overflow-y-auto p-4 space-y-6 bg-[#36393e] pb-28"></div>
+  <div id="chat"></div>
 
   <!-- QUICK BUTTONS -->
-  <div class="fixed bottom-20 left-0 right-0 bg-[#2f3136] p-3 overflow-x-auto flex gap-2 text-sm z-40">
-    <button onclick="quickWcf(5000)" class="bg-[#40444b] hover:bg-[#5865f2] px-4 py-2 rounded-xl">wcf 5000</button>
-    <button onclick="quickWcf('all')" class="bg-[#40444b] hover:bg-[#5865f2] px-4 py-2 rounded-xl">wcf all</button>
-    <button onclick="checkBalance()" class="bg-[#40444b] hover:bg-[#5865f2] px-4 py-2 rounded-xl">wcash</button>
-    <button onclick="showWebhookSetting()" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-xl">Webhook</button>
+  <div id="quick-bar">
+    <button class="quick-btn" onclick="quickWcf(5000)">wcf 5000</button>
+    <button class="quick-btn" onclick="quickWcf('all')">wcf all</button>
+    <button class="quick-btn" onclick="checkBalance()">wcash</button>
+    <button class="quick-btn purple" onclick="showWebhookSetting()">Webhook</button>
   </div>
 
   <!-- COMMAND INPUT -->
-  <div class="fixed bottom-0 left-0 right-0 bg-[#40444b] p-3 z-50">
-    <div class="bg-[#36393e] rounded-3xl flex items-center px-4 py-2">
-      <input id="command-input" type="text" onkeydown="if(event.key==='Enter') sendCommand()"
-             class="flex-1 bg-transparent outline-none text-base placeholder-gray-400" placeholder="Ketik command...">
-      <button onclick="sendCommand()" class="ml-3 bg-[#5865f2] hover:bg-[#4752c4] w-10 h-10 rounded-2xl flex items-center justify-center">
+  <div id="cmd-bar">
+    <div class="cmd-inner">
+      <input id="command-input" type="text" placeholder="Ketik command..." onkeydown="if(event.key==='Enter') sendCommand()">
+      <button class="send-btn" onclick="sendCommand()">
         <i class="fa-solid fa-paper-plane"></i>
       </button>
     </div>
   </div>
 
   <!-- REGISTER MODAL -->
-  <div id="register-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
-    <div class="bg-[#36393e] w-full max-w-sm mx-4 rounded-3xl p-6">
-      <h2 class="text-xl font-bold mb-4">Daftar Akun</h2>
-      <input id="reg-username" type="text" placeholder="Username (min 3 karakter)"
-             class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-3">
-      <input id="reg-password" type="password" placeholder="Password"
-             class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-6">
-      <div class="flex gap-3">
-        <button onclick="hideRegisterModal()" class="flex-1 py-3 text-gray-400">Batal</button>
-        <button onclick="doRegister()" class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl font-semibold">Daftar</button>
+  <div id="register-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">Daftar Akun</div>
+      <input id="reg-username" type="text" placeholder="Username (min 3 karakter)" class="modal-input">
+      <input id="reg-password" type="password" placeholder="Password" class="modal-input" style="margin-bottom:24px">
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="hideRegisterModal()">Batal</button>
+        <button class="modal-confirm blue" onclick="doRegister()">Daftar</button>
       </div>
     </div>
   </div>
 
   <!-- LOGIN MODAL -->
-  <div id="login-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
-    <div class="bg-[#36393e] w-full max-w-sm mx-4 rounded-3xl p-6">
-      <h2 class="text-xl font-bold mb-4">Login</h2>
-      <input id="login-username" type="text" placeholder="Username"
-             class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-3">
-      <input id="login-password" type="password" placeholder="Password"
-             class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-6">
-      <div class="flex gap-3">
-        <button onclick="hideLoginModal()" class="flex-1 py-3 text-gray-400">Batal</button>
-        <button onclick="doLogin()" class="flex-1 py-3 bg-green-600 hover:bg-green-500 rounded-2xl font-semibold">Login</button>
+  <div id="login-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">Login</div>
+      <input id="login-username" type="text" placeholder="Username" class="modal-input">
+      <input id="login-password" type="password" placeholder="Password" class="modal-input" style="margin-bottom:24px">
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="hideLoginModal()">Batal</button>
+        <button class="modal-confirm green" onclick="doLogin()">Login</button>
       </div>
     </div>
   </div>
 
   <!-- ADMIN LOGIN MODAL -->
-  <div id="admin-login-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
-    <div class="bg-[#36393e] w-full max-w-sm mx-4 rounded-3xl p-6">
-      <h2 class="text-xl font-bold mb-1 flex items-center gap-2">
-        <i class="fa-solid fa-crown text-yellow-400"></i> Admin Login
-      </h2>
-      <p class="text-sm text-gray-400 mb-4">Masukkan password admin</p>
-      <input id="admin-password" type="password" placeholder="Password Admin"
-             class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-6">
-      <div class="flex gap-3">
-        <button onclick="hideAdminLoginModal()" class="flex-1 py-3 text-gray-400">Batal</button>
-        <button onclick="doAdminLogin()" class="flex-1 py-3 bg-yellow-600 hover:bg-yellow-500 rounded-2xl font-semibold">Masuk</button>
+  <div id="admin-login-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">
+        <i class="fa-solid fa-crown" style="color:#facc15"></i> Admin Login
+      </div>
+      <p class="modal-subtitle">Masukkan password admin</p>
+      <input id="admin-password" type="password" placeholder="Password Admin" class="modal-input" style="margin-bottom:24px">
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="hideAdminLoginModal()">Batal</button>
+        <button class="modal-confirm yellow" onclick="doAdminLogin()">Masuk</button>
       </div>
     </div>
   </div>
 
   <!-- WEBHOOK MODAL -->
-  <div id="webhook-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
-    <div class="bg-[#36393e] w-full max-w-sm mx-4 rounded-3xl p-6">
-      <h2 class="text-xl font-bold mb-4">Setting Webhook Discord</h2>
-      <p class="text-sm text-gray-400 mb-4">Masukkan Webhook URL channel Discord milikmu</p>
-      <input id="webhook-url-input" type="text" placeholder="https://discord.com/api/webhooks/..."
-             class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-6 font-mono text-sm">
-      <div class="flex gap-3">
-        <button onclick="hideWebhookModal()" class="flex-1 py-3 text-gray-400">Batal</button>
-        <button onclick="saveUserWebhook()" class="flex-1 py-3 bg-purple-600 hover:bg-purple-500 rounded-2xl font-semibold">Simpan</button>
+  <div id="webhook-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">Setting Webhook Discord</div>
+      <p class="modal-subtitle">Masukkan Webhook URL channel Discord milikmu</p>
+      <input id="webhook-url-input" type="text" placeholder="https://discord.com/api/webhooks/..." class="modal-input mono" style="margin-bottom:24px">
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="hideWebhookModal()">Batal</button>
+        <button class="modal-confirm purple" onclick="saveUserWebhook()">Simpan</button>
       </div>
     </div>
   </div>
 
   <!-- ADMIN DASHBOARD MODAL -->
-  <div id="admin-dashboard" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
-    <div class="bg-[#36393e] w-full max-w-lg mx-4 rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-bold flex items-center gap-2">
-          <i class="fa-solid fa-crown text-yellow-400"></i> Admin Dashboard
-        </h2>
-        <button onclick="hideAdminDashboard()" class="text-gray-400 hover:text-white text-xl">✕</button>
+  <div id="admin-dashboard" class="modal-overlay hidden">
+    <div class="modal-box large">
+      <div class="modal-header">
+        <div class="modal-title" style="margin-bottom:0">
+          <i class="fa-solid fa-crown" style="color:#facc15"></i> Admin Dashboard
+        </div>
+        <button class="modal-close" onclick="hideAdminDashboard()">✕</button>
       </div>
-      <div id="players-list" class="space-y-3"></div>
+      <div id="players-list" style="display:flex;flex-direction:column;gap:12px;"></div>
     </div>
   </div>
 
-  <script>
-    let currentUsername = null;
-
-    async function apiCall(endpoint, body) {
-      try {
-        const res = await fetch(`/api/${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        return await res.json();
-      } catch (e) {
-        return { success: false, message: "Koneksi gagal" };
-      }
-    }
-
-    function addMessage(isOwO, text) {
-      const chat = document.getElementById('chat');
-      const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-      const div = document.createElement('div');
-      div.className = `flex gap-3 ${isOwO ? '' : 'justify-end'}`;
-      if (isOwO) {
-        div.innerHTML = `<div class="avatar bg-[#00b0f4]">🐰</div><div class="owo-message max-w-[80%]"><div class="flex items-center gap-2"><span class="font-semibold text-[#00b0f4]">OwO</span><span class="bg-[#5865f2] text-[10px] px-2 py-0.5 rounded">APP</span><span class="text-xs text-gray-400">${time}</span></div><div class="text-sm mt-1">${text}</div></div>`;
-      } else {
-        div.innerHTML = `<div class="max-w-[75%]"><div class="bg-[#5865f2] text-white p-3 rounded-3xl rounded-br-none text-sm">${text}</div><div class="text-[10px] text-gray-400 text-right mt-1">${time}</div></div>`;
-      }
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    // === REGISTER ===
-    function showRegisterModal() { document.getElementById('register-modal').classList.remove('hidden'); }
-    function hideRegisterModal() { document.getElementById('register-modal').classList.add('hidden'); }
-
-    async function doRegister() {
-      const username = document.getElementById('reg-username').value.trim();
-      const password = document.getElementById('reg-password').value;
-      if (!username || !password) return alert("Isi semua field!");
-      const result = await apiCall('register', { username, password });
-      alert(result.message);
-      if (result.success) hideRegisterModal();
-    }
-
-    // === LOGIN ===
-    function showLoginModal() { document.getElementById('login-modal').classList.remove('hidden'); }
-    function hideLoginModal() { document.getElementById('login-modal').classList.add('hidden'); }
-
-    async function doLogin() {
-      const username = document.getElementById('login-username').value.trim();
-      const password = document.getElementById('login-password').value;
-      if (!username || !password) return alert("Isi semua field!");
-      const result = await apiCall('login', { username, password });
-      if (result.success) {
-        currentUsername = result.username;
-        hideLoginModal();
-        addMessage(true, `Login berhasil! Selamat datang, <b>${currentUsername}</b> 🎉<br>Cowoncy kamu: 🪙 ${result.balance.toLocaleString()}`);
-      } else {
-        alert(result.message);
-      }
-    }
-
-    // === ADMIN LOGIN ===
-    function showAdminLoginModal() { document.getElementById('admin-login-modal').classList.remove('hidden'); }
-    function hideAdminLoginModal() { document.getElementById('admin-login-modal').classList.add('hidden'); }
-
-    async function doAdminLogin() {
-      const password = document.getElementById('admin-password').value;
-      if (!password) return alert("Masukkan password!");
-      const result = await apiCall('admin-login', { password });
-      if (result.success) {
-        hideAdminLoginModal();
-        showAdminDashboard();
-      } else {
-        alert(result.message);
-      }
-    }
-
-    // === ADMIN DASHBOARD ===
-    async function showAdminDashboard() {
-      document.getElementById('admin-dashboard').classList.remove('hidden');
-      const result = await apiCall('get-players', {});
-      const list = document.getElementById('players-list');
-      list.innerHTML = '';
-      if (!result.success || !result.players.length) {
-        list.innerHTML = '<p class="text-gray-400 text-sm">Belum ada pemain.</p>';
-        return;
-      }
-      result.players.forEach(player => {
-        const div = document.createElement('div');
-        div.className = 'bg-[#2f3136] rounded-2xl p-4 flex items-center gap-3';
-        div.innerHTML = `
-          <div class="flex-1">
-            <p class="font-semibold">${player.username}</p>
-            <p class="text-sm text-gray-400">🪙 ${player.balance.toLocaleString()}</p>
-          </div>
-          <input type="number" placeholder="Set cowoncy" id="cash-${player.username}"
-                 class="bg-[#202225] rounded-xl px-3 py-2 w-32 outline-none text-sm">
-          <button onclick="setCash('${player.username}')" class="bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded-xl text-sm">Set</button>
-        `;
-        list.appendChild(div);
-      });
-    }
-
-    function hideAdminDashboard() { document.getElementById('admin-dashboard').classList.add('hidden'); }
-
-    async function setCash(username) {
-      const input = document.getElementById(`cash-${username}`);
-      const newBalance = input.value;
-      if (!newBalance) return alert("Masukkan jumlah cowoncy!");
-      const result = await apiCall('set-cash', { username, newBalance });
-      alert(result.message);
-      if (result.success) showAdminDashboard();
-    }
-
-    // === WEBHOOK ===
-    function showWebhookSetting() {
-      if (!currentUsername) return alert("Login dulu untuk setting webhook!");
-      document.getElementById('webhook-modal').classList.remove('hidden');
-    }
-    function hideWebhookModal() { document.getElementById('webhook-modal').classList.add('hidden'); }
-
-    async function saveUserWebhook() {
-      const url = document.getElementById('webhook-url-input').value.trim();
-      if (!url.includes('discord.com/api/webhooks')) return alert("Masukkan Webhook URL Discord yang valid!");
-      const result = await apiCall('save-webhook', { username: currentUsername, webhookUrl: url });
-      alert(result.message);
-      if (result.success) hideWebhookModal();
-    }
-
-    // === WCF & BALANCE ===
-    async function quickWcf(amount) {
-      if (!currentUsername) return addMessage(true, "Kamu belum login! Silakan login dulu.");
-      addMessage(false, `owo wcf ${amount}`);
-      const result = await apiCall('play-wcf', { username: currentUsername, amount });
-      addMessage(true, result.message || result.success ? result.message : "Terjadi kesalahan.");
-    }
-
-    async function checkBalance() {
-      if (!currentUsername) return addMessage(true, "Kamu belum login! Silakan login dulu.");
-      addMessage(false, "owo wcash");
-      const result = await apiCall('login', { username: currentUsername, password: '__check__' });
-      // fallback: get balance via get-players
-      const players = await apiCall('get-players', {});
-      if (players.success) {
-        const me = players.players.find(p => p.username === currentUsername);
-        if (me) addMessage(true, `💰 Cowoncy kamu: 🪙 ${me.balance.toLocaleString()}`);
-      }
-    }
-
-    async function sendCommand() {
-      const input = document.getElementById('command-input');
-      const cmd = input.value.trim();
-      if (!cmd) return;
-      input.value = '';
-      addMessage(false, cmd);
-
-      const parts = cmd.toLowerCase().split(' ');
-
-      if (parts[0] === 'owo' && parts[1] === 'wcf') {
-        const amount = parts[2] === 'all' ? 'all' : parseInt(parts[2]);
-        if (!currentUsername) return addMessage(true, "Kamu belum login!");
-        const result = await apiCall('play-wcf', { username: currentUsername, amount });
-        addMessage(true, result.message);
-      } else if (parts[0] === 'owo' && parts[1] === 'wcash') {
-        await checkBalance();
-      } else {
-        addMessage(true, `Command tidak dikenal. Coba:<br><code>owo wcf 5000</code> atau <code>owo wcash</code>`);
-      }
-    }
-
-    window.onload = () => {
-      addMessage(true, "Selamat datang di <b>OwoCash Simulator</b>! 🐰<br>Klik <b>Daftar</b> untuk membuat akun, lalu <b>Login</b> untuk mulai bermain.");
-    };
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
