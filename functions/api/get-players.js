@@ -1,4 +1,12 @@
-export const onRequestPost = async ({ env }) => {
+export const onRequestPost = async ({ request, env }) => {
+  const headers = { 'Content-Type': 'application/json' };
+
+  // ✅ Validasi admin hash dulu
+  const { adminHash } = await request.json();
+  if (!adminHash || adminHash !== env.ADMIN_HASH) {
+    return new Response(JSON.stringify({ success: false, message: "Unauthorized" }), { status: 401, headers });
+  }
+
   const list = await env.USERS_KV.list({ prefix: "user:" });
   const players = [];
   for (const key of list.keys) {
@@ -11,5 +19,5 @@ export const onRequestPost = async ({ env }) => {
       });
     }
   }
-  return new Response(JSON.stringify({ success: true, players }));
+  return new Response(JSON.stringify({ success: true, players }), { headers });
 };
