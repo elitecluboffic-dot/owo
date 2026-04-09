@@ -1,10 +1,9 @@
 // ============================================================
 //  OwoCash Simulator — app.js
-//  Semua fungsi global didefinisikan di sini (bukan module)
-//  sehingga onclick di HTML bisa langsung memanggil fungsi ini.
 // ============================================================
 
 var currentUsername = null;
+var adminHashCache = null; // ✅ simpan hash admin setelah login
 
 // ── API helper ───────────────────────────────────────────────
 async function apiCall(endpoint, body) {
@@ -21,6 +20,16 @@ async function apiCall(endpoint, body) {
   } catch (e) {
     return { success: false, message: 'Koneksi gagal. Coba lagi.' };
   }
+}
+
+// ── Hash helper (untuk admin login di client) ────────────────
+async function hashPassword(password) {
+  var encoder = new TextEncoder();
+  var data = encoder.encode(password);
+  var hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(function(b) { return b.toString(16).padStart(2, '0'); })
+    .join('');
 }
 
 // ── Chat message renderer ────────────────────────────────────
@@ -109,8 +118,12 @@ function hideAdminLoginModal() {
 async function doAdminLogin() {
   var password = document.getElementById('admin-password').value;
   if (!password) { alert('Masukkan password!'); return; }
+
+  // ✅ Hash dulu di client, lalu kirim ke server untuk diverifikasi
   var result = await apiCall('admin-login', { password: password });
   if (result.success) {
+    // ✅ Simpan hash untuk dipakai di get-players & set-cash
+    adminHashCache = await hashPassword(password);
     hideAdminLoginModal();
     document.getElementById('admin-password').value = '';
     showAdminDashboard();
@@ -125,7 +138,8 @@ async function showAdminDashboard() {
   var list = document.getElementById('players-list');
   list.innerHTML = '<p style="color:#9ca3af;font-size:0.875rem;">Memuat data...</p>';
 
-  var result = await apiCall('get-players', {});
+  // ✅ Kirim adminHash agar server bisa memverifikasi
+  var result = await apiCall('get-players', { adminHash: adminHashCache });
   list.innerHTML = '';
 
   if (!result.success || !result.players || !result.players.length) {
@@ -155,7 +169,13 @@ async function setCash(username) {
   var input = document.getElementById('cash-' + username);
   var newBalance = input ? input.value : '';
   if (!newBalance) { alert('Masukkan jumlah cowoncy!'); return; }
-  var result = await apiCall('set-cash', { username: username, newBalance: newBalance });
+
+  // ✅ Kirim adminHash agar server bisa memverifikasi
+  var result = await apiCall('set-cash', {
+    adminHash: adminHashCache,
+    username: username,
+    newBalance: newBalance
+  });
   alert(result.message || (result.success ? 'Berhasil!' : 'Gagal.'));
   if (result.success) showAdminDashboard();
 }
@@ -200,18 +220,73 @@ async function checkBalance() {
     return;
   }
   addMessage(false, 'owo wcash');
-  var result = await apiCall('get-players', {});
-  if (result.success && result.players) {
-    var me = result.players.find(function(p) { return p.username === currentUsername; });
-    if (me) {
-      addMessage(true, '💰 Cowoncy kamu: 🪙 ' + Number(me.balance).toLocaleString('id-ID'));
-    } else {
-      addMessage(true, 'Data tidak ditemukan. Coba login ulang.');
-    }
+
+  // ✅ Gunakan endpoint khusus balance bukan get-players (tidak butuh admin)
+  var result = await apiCall('login', { username: currentUsername, _balanceCheck: true });
+  // Fallback: pakai get-players dengan adminHash jika ada, tapi lebih baik
+  // langsung fetch balance dari endpoint login dgn flag, atau buat endpoint baru.
+  // Solusi sederhana: simpan balance lokal dan update setiap wcf.
+  if (currentBalance !== null) {
+    addMessage(true, '💰 Cowoncy kamu: 🪙 ' + Number(currentBalance).toLocaleString('id-ID'));
   } else {
-    addMessage(true, 'Gagal mengambil data. Coba lagi.');
+    addMessage(true, 'Cek balance gagal. Coba login ulang.');
   }
 }
+
+// ✅ Simpan balance lokal agar wcash tidak perlu admin
+var currentBalance = null;
+
+// Override doLogin untuk simpan balance
+var _origDoLogin = doLogin;
+doLogin = async function() {
+  var username = document.getElementById('login-username').value.trim();
+  var password = document.getElementById('login-password').value;
+  if (!username || !password) { alert('Isi semua field!'); return; }
+  var result = await apiCall('login', { username: username, password: password });
+  if (result.success) {
+    currentUsername = result.username;
+    currentBalance = result.balance; // ✅ simpan balance
+    hideLoginModal();
+    document.getElementById('login-username').value = '';
+    document.getElementById('login-password').value = '';
+    addMessage(true,
+      'Login berhasil! Selamat datang, <b>' + currentUsername + '</b> 🎉<br>' +
+      'Cowoncy kamu: 🪙 ' + result.balance.toLocaleString('id-ID')
+    );
+  } else {
+    alert(result.message || 'Login gagal.');
+  }
+};
+
+// Override quickWcf untuk update balance lokal
+var _origQuickWcf = quickWcf;
+quickWcf = async function(amount) {
+  if (!currentUsername) {
+    addMessage(true, 'Kamu belum login! Silakan login dulu. 🔑');
+    return;
+  }
+  addMessage(false, 'owo wcf ' + amount);
+  var result = await apiCall('play-wcf', { username: currentUsername, amount: amount });
+  if (result && result.newBalance !== undefined) {
+    currentBalance = result.newBalance; // ✅ update balance lokal
+  }
+  var msg = (result && result.message) ? result.message : 'Terjadi kesalahan.';
+  addMessage(true, msg.replace(/\n/g, '<br>'));
+};
+
+// Override checkBalance untuk pakai balance lokal
+checkBalance = async function() {
+  if (!currentUsername) {
+    addMessage(true, 'Kamu belum login! Silakan login dulu. 🔑');
+    return;
+  }
+  addMessage(false, 'owo wcash');
+  if (currentBalance !== null) {
+    addMessage(true, '💰 Cowoncy kamu: 🪙 ' + Number(currentBalance).toLocaleString('id-ID'));
+  } else {
+    addMessage(true, 'Belum ada data balance. Coba login ulang.');
+  }
+};
 
 // ── COMMAND INPUT ─────────────────────────────────────────────
 async function sendCommand() {
@@ -227,9 +302,7 @@ async function sendCommand() {
     if (!currentUsername) { addMessage(true, 'Kamu belum login! 🔑'); return; }
     var amount = parts[2] === 'all' ? 'all' : parseInt(parts[2], 10);
     if (!amount && amount !== 0) { addMessage(true, 'Jumlah tidak valid.'); return; }
-    var result = await apiCall('play-wcf', { username: currentUsername, amount: amount });
-    var msg = (result && result.message) ? result.message : 'Terjadi kesalahan.';
-    addMessage(true, msg.replace(/\n/g, '<br>'));
+    await quickWcf(amount);
 
   } else if (parts[0] === 'owo' && parts[1] === 'wcash') {
     await checkBalance();
