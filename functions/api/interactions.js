@@ -1,39 +1,30 @@
 // functions/api/interactions.js
-// Discord Slash Command handler — jalan di Cloudflare Pages Functions
-
 export const onRequestPost = async ({ request, env }) => {
   const headers = { 'Content-Type': 'application/json' };
 
-  // ── Verifikasi signature Discord ────────────────────────────
-  const signature  = request.headers.get('x-signature-ed25519');
-  const timestamp  = request.headers.get('x-signature-timestamp');
-  const body       = await request.text();
+  const signature = request.headers.get('x-signature-ed25519');
+  const timestamp = request.headers.get('x-signature-timestamp');
+  const body      = await request.text();
 
-  const isValid = await verifyDiscordRequest(
-    env.DISCORD_PUBLIC_KEY,
-    signature,
-    timestamp,
-    body
-  );
+  const isValid = await verifyDiscordRequest(env.DISCORD_PUBLIC_KEY, signature, timestamp, body);
   if (!isValid) {
     return new Response('Invalid signature', { status: 401 });
   }
 
   const interaction = JSON.parse(body);
 
-  // ── PING (wajib untuk verifikasi Discord) ───────────────────
+  // PING
   if (interaction.type === 1) {
     return new Response(JSON.stringify({ type: 1 }), { headers });
   }
 
-  // ── Slash Commands ───────────────────────────────────────────
+  // Slash Commands
   if (interaction.type === 2) {
-    const cmd      = interaction.data.name;
-    const options  = interaction.data.options || [];
+    const cmd       = interaction.data.name;
+    const options   = interaction.data.options || [];
     const discordId = interaction.member?.user?.id || interaction.user?.id;
     const username  = interaction.member?.user?.username || interaction.user?.username;
 
-    // Cari akun berdasarkan discord_id
     const userKey = await env.USERS_KV.get(`discord:${discordId}`);
 
     // /register
@@ -58,9 +49,8 @@ export const onRequestPost = async ({ request, env }) => {
       return respond(`✅ Akun berhasil dibuat! Selamat datang **${username}** 🎉\nCowoncy awal kamu: 🪙 **10.000**`);
     }
 
-    // Semua command lain butuh akun
     if (!userKey) {
-      return respond('❌ Kamu belum punya akun! Gunakan `/register <password>` dulu.');
+      return respond('❌ Kamu belum punya akun! Gunakan `/register password:xxx` dulu.');
     }
 
     const userStr = await env.USERS_KV.get(`user:${discordId}`);
@@ -74,7 +64,7 @@ export const onRequestPost = async ({ request, env }) => {
 
     // /wcf
     if (cmd === 'wcf') {
-      let amountRaw = getOption(options, 'jumlah');
+      const amountRaw = getOption(options, 'jumlah');
       let bet = amountRaw === 'all' ? user.balance : parseInt(amountRaw);
       if (!bet || bet <= 0) return respond('❌ Jumlah tidak valid.');
       if (bet > user.balance) return respond(`❌ Cowoncy tidak cukup! Kamu punya 🪙 **${user.balance.toLocaleString()}**`);
@@ -95,14 +85,14 @@ export const onRequestPost = async ({ request, env }) => {
 
     // /wsend
     if (cmd === 'wsend') {
-      const targetMention = getOption(options, 'target'); // user ID dari mention
-      const amountRaw     = getOption(options, 'jumlah');
+      const targetId  = getOption(options, 'target');
+      const amountRaw = getOption(options, 'jumlah');
 
-      if (!targetMention || targetMention === discordId) {
+      if (!targetId || targetId === discordId) {
         return respond('❌ Target tidak valid atau tidak bisa kirim ke diri sendiri!');
       }
 
-      const targetStr = await env.USERS_KV.get(`user:${targetMention}`);
+      const targetStr = await env.USERS_KV.get(`user:${targetId}`);
       if (!targetStr) return respond('❌ User target belum punya akun di OwoCash!');
       let target = JSON.parse(targetStr);
 
@@ -114,11 +104,11 @@ export const onRequestPost = async ({ request, env }) => {
       target.balance += amount;
 
       await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
-      await env.USERS_KV.put(`user:${targetMention}`, JSON.stringify(target));
+      await env.USERS_KV.put(`user:${targetId}`, JSON.stringify(target));
 
       return respond(
         `✅ Berhasil transfer!\n` +
-        `📤 **${username}** → <@${targetMention}> : 🪙 **${amount.toLocaleString()}**\n` +
+        `📤 **${username}** → <@${targetId}> : 🪙 **${amount.toLocaleString()}**\n` +
         `Sisa cowoncy kamu: 🪙 **${user.balance.toLocaleString()}**`
       );
     }
@@ -129,38 +119,34 @@ export const onRequestPost = async ({ request, env }) => {
   return new Response('Unknown interaction type', { status: 400 });
 };
 
-// ── Helper: ambil option value ───────────────────────────────
 function getOption(options, name) {
   const opt = options.find(o => o.name === name);
   return opt ? String(opt.value) : null;
 }
 
-// ── Helper: buat response Discord ───────────────────────────
 function respond(content) {
-  return new Response(JSON.stringify({
-    type: 4,
-    data: { content }
-  }), { headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify({ type: 4, data: { content } }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
 
-// ── Verifikasi Ed25519 signature Discord ─────────────────────
+// ── Fix: gunakan Ed25519 algorithm yang benar untuk Cloudflare Workers ──
 async function verifyDiscordRequest(publicKey, signature, timestamp, body) {
   try {
     const key = await crypto.subtle.importKey(
       'raw',
       hexToUint8Array(publicKey),
-      { name: 'NODE-ED25519', namedCurve: 'NODE-ED25519' },
+      { name: 'Ed25519' },
       false,
       ['verify']
     );
-    const encoder = new TextEncoder();
     return await crypto.subtle.verify(
-      'NODE-ED25519',
+      'Ed25519',
       key,
       hexToUint8Array(signature),
-      encoder.encode(timestamp + body)
+      new TextEncoder().encode(timestamp + body)
     );
-  } catch {
+  } catch (e) {
     return false;
   }
 }
