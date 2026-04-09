@@ -14,6 +14,7 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
+  <!-- TOP NAV -->
   <div class="bg-[#2f3136] h-14 flex items-center px-4 border-b border-[#202225] sticky top-0 z-50">
     <div class="flex-1 flex items-center gap-2">
       <span class="text-[#5865f2] text-2xl">#</span>
@@ -28,8 +29,10 @@
     </div>
   </div>
 
+  <!-- CHAT -->
   <div id="chat" class="flex-1 overflow-y-auto p-4 space-y-6 bg-[#36393e] pb-28"></div>
 
+  <!-- QUICK BUTTONS -->
   <div class="fixed bottom-20 left-0 right-0 bg-[#2f3136] p-3 overflow-x-auto flex gap-2 text-sm z-40">
     <button onclick="quickWcf(5000)" class="bg-[#40444b] hover:bg-[#5865f2] px-4 py-2 rounded-xl">wcf 5000</button>
     <button onclick="quickWcf('all')" class="bg-[#40444b] hover:bg-[#5865f2] px-4 py-2 rounded-xl">wcf all</button>
@@ -37,29 +40,87 @@
     <button onclick="showWebhookSetting()" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-xl">Webhook</button>
   </div>
 
+  <!-- COMMAND INPUT -->
   <div class="fixed bottom-0 left-0 right-0 bg-[#40444b] p-3 z-50">
     <div class="bg-[#36393e] rounded-3xl flex items-center px-4 py-2">
-      <input id="command-input" type="text" class="flex-1 bg-transparent outline-none text-base placeholder-gray-400" placeholder="Ketik command...">
+      <input id="command-input" type="text" onkeydown="if(event.key==='Enter') sendCommand()"
+             class="flex-1 bg-transparent outline-none text-base placeholder-gray-400" placeholder="Ketik command...">
       <button onclick="sendCommand()" class="ml-3 bg-[#5865f2] hover:bg-[#4752c4] w-10 h-10 rounded-2xl flex items-center justify-center">
         <i class="fa-solid fa-paper-plane"></i>
       </button>
     </div>
   </div>
 
-  <!-- Modals: Register, Login, Admin Login, Webhook Setting, Admin Dashboard -->
-  <!-- Untuk ringkas, saya fokus ke bagian webhook. Modals register/login/admin sama seperti sebelumnya. -->
+  <!-- REGISTER MODAL -->
+  <div id="register-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
+    <div class="bg-[#36393e] w-full max-w-sm mx-4 rounded-3xl p-6">
+      <h2 class="text-xl font-bold mb-4">Daftar Akun</h2>
+      <input id="reg-username" type="text" placeholder="Username (min 3 karakter)"
+             class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-3">
+      <input id="reg-password" type="password" placeholder="Password"
+             class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-6">
+      <div class="flex gap-3">
+        <button onclick="hideRegisterModal()" class="flex-1 py-3 text-gray-400">Batal</button>
+        <button onclick="doRegister()" class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl font-semibold">Daftar</button>
+      </div>
+    </div>
+  </div>
 
-  <!-- WEBHOOK SETTING MODAL -->
+  <!-- LOGIN MODAL -->
+  <div id="login-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
+    <div class="bg-[#36393e] w-full max-w-sm mx-4 rounded-3xl p-6">
+      <h2 class="text-xl font-bold mb-4">Login</h2>
+      <input id="login-username" type="text" placeholder="Username"
+             class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-3">
+      <input id="login-password" type="password" placeholder="Password"
+             class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-6">
+      <div class="flex gap-3">
+        <button onclick="hideLoginModal()" class="flex-1 py-3 text-gray-400">Batal</button>
+        <button onclick="doLogin()" class="flex-1 py-3 bg-green-600 hover:bg-green-500 rounded-2xl font-semibold">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN LOGIN MODAL -->
+  <div id="admin-login-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
+    <div class="bg-[#36393e] w-full max-w-sm mx-4 rounded-3xl p-6">
+      <h2 class="text-xl font-bold mb-1 flex items-center gap-2">
+        <i class="fa-solid fa-crown text-yellow-400"></i> Admin Login
+      </h2>
+      <p class="text-sm text-gray-400 mb-4">Masukkan password admin</p>
+      <input id="admin-password" type="password" placeholder="Password Admin"
+             class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-6">
+      <div class="flex gap-3">
+        <button onclick="hideAdminLoginModal()" class="flex-1 py-3 text-gray-400">Batal</button>
+        <button onclick="doAdminLogin()" class="flex-1 py-3 bg-yellow-600 hover:bg-yellow-500 rounded-2xl font-semibold">Masuk</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEBHOOK MODAL -->
   <div id="webhook-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
     <div class="bg-[#36393e] w-full max-w-sm mx-4 rounded-3xl p-6">
-      <h2 class="text-xl font-bold mb-4">Setting Webhook Discord Kamu</h2>
+      <h2 class="text-xl font-bold mb-4">Setting Webhook Discord</h2>
       <p class="text-sm text-gray-400 mb-4">Masukkan Webhook URL channel Discord milikmu</p>
-      <input id="webhook-url-input" type="text" placeholder="https://discord.com/api/webhooks/..." 
+      <input id="webhook-url-input" type="text" placeholder="https://discord.com/api/webhooks/..."
              class="w-full bg-[#202225] rounded-2xl px-4 py-3 outline-none mb-6 font-mono text-sm">
       <div class="flex gap-3">
         <button onclick="hideWebhookModal()" class="flex-1 py-3 text-gray-400">Batal</button>
-        <button onclick="saveUserWebhook()" class="flex-1 py-3 bg-purple-600 hover:bg-purple-500 rounded-2xl font-semibold">Simpan Webhook</button>
+        <button onclick="saveUserWebhook()" class="flex-1 py-3 bg-purple-600 hover:bg-purple-500 rounded-2xl font-semibold">Simpan</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ADMIN DASHBOARD MODAL -->
+  <div id="admin-dashboard" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
+    <div class="bg-[#36393e] w-full max-w-lg mx-4 rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          <i class="fa-solid fa-crown text-yellow-400"></i> Admin Dashboard
+        </h2>
+        <button onclick="hideAdminDashboard()" class="text-gray-400 hover:text-white text-xl">✕</button>
+      </div>
+      <div id="players-list" class="space-y-3"></div>
     </div>
   </div>
 
@@ -85,7 +146,7 @@
       const div = document.createElement('div');
       div.className = `flex gap-3 ${isOwO ? '' : 'justify-end'}`;
       if (isOwO) {
-        div.innerHTML = `<div class="avatar bg-[#00b0f4]">🐰</div><div class="owo-message max-w-[80%]"><div class="flex items-center gap-2"><span class="font-semibold text-[#00b0f4]">OwO</span><span class="bg-[#5865f2] text-[10px] px-2 py-0.5 rounded">APP</span><span class="text-xs text-gray-400">${time}</span></div><div class="text-sm">${text}</div></div>`;
+        div.innerHTML = `<div class="avatar bg-[#00b0f4]">🐰</div><div class="owo-message max-w-[80%]"><div class="flex items-center gap-2"><span class="font-semibold text-[#00b0f4]">OwO</span><span class="bg-[#5865f2] text-[10px] px-2 py-0.5 rounded">APP</span><span class="text-xs text-gray-400">${time}</span></div><div class="text-sm mt-1">${text}</div></div>`;
       } else {
         div.innerHTML = `<div class="max-w-[75%]"><div class="bg-[#5865f2] text-white p-3 rounded-3xl rounded-br-none text-sm">${text}</div><div class="text-[10px] text-gray-400 text-right mt-1">${time}</div></div>`;
       }
@@ -93,32 +154,148 @@
       chat.scrollTop = chat.scrollHeight;
     }
 
+    // === REGISTER ===
+    function showRegisterModal() { document.getElementById('register-modal').classList.remove('hidden'); }
+    function hideRegisterModal() { document.getElementById('register-modal').classList.add('hidden'); }
+
+    async function doRegister() {
+      const username = document.getElementById('reg-username').value.trim();
+      const password = document.getElementById('reg-password').value;
+      if (!username || !password) return alert("Isi semua field!");
+      const result = await apiCall('register', { username, password });
+      alert(result.message);
+      if (result.success) hideRegisterModal();
+    }
+
+    // === LOGIN ===
+    function showLoginModal() { document.getElementById('login-modal').classList.remove('hidden'); }
+    function hideLoginModal() { document.getElementById('login-modal').classList.add('hidden'); }
+
+    async function doLogin() {
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!username || !password) return alert("Isi semua field!");
+      const result = await apiCall('login', { username, password });
+      if (result.success) {
+        currentUsername = result.username;
+        hideLoginModal();
+        addMessage(true, `Login berhasil! Selamat datang, <b>${currentUsername}</b> 🎉<br>Cowoncy kamu: 🪙 ${result.balance.toLocaleString()}`);
+      } else {
+        alert(result.message);
+      }
+    }
+
+    // === ADMIN LOGIN ===
+    function showAdminLoginModal() { document.getElementById('admin-login-modal').classList.remove('hidden'); }
+    function hideAdminLoginModal() { document.getElementById('admin-login-modal').classList.add('hidden'); }
+
+    async function doAdminLogin() {
+      const password = document.getElementById('admin-password').value;
+      if (!password) return alert("Masukkan password!");
+      const result = await apiCall('admin-login', { password });
+      if (result.success) {
+        hideAdminLoginModal();
+        showAdminDashboard();
+      } else {
+        alert(result.message);
+      }
+    }
+
+    // === ADMIN DASHBOARD ===
+    async function showAdminDashboard() {
+      document.getElementById('admin-dashboard').classList.remove('hidden');
+      const result = await apiCall('get-players', {});
+      const list = document.getElementById('players-list');
+      list.innerHTML = '';
+      if (!result.success || !result.players.length) {
+        list.innerHTML = '<p class="text-gray-400 text-sm">Belum ada pemain.</p>';
+        return;
+      }
+      result.players.forEach(player => {
+        const div = document.createElement('div');
+        div.className = 'bg-[#2f3136] rounded-2xl p-4 flex items-center gap-3';
+        div.innerHTML = `
+          <div class="flex-1">
+            <p class="font-semibold">${player.username}</p>
+            <p class="text-sm text-gray-400">🪙 ${player.balance.toLocaleString()}</p>
+          </div>
+          <input type="number" placeholder="Set cowoncy" id="cash-${player.username}"
+                 class="bg-[#202225] rounded-xl px-3 py-2 w-32 outline-none text-sm">
+          <button onclick="setCash('${player.username}')" class="bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded-xl text-sm">Set</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function hideAdminDashboard() { document.getElementById('admin-dashboard').classList.add('hidden'); }
+
+    async function setCash(username) {
+      const input = document.getElementById(`cash-${username}`);
+      const newBalance = input.value;
+      if (!newBalance) return alert("Masukkan jumlah cowoncy!");
+      const result = await apiCall('set-cash', { username, newBalance });
+      alert(result.message);
+      if (result.success) showAdminDashboard();
+    }
+
+    // === WEBHOOK ===
     function showWebhookSetting() {
       if (!currentUsername) return alert("Login dulu untuk setting webhook!");
       document.getElementById('webhook-modal').classList.remove('hidden');
     }
-
-    function hideWebhookModal() {
-      document.getElementById('webhook-modal').classList.add('hidden');
-    }
+    function hideWebhookModal() { document.getElementById('webhook-modal').classList.add('hidden'); }
 
     async function saveUserWebhook() {
       const url = document.getElementById('webhook-url-input').value.trim();
-      if (!url.includes('discord.com/api/webhooks')) {
-        alert("Masukkan Webhook URL Discord yang valid!");
-        return;
-      }
-
+      if (!url.includes('discord.com/api/webhooks')) return alert("Masukkan Webhook URL Discord yang valid!");
       const result = await apiCall('save-webhook', { username: currentUsername, webhookUrl: url });
       alert(result.message);
       if (result.success) hideWebhookModal();
     }
 
-    // Fungsi quickWcf, checkBalance, sendCommand tetap sama seperti sebelumnya (panggil apiCall)
-    // ... (copy dari kode sebelumnya)
+    // === WCF & BALANCE ===
+    async function quickWcf(amount) {
+      if (!currentUsername) return addMessage(true, "Kamu belum login! Silakan login dulu.");
+      addMessage(false, `owo wcf ${amount}`);
+      const result = await apiCall('play-wcf', { username: currentUsername, amount });
+      addMessage(true, result.message || result.success ? result.message : "Terjadi kesalahan.");
+    }
+
+    async function checkBalance() {
+      if (!currentUsername) return addMessage(true, "Kamu belum login! Silakan login dulu.");
+      addMessage(false, "owo wcash");
+      const result = await apiCall('login', { username: currentUsername, password: '__check__' });
+      // fallback: get balance via get-players
+      const players = await apiCall('get-players', {});
+      if (players.success) {
+        const me = players.players.find(p => p.username === currentUsername);
+        if (me) addMessage(true, `💰 Cowoncy kamu: 🪙 ${me.balance.toLocaleString()}`);
+      }
+    }
+
+    async function sendCommand() {
+      const input = document.getElementById('command-input');
+      const cmd = input.value.trim();
+      if (!cmd) return;
+      input.value = '';
+      addMessage(false, cmd);
+
+      const parts = cmd.toLowerCase().split(' ');
+
+      if (parts[0] === 'owo' && parts[1] === 'wcf') {
+        const amount = parts[2] === 'all' ? 'all' : parseInt(parts[2]);
+        if (!currentUsername) return addMessage(true, "Kamu belum login!");
+        const result = await apiCall('play-wcf', { username: currentUsername, amount });
+        addMessage(true, result.message);
+      } else if (parts[0] === 'owo' && parts[1] === 'wcash') {
+        await checkBalance();
+      } else {
+        addMessage(true, `Command tidak dikenal. Coba:<br><code>owo wcf 5000</code> atau <code>owo wcash</code>`);
+      }
+    }
 
     window.onload = () => {
-      addMessage(true, "Selamat datang!<br>Klik Daftar/Login, lalu setting webhook kamu sendiri.");
+      addMessage(true, "Selamat datang di <b>OwoCash Simulator</b>! 🐰<br>Klik <b>Daftar</b> untuk membuat akun, lalu <b>Login</b> untuk mulai bermain.");
     };
   </script>
 </body>
