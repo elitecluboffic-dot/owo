@@ -3,7 +3,8 @@
 // ============================================================
 
 var currentUsername = null;
-var adminHashCache = null; // ✅ simpan hash admin setelah login
+var currentBalance = null;
+var adminHashCache = null;
 
 // ── API helper ───────────────────────────────────────────────
 async function apiCall(endpoint, body) {
@@ -22,7 +23,7 @@ async function apiCall(endpoint, body) {
   }
 }
 
-// ── Hash helper (untuk admin login di client) ────────────────
+// ── Hash helper ──────────────────────────────────────────────
 async function hashPassword(password) {
   var encoder = new TextEncoder();
   var data = encoder.encode(password);
@@ -96,12 +97,13 @@ async function doLogin() {
   var result = await apiCall('login', { username: username, password: password });
   if (result.success) {
     currentUsername = result.username;
+    currentBalance = result.balance;
     hideLoginModal();
     document.getElementById('login-username').value = '';
     document.getElementById('login-password').value = '';
     addMessage(true,
       'Login berhasil! Selamat datang, <b>' + currentUsername + '</b> 🎉<br>' +
-      'Cowoncy kamu: 🪙 ' + result.balance.toLocaleString('id-ID')
+      'Cowoncy kamu: 🪙 ' + Number(result.balance).toLocaleString('id-ID')
     );
   } else {
     alert(result.message || 'Login gagal.');
@@ -118,11 +120,8 @@ function hideAdminLoginModal() {
 async function doAdminLogin() {
   var password = document.getElementById('admin-password').value;
   if (!password) { alert('Masukkan password!'); return; }
-
-  // ✅ Hash dulu di client, lalu kirim ke server untuk diverifikasi
   var result = await apiCall('admin-login', { password: password });
   if (result.success) {
-    // ✅ Simpan hash untuk dipakai di get-players & set-cash
     adminHashCache = await hashPassword(password);
     hideAdminLoginModal();
     document.getElementById('admin-password').value = '';
@@ -138,7 +137,6 @@ async function showAdminDashboard() {
   var list = document.getElementById('players-list');
   list.innerHTML = '<p style="color:#9ca3af;font-size:0.875rem;">Memuat data...</p>';
 
-  // ✅ Kirim adminHash agar server bisa memverifikasi
   var result = await apiCall('get-players', { adminHash: adminHashCache });
   list.innerHTML = '';
 
@@ -169,8 +167,6 @@ async function setCash(username) {
   var input = document.getElementById('cash-' + username);
   var newBalance = input ? input.value : '';
   if (!newBalance) { alert('Masukkan jumlah cowoncy!'); return; }
-
-  // ✅ Kirim adminHash agar server bisa memverifikasi
   var result = await apiCall('set-cash', {
     adminHash: adminHashCache,
     username: username,
@@ -202,7 +198,7 @@ async function saveUserWebhook() {
   }
 }
 
-// ── WCF & BALANCE ─────────────────────────────────────────────
+// ── WCF ───────────────────────────────────────────────────────
 async function quickWcf(amount) {
   if (!currentUsername) {
     addMessage(true, 'Kamu belum login! Silakan login dulu. 🔑');
@@ -210,83 +206,47 @@ async function quickWcf(amount) {
   }
   addMessage(false, 'owo wcf ' + amount);
   var result = await apiCall('play-wcf', { username: currentUsername, amount: amount });
+  if (result && result.newBalance !== undefined) {
+    currentBalance = result.newBalance;
+  }
   var msg = (result && result.message) ? result.message : 'Terjadi kesalahan.';
   addMessage(true, msg.replace(/\n/g, '<br>'));
 }
 
+// ── WCASH ─────────────────────────────────────────────────────
 async function checkBalance() {
   if (!currentUsername) {
     addMessage(true, 'Kamu belum login! Silakan login dulu. 🔑');
     return;
   }
   addMessage(false, 'owo wcash');
-
-  // ✅ Gunakan endpoint khusus balance bukan get-players (tidak butuh admin)
-  var result = await apiCall('login', { username: currentUsername, _balanceCheck: true });
-  // Fallback: pakai get-players dengan adminHash jika ada, tapi lebih baik
-  // langsung fetch balance dari endpoint login dgn flag, atau buat endpoint baru.
-  // Solusi sederhana: simpan balance lokal dan update setiap wcf.
-  if (currentBalance !== null) {
-    addMessage(true, '💰 Cowoncy kamu: 🪙 ' + Number(currentBalance).toLocaleString('id-ID'));
+  var result = await apiCall('get-balance', { username: currentUsername });
+  if (result && result.success) {
+    currentBalance = result.balance;
+    addMessage(true, '💰 Cowoncy kamu: 🪙 ' + Number(result.balance).toLocaleString('id-ID'));
   } else {
-    addMessage(true, 'Cek balance gagal. Coba login ulang.');
+    addMessage(true, result.message || 'Gagal mengecek balance. Coba login ulang.');
   }
 }
 
-// ✅ Simpan balance lokal agar wcash tidak perlu admin
-var currentBalance = null;
-
-// Override doLogin untuk simpan balance
-var _origDoLogin = doLogin;
-doLogin = async function() {
-  var username = document.getElementById('login-username').value.trim();
-  var password = document.getElementById('login-password').value;
-  if (!username || !password) { alert('Isi semua field!'); return; }
-  var result = await apiCall('login', { username: username, password: password });
-  if (result.success) {
-    currentUsername = result.username;
-    currentBalance = result.balance; // ✅ simpan balance
-    hideLoginModal();
-    document.getElementById('login-username').value = '';
-    document.getElementById('login-password').value = '';
-    addMessage(true,
-      'Login berhasil! Selamat datang, <b>' + currentUsername + '</b> 🎉<br>' +
-      'Cowoncy kamu: 🪙 ' + result.balance.toLocaleString('id-ID')
-    );
-  } else {
-    alert(result.message || 'Login gagal.');
-  }
-};
-
-// Override quickWcf untuk update balance lokal
-var _origQuickWcf = quickWcf;
-quickWcf = async function(amount) {
+// ── WSEND ─────────────────────────────────────────────────────
+async function sendCash(targetUsername, amount) {
   if (!currentUsername) {
     addMessage(true, 'Kamu belum login! Silakan login dulu. 🔑');
     return;
   }
-  addMessage(false, 'owo wcf ' + amount);
-  var result = await apiCall('play-wcf', { username: currentUsername, amount: amount });
+  addMessage(false, 'owo wsend ' + targetUsername + ' ' + amount);
+  var result = await apiCall('send-cash', {
+    username: currentUsername,
+    targetUsername: targetUsername,
+    amount: amount === 'all' ? 'all' : parseInt(amount, 10)
+  });
   if (result && result.newBalance !== undefined) {
-    currentBalance = result.newBalance; // ✅ update balance lokal
+    currentBalance = result.newBalance;
   }
   var msg = (result && result.message) ? result.message : 'Terjadi kesalahan.';
   addMessage(true, msg.replace(/\n/g, '<br>'));
-};
-
-// Override checkBalance untuk pakai balance lokal
-checkBalance = async function() {
-  if (!currentUsername) {
-    addMessage(true, 'Kamu belum login! Silakan login dulu. 🔑');
-    return;
-  }
-  addMessage(false, 'owo wcash');
-  if (currentBalance !== null) {
-    addMessage(true, '💰 Cowoncy kamu: 🪙 ' + Number(currentBalance).toLocaleString('id-ID'));
-  } else {
-    addMessage(true, 'Belum ada data balance. Coba login ulang.');
-  }
-};
+}
 
 // ── COMMAND INPUT ─────────────────────────────────────────────
 async function sendCommand() {
@@ -307,10 +267,22 @@ async function sendCommand() {
   } else if (parts[0] === 'owo' && parts[1] === 'wcash') {
     await checkBalance();
 
+  } else if (parts[0] === 'owo' && parts[1] === 'wsend') {
+    if (!currentUsername) { addMessage(true, 'Kamu belum login! 🔑'); return; }
+    var target = parts[2];
+    var wsendAmount = parts[3] === 'all' ? 'all' : parseInt(parts[3], 10);
+    if (!target) {
+      addMessage(true, 'Format: <code>owo wsend &lt;username&gt; &lt;jumlah&gt;</code><br>Contoh: <code>owo wsend budi 5000</code>');
+      return;
+    }
+    if (!wsendAmount && wsendAmount !== 0) { addMessage(true, 'Jumlah tidak valid.'); return; }
+    await sendCash(target, wsendAmount);
+
   } else {
     addMessage(true,
       'Command tidak dikenal. Coba:<br>' +
-      '<code>owo wcf 5000</code> &nbsp;|&nbsp; <code>owo wcf all</code> &nbsp;|&nbsp; <code>owo wcash</code>'
+      '<code>owo wcf 5000</code> &nbsp;|&nbsp; <code>owo wcf all</code> &nbsp;|&nbsp; <code>owo wcash</code><br>' +
+      '<code>owo wsend &lt;username&gt; &lt;jumlah&gt;</code>'
     );
   }
 }
