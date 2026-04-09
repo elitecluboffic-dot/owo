@@ -1,3 +1,7 @@
 name = "owo"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "public"
+
+[[kv_namespaces]]
+binding = "USERS_KV"
+id = "5f4cf5a9230c4dc2952bd6d0da23dfcf"
