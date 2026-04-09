@@ -17,79 +17,9 @@
       flex-direction: column;
     }
 
-    /* Tailwind-like utilities */
     .hidden { display: none !important; }
-    .flex { display: flex; }
-    .flex-col { flex-direction: column; }
-    .flex-1 { flex: 1; }
-    .items-center { align-items: center; }
-    .justify-center { justify-content: center; }
-    .justify-end { justify-content: flex-end; }
-    .justify-between { justify-content: space-between; }
-    .gap-1 { gap: 4px; }
-    .gap-2 { gap: 8px; }
-    .gap-3 { gap: 12px; }
-    .sticky { position: sticky; }
-    .top-0 { top: 0; }
-    .fixed { position: fixed; }
-    .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
-    .z-40 { z-index: 40; }
-    .z-50 { z-index: 50; }
-    .z-100 { z-index: 100; }
-    .overflow-y-auto { overflow-y: auto; }
-    .overflow-x-auto { overflow-x: auto; }
-    .text-sm { font-size: 0.875rem; }
-    .text-xs { font-size: 0.75rem; }
-    .text-xl { font-size: 1.25rem; }
-    .text-2xl { font-size: 1.5rem; }
-    .font-bold { font-weight: 700; }
-    .font-semibold { font-weight: 600; }
-    .text-right { text-align: right; }
-    .w-full { width: 100%; }
-    .max-w-sm { max-width: 384px; }
-    .max-w-lg { max-width: 512px; }
-    .max-h-90vh { max-height: 90vh; }
-    .mx-4 { margin-left: 16px; margin-right: 16px; }
-    .mb-1 { margin-bottom: 4px; }
-    .mb-3 { margin-bottom: 12px; }
-    .mb-4 { margin-bottom: 16px; }
-    .mb-6 { margin-bottom: 24px; }
-    .mt-1 { margin-top: 4px; }
-    .ml-3 { margin-left: 12px; }
-    .p-3 { padding: 12px; }
-    .p-4 { padding: 16px; }
-    .p-6 { padding: 24px; }
-    .px-3 { padding-left: 12px; padding-right: 12px; }
-    .px-4 { padding-left: 16px; padding-right: 16px; }
-    .py-0\.5 { padding-top: 2px; padding-bottom: 2px; }
-    .py-1 { padding-top: 4px; padding-bottom: 4px; }
-    .py-2 { padding-top: 8px; padding-bottom: 8px; }
-    .py-3 { padding-top: 12px; padding-bottom: 12px; }
-    .space-y-3 > * + * { margin-top: 12px; }
-    .space-y-6 > * + * { margin-top: 24px; }
-    .pb-28 { padding-bottom: 112px; }
-    .outline-none { outline: none; }
 
-    /* Colors */
-    .bg-dark { background: #36393e; }
-    .bg-darker { background: #2f3136; }
-    .bg-darkest { background: #202225; }
-    .bg-input { background: #40444b; }
-    .bg-blue { background: #5865f2; }
-    .bg-blue-btn { background: #2563eb; }
-    .bg-green-btn { background: #16a34a; }
-    .bg-yellow-btn { background: #ca8a04; }
-    .bg-purple-btn { background: #7c3aed; }
-    .bg-yellow-admin { background: #d97706; }
-    .bg-overlay { background: rgba(0,0,0,0.8); }
-
-    .text-blue { color: #5865f2; }
-    .text-cyan { color: #00b0f4; }
-    .text-gray { color: #9ca3af; }
-    .text-yellow { color: #facc15; }
-    .text-white { color: #ffffff; }
-
-    /* Components */
+    /* TOP NAV */
     .topnav {
       background: #2f3136;
       height: 56px;
@@ -118,7 +48,7 @@
     }
 
     .btn {
-      padding: 4px 16px;
+      padding: 6px 14px;
       border-radius: 8px;
       font-size: 0.875rem;
       border: none;
@@ -126,23 +56,22 @@
       color: white;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
       transition: filter 0.15s;
+      white-space: nowrap;
     }
     .btn:hover { filter: brightness(1.15); }
-    .btn-blue { background: #2563eb; }
-    .btn-green { background: #16a34a; }
+    .btn-blue   { background: #2563eb; }
+    .btn-green  { background: #16a34a; }
     .btn-yellow { background: #ca8a04; }
-    .btn-purple { background: #7c3aed; }
-    .btn-gray { background: #40444b; }
-    .btn-indigo { background: #5865f2; }
 
+    /* CHAT */
     #chat {
       flex: 1;
       overflow-y: auto;
       padding: 16px;
       background: #36393e;
-      padding-bottom: 112px;
+      padding-bottom: 120px;
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -178,14 +107,9 @@
       margin-bottom: 4px;
     }
 
-    .owo-name { font-weight: 600; color: #00b0f4; }
-    .owo-badge {
-      background: #5865f2;
-      font-size: 10px;
-      padding: 1px 6px;
-      border-radius: 4px;
-    }
-    .owo-time { font-size: 11px; color: #6b7280; }
+    .owo-name  { font-weight: 600; color: #00b0f4; }
+    .owo-badge { background: #5865f2; font-size: 10px; padding: 1px 6px; border-radius: 4px; }
+    .owo-time  { font-size: 11px; color: #6b7280; }
 
     .owo-text { font-size: 0.875rem; line-height: 1.5; }
     .owo-text code {
@@ -195,9 +119,7 @@
       font-size: 0.8rem;
     }
 
-    .user-bubble {
-      max-width: 75%;
-    }
+    .user-bubble { max-width: 75%; }
     .user-bubble .text {
       background: #5865f2;
       color: white;
@@ -213,14 +135,14 @@
       margin-top: 4px;
     }
 
-    /* Quick buttons bar */
+    /* QUICK BAR */
     #quick-bar {
       position: fixed;
-      bottom: 68px;
+      bottom: 64px;
       left: 0;
       right: 0;
       background: #2f3136;
-      padding: 10px 12px;
+      padding: 8px 12px;
       overflow-x: auto;
       display: flex;
       gap: 8px;
@@ -233,25 +155,27 @@
       background: #40444b;
       color: #dcddde;
       border: none;
-      padding: 8px 16px;
+      padding: 7px 14px;
       border-radius: 12px;
       cursor: pointer;
-      font-size: 0.875rem;
+      font-size: 0.8rem;
       white-space: nowrap;
       transition: background 0.15s;
     }
-    .quick-btn:hover { background: #5865f2; color: white; }
-    .quick-btn.purple { background: #7c3aed; color: white; }
-    .quick-btn.purple:hover { background: #6d28d9; }
+    .quick-btn:hover         { background: #5865f2; color: white; }
+    .quick-btn.purple        { background: #7c3aed; color: white; }
+    .quick-btn.purple:hover  { background: #6d28d9; }
+    .quick-btn.teal          { background: #0e7490; color: white; }
+    .quick-btn.teal:hover    { background: #0369a1; }
 
-    /* Command input */
+    /* CMD BAR */
     #cmd-bar {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
       background: #40444b;
-      padding: 10px 12px;
+      padding: 8px 12px;
       z-index: 50;
     }
 
@@ -260,7 +184,7 @@
       border-radius: 24px;
       display: flex;
       align-items: center;
-      padding: 8px 16px;
+      padding: 6px 16px;
     }
 
     #command-input {
@@ -270,26 +194,28 @@
       outline: none;
       color: #dcddde;
       font-size: 1rem;
+      padding: 4px 0;
     }
     #command-input::placeholder { color: #6b7280; }
 
     .send-btn {
-      margin-left: 12px;
+      margin-left: 10px;
       background: #5865f2;
       border: none;
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       color: white;
       transition: background 0.15s;
+      flex-shrink: 0;
     }
     .send-btn:hover { background: #4752c4; }
 
-    /* Modals */
+    /* MODALS */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -316,7 +242,7 @@
     }
 
     .modal-title {
-      font-size: 1.25rem;
+      font-size: 1.15rem;
       font-weight: 700;
       margin-bottom: 16px;
       display: flex;
@@ -327,97 +253,58 @@
     .modal-subtitle {
       font-size: 0.875rem;
       color: #9ca3af;
+      margin-top: -10px;
       margin-bottom: 16px;
-      margin-top: -8px;
     }
 
     .modal-input {
       width: 100%;
       background: #202225;
       border: none;
-      border-radius: 16px;
-      padding: 12px 16px;
+      border-radius: 14px;
+      padding: 11px 16px;
       outline: none;
       color: #dcddde;
       font-size: 0.95rem;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       display: block;
     }
-
     .modal-input.mono { font-family: monospace; font-size: 0.85rem; }
-    .modal-input:last-of-type { margin-bottom: 24px; }
+    .modal-input:last-of-type { margin-bottom: 20px; }
 
-    .modal-actions {
-      display: flex;
-      gap: 12px;
-    }
+    .modal-actions { display: flex; gap: 10px; margin-top: 4px; }
 
     .modal-cancel {
       flex: 1;
-      padding: 12px;
+      padding: 11px;
       background: transparent;
       border: none;
       color: #9ca3af;
       cursor: pointer;
-      border-radius: 16px;
+      border-radius: 14px;
       font-size: 0.95rem;
     }
     .modal-cancel:hover { color: white; background: #40444b; }
 
     .modal-confirm {
       flex: 1;
-      padding: 12px;
+      padding: 11px;
       border: none;
-      border-radius: 16px;
+      border-radius: 14px;
       font-weight: 600;
       cursor: pointer;
       color: white;
       font-size: 0.95rem;
       transition: filter 0.15s;
     }
-    .modal-confirm:hover { filter: brightness(1.15); }
-    .modal-confirm.blue { background: #2563eb; }
-    .modal-confirm.green { background: #16a34a; }
+    .modal-confirm:hover  { filter: brightness(1.15); }
+    .modal-confirm.blue   { background: #2563eb; }
+    .modal-confirm.green  { background: #16a34a; }
     .modal-confirm.yellow { background: #ca8a04; }
     .modal-confirm.purple { background: #7c3aed; }
+    .modal-confirm.teal   { background: #0e7490; }
 
-    /* Admin dashboard */
-    .player-card {
-      background: #2f3136;
-      border-radius: 16px;
-      padding: 14px 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .player-info { flex: 1; }
-    .player-name { font-weight: 600; }
-    .player-balance { font-size: 0.875rem; color: #9ca3af; margin-top: 2px; }
-
-    .cash-input {
-      background: #202225;
-      border: none;
-      border-radius: 10px;
-      padding: 8px 10px;
-      width: 110px;
-      outline: none;
-      color: #dcddde;
-      font-size: 0.875rem;
-    }
-
-    .set-btn {
-      background: #ca8a04;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 10px;
-      color: white;
-      cursor: pointer;
-      font-size: 0.875rem;
-      transition: filter 0.15s;
-    }
-    .set-btn:hover { filter: brightness(1.15); }
-
+    /* ADMIN DASHBOARD */
     .modal-header {
       display: flex;
       align-items: center;
@@ -435,6 +322,43 @@
       border-radius: 8px;
     }
     .modal-close:hover { color: white; background: #40444b; }
+
+    .player-card {
+      background: #2f3136;
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .player-info   { flex: 1; }
+    .player-name   { font-weight: 600; font-size: 0.9rem; }
+    .player-balance { font-size: 0.8rem; color: #9ca3af; margin-top: 2px; }
+
+    .cash-input {
+      background: #202225;
+      border: none;
+      border-radius: 10px;
+      padding: 7px 10px;
+      width: 108px;
+      outline: none;
+      color: #dcddde;
+      font-size: 0.8rem;
+    }
+
+    .set-btn {
+      background: #ca8a04;
+      border: none;
+      padding: 7px 12px;
+      border-radius: 10px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: filter 0.15s;
+      white-space: nowrap;
+    }
+    .set-btn:hover { filter: brightness(1.15); }
   </style>
 </head>
 <body>
@@ -442,12 +366,12 @@
   <!-- TOP NAV -->
   <div class="topnav">
     <div class="topnav-title">
-      <span class="text-blue" style="font-size:1.5rem">#</span>
+      <span style="color:#5865f2;font-size:1.4rem">#</span>
       <span>main-owo-disini</span>
     </div>
     <div class="topnav-btns">
-      <button class="btn btn-blue" onclick="showRegisterModal()">Daftar</button>
-      <button class="btn btn-green" onclick="showLoginModal()">Login</button>
+      <button class="btn btn-blue"   onclick="showRegisterModal()">Daftar</button>
+      <button class="btn btn-green"  onclick="showLoginModal()">Login</button>
       <button class="btn btn-yellow" onclick="showAdminLoginModal()">
         <i class="fa-solid fa-crown"></i> Admin
       </button>
@@ -457,18 +381,21 @@
   <!-- CHAT -->
   <div id="chat"></div>
 
-  <!-- QUICK BUTTONS -->
+  <!-- QUICK BAR -->
   <div id="quick-bar">
     <button class="quick-btn" onclick="quickWcf(5000)">wcf 5000</button>
     <button class="quick-btn" onclick="quickWcf('all')">wcf all</button>
     <button class="quick-btn" onclick="checkBalance()">wcash</button>
+    <button class="quick-btn teal"   onclick="showWsendModal()">wsend</button>
     <button class="quick-btn purple" onclick="showWebhookSetting()">Webhook</button>
   </div>
 
-  <!-- COMMAND INPUT -->
+  <!-- CMD BAR -->
   <div id="cmd-bar">
     <div class="cmd-inner">
-      <input id="command-input" type="text" placeholder="Ketik command..." onkeydown="if(event.key==='Enter') sendCommand()">
+      <input id="command-input" type="text"
+        placeholder="Ketik command... (owo wcf / owo wcash / owo wsend)"
+        onkeydown="if(event.key==='Enter') sendCommand()">
       <button class="send-btn" onclick="sendCommand()">
         <i class="fa-solid fa-paper-plane"></i>
       </button>
@@ -479,11 +406,11 @@
   <div id="register-modal" class="modal-overlay hidden">
     <div class="modal-box">
       <div class="modal-title">Daftar Akun</div>
-      <input id="reg-username" type="text" placeholder="Username (min 3 karakter)" class="modal-input">
-      <input id="reg-password" type="password" placeholder="Password" class="modal-input" style="margin-bottom:24px">
+      <input id="reg-username" type="text"     placeholder="Username (min 3 karakter)" class="modal-input">
+      <input id="reg-password" type="password" placeholder="Password" class="modal-input">
       <div class="modal-actions">
-        <button class="modal-cancel" onclick="hideRegisterModal()">Batal</button>
-        <button class="modal-confirm blue" onclick="doRegister()">Daftar</button>
+        <button class="modal-cancel"        onclick="hideRegisterModal()">Batal</button>
+        <button class="modal-confirm blue"  onclick="doRegister()">Daftar</button>
       </div>
     </div>
   </div>
@@ -492,11 +419,11 @@
   <div id="login-modal" class="modal-overlay hidden">
     <div class="modal-box">
       <div class="modal-title">Login</div>
-      <input id="login-username" type="text" placeholder="Username" class="modal-input">
-      <input id="login-password" type="password" placeholder="Password" class="modal-input" style="margin-bottom:24px">
+      <input id="login-username" type="text"     placeholder="Username" class="modal-input">
+      <input id="login-password" type="password" placeholder="Password" class="modal-input">
       <div class="modal-actions">
-        <button class="modal-cancel" onclick="hideLoginModal()">Batal</button>
-        <button class="modal-confirm green" onclick="doLogin()">Login</button>
+        <button class="modal-cancel"         onclick="hideLoginModal()">Batal</button>
+        <button class="modal-confirm green"  onclick="doLogin()">Login</button>
       </div>
     </div>
   </div>
@@ -508,10 +435,10 @@
         <i class="fa-solid fa-crown" style="color:#facc15"></i> Admin Login
       </div>
       <p class="modal-subtitle">Masukkan password admin</p>
-      <input id="admin-password" type="password" placeholder="Password Admin" class="modal-input" style="margin-bottom:24px">
+      <input id="admin-password" type="password" placeholder="Password Admin" class="modal-input">
       <div class="modal-actions">
-        <button class="modal-cancel" onclick="hideAdminLoginModal()">Batal</button>
-        <button class="modal-confirm yellow" onclick="doAdminLogin()">Masuk</button>
+        <button class="modal-cancel"          onclick="hideAdminLoginModal()">Batal</button>
+        <button class="modal-confirm yellow"  onclick="doAdminLogin()">Masuk</button>
       </div>
     </div>
   </div>
@@ -521,10 +448,28 @@
     <div class="modal-box">
       <div class="modal-title">Setting Webhook Discord</div>
       <p class="modal-subtitle">Masukkan Webhook URL channel Discord milikmu</p>
-      <input id="webhook-url-input" type="text" placeholder="https://discord.com/api/webhooks/..." class="modal-input mono" style="margin-bottom:24px">
+      <input id="webhook-url-input" type="text"
+        placeholder="https://discord.com/api/webhooks/..."
+        class="modal-input mono">
       <div class="modal-actions">
-        <button class="modal-cancel" onclick="hideWebhookModal()">Batal</button>
-        <button class="modal-confirm purple" onclick="saveUserWebhook()">Simpan</button>
+        <button class="modal-cancel"          onclick="hideWebhookModal()">Batal</button>
+        <button class="modal-confirm purple"  onclick="saveUserWebhook()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WSEND MODAL -->
+  <div id="wsend-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">
+        <i class="fa-solid fa-paper-plane" style="color:#22d3ee"></i> Kirim Cowoncy
+      </div>
+      <p class="modal-subtitle">Transfer cowoncy ke pemain lain</p>
+      <input id="wsend-target"  type="text"   placeholder="Username tujuan" class="modal-input">
+      <input id="wsend-amount"  type="text"   placeholder="Jumlah (atau ketik: all)" class="modal-input">
+      <div class="modal-actions">
+        <button class="modal-cancel"        onclick="hideWsendModal()">Batal</button>
+        <button class="modal-confirm teal"  onclick="doWsendModal()">Kirim</button>
       </div>
     </div>
   </div>
@@ -538,7 +483,7 @@
         </div>
         <button class="modal-close" onclick="hideAdminDashboard()">✕</button>
       </div>
-      <div id="players-list" style="display:flex;flex-direction:column;gap:12px;"></div>
+      <div id="players-list" style="display:flex;flex-direction:column;gap:10px;"></div>
     </div>
   </div>
 
