@@ -6,8 +6,11 @@ export const onRequestPost = async ({ request, env }) => {
   const inputHash = Array.from(new Uint8Array(hashBuffer))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
+
+  const headers = { 'Content-Type': 'application/json' };
+
   if (inputHash === env.ADMIN_HASH) {
-    return new Response(JSON.stringify({ success: true, message: "Login admin berhasil" }));
+    return new Response(JSON.stringify({ success: true, message: "Login admin berhasil" }), { headers });
   }
-  return new Response(JSON.stringify({ success: false, message: "Password admin salah" }), { status: 401 });
+  return new Response(JSON.stringify({ success: false, message: "Password admin salah" }), { status: 401, headers });
 };
