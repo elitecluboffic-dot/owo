@@ -1,16 +1,18 @@
 export const onRequestPost = async ({ request, env }) => {
   const headers = { 'Content-Type': 'application/json' };
-
   const signature = request.headers.get('x-signature-ed25519');
   const timestamp = request.headers.get('x-signature-timestamp');
-  const body      = await request.text();
+  const body = await request.text();
 
-  // Kalau tidak ada signature → langsung tolak
   if (!signature || !timestamp) {
     return new Response('Missing headers', { status: 401 });
   }
 
-  // Skip verifikasi dulu untuk debug
+  const isValid = await verifySignature(env.DISCORD_PUBLIC_KEY, signature, timestamp, body);
+  if (!isValid) {
+    return new Response('Invalid signature', { status: 401 });
+  }
+
   const interaction = JSON.parse(body);
 
   if (interaction.type === 1) {
@@ -22,8 +24,7 @@ export const onRequestPost = async ({ request, env }) => {
     const options   = interaction.data.options || [];
     const discordId = interaction.member?.user?.id || interaction.user?.id;
     const username  = interaction.member?.user?.username || interaction.user?.username;
-
-    const userKey = await env.USERS_KV.get(`discord:${discordId}`);
+    const userKey   = await env.USERS_KV.get(`discord:${discordId}`);
 
     if (cmd === 'register') {
       if (userKey) return respond('❌ Kamu sudah punya akun!');
@@ -88,6 +89,26 @@ export const onRequestPost = async ({ request, env }) => {
 
   return new Response('ok', { status: 200 });
 };
+
+async function verifySignature(publicKey, signature, timestamp, body) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    hexToUint8Array(publicKey),
+    { name: 'Ed25519' },
+    false,
+    ['verify']
+  );
+  return crypto.subtle.verify(
+    'Ed25519',
+    key,
+    hexToUint8Array(signature),
+    new TextEncoder().encode(timestamp + body)
+  );
+}
+
+function hexToUint8Array(hex) {
+  return new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+}
 
 function getOption(options, name) {
   const opt = options.find(o => o.name === name);
