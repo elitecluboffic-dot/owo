@@ -2,6 +2,9 @@ name = "owo"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "public"
 
+[vars]
+DISCORD_PUBLIC_KEY = "a65876d5f253e47437e808993a15fabb0dced5eeeb9706d9701dfca306f43cc0"
+
 [[kv_namespaces]]
 binding = "USERS_KV"
 id = "5f4cf5a9230c4dc2952bd6d0da23dfcf"
