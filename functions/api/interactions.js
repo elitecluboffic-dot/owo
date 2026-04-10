@@ -341,32 +341,111 @@ if (cmd === 'partner') {
 if (cmd === 'roast') {
   const targetId = getOption(options, 'target');
   const targetMention = targetId ? `<@${targetId}>` : `<@${discordId}>`;
-  const targetName = targetId ? `user dengan ID ${targetId}` : username;
 
-  if (!env.HF_API_KEY) return respond('⚠️ HF_API_KEY belum diset di Cloudflare!');
+  const roasts = [
+    `otaknya kayak RAM 256MB, lemot & sering not responding 💀`,
+    `mukanya kayak captcha, bikin orang males lanjut 😭`,
+    `hidupnya kayak wifi gratisan, sering putus & gak bisa diandalkan 📶`,
+    `kayak baterai 1%, selalu minta perhatian tapi gak ada gunanya 🔋`,
+    `ngomongnya kayak iklan youtube, skip terus tetep muncul 😤`,
+    `otaknya kayak flashdisk 2GB, isinya kosong & udah jadul 💾`,
+    `kayak sinyal di lift, hilang pas paling dibutuhin 📵`,
+    `hidupnya kayak loading bar 99%, lama banget ga kelar-kelar ⏳`,
+    `kayak aplikasi yang gak pernah di-update, penuh bug & ketinggalan zaman 🐛`,
+    `mukanya kayak error 404, dicari-cari tapi gak ketemu yang bagus 😬`,
+    `kayak printer kantor, lemot, sering macet & bikin frustrasi 🖨️`,
+    `otaknya kayak recycle bin, isinya sampah semua 🗑️`,
+    `kayak mouse tanpa baterai, gerak-geraknya gak ada arahnya 🖱️`,
+    `hidupnya kayak dark mode, gelap & bikin mata sakit 🌑`,
+    `kayak keyboard tanpa huruf A, ada yang kurang tapi gak ketauan 😂`,
+    `kayak update windows, datangnya gak diundang & ganggu mulu ⚙️`,
+    `kayak harddisk penuh, lemot & gak bisa nerima hal baru 💽`,
+    `kayak notifikasi spam, sering muncul tapi gak penting 🔔`,
+    `kayak laptop overheat, panas tapi gak ada gunanya 🔥`,
+    `kayak password yang lupa, susah diinget & bikin repot 🔑`,
+    `kayak game mobile, banyak iklannya tapi gameplaynya gak ada 📱`,
+    `kayak earphone murah, gampang rusak & suaranya cempreng 🎧`,
+    `kayak charger palsu, lama ngisinya & berbahaya 🔌`,
+    `kayak GPS rusak, sering nyasar & gak bisa diandalkan 🗺️`,
+    `kayak baterai laptop 2%, hidup sebentar lalu mati total 🪫`,
+    `kayak software bajakan, penuh virus & gak ada supportnya 💻`,
+    `kayak koneksi 2G, lemot banget & bikin emosi 🐌`,
+    `kayak tombol skip yang gak muncul-muncul, nyebelin abis ⏭️`,
+    `kayak server down, pas dibutuhin malah gak bisa diakses 🚫`,
+    `kayak foto blur, ada tapi gak jelas juga buat apa 📷`,
+    `kayak buku tanpa isi, covernya oke tapi dalamnya kosong 📚`,
+    `kayak kamus tanpa kata, ada tapi gak berguna sama sekali 📖`,
+    `kayak jam mati, bener cuma 2x sehari 🕐`,
+    `kayak payung bolong, ada tapi tetep bikin basah ☂️`,
+    `kayak obat kadaluarsa, ada tapi bahaya kalau dipake 💊`,
+    `kayak kompas yang salah arah, nyesatin orang mulu 🧭`,
+    `kayak cermin buram, pantulannya gak jelas & gak membantu 🪞`,
+    `kayak kalkulator rusak, jawabannya selalu salah 🔢`,
+    `kayak alarm yang gak bunyi, ada tapi gak fungsi sama sekali ⏰`,
+    `kayak lift yang macet, naik dulu tapi akhirnya stuck di tengah 🛗`,
+    `kayak AC tanpa freon, ada tapi panasnya tetep kerasa 🥵`,
+    `kayak remote tanpa baterai, pegang-pegang tapi gak ada hasilnya 📺`,
+    `kayak peta kuno, ada tapi semua infonya udah gak relevan 🗺️`,
+    `kayak mesin fax, ada yang pake tapi udah gak zaman 📠`,
+    `kayak disket 1.44MB, kecil kapasitasnya & udah gak kepake 💾`,
+    `kayak telepon umum, jarang ada yang mau pake lagi 📞`,
+    `kayak VCD player, udah ketinggalan zaman banget 📀`,
+    `kayak antena tv analog, sering gangguan & gambarnya bintik-bintik 📡`,
+    `kayak koran kemarin, infonya udah basi semua 📰`,
+    `kayak kalender tahun lalu, udah gak relevan tapi masih dipajang 📅`,
+    `kayak bola kempes, ada tapi gak bisa diajak main ⚽`,
+    `kayak raket putus, mau dipake tapi malah bikin gagal 🏸`,
+    `kayak sepatu berlubang, ada tapi malah bikin celaka 👟`,
+    `kayak payung terbalik, ada tapi malah nampung masalah ☂️`,
+    `kayak tas bocor, semua yang dipercayain malah ilang 👜`,
+    `kayak kunci patah, udah susah dipake & bikin repot 🔑`,
+    `kayak lilin di bawah hujan, nyalanya gak lama & gak berguna 🕯️`,
+    `kayak es batu di padang pasir, cepet ilang & gak ada gunanya 🧊`,
+    `kayak api di bawah air, excited tapi langsung padam 🔥`,
+    `kayak balon bocor, penuh semangat tapi cepet kempes 🎈`,
+    `kayak bunga plastik, keliatannya oke tapi gak ada wangi & nyawanya 🌸`,
+    `kayak hiasan dinding, ada tapi gak kontribusi apa-apa 🖼️`,
+    `kayak patung lilin, mirip manusia tapi gak ada isinya 🗿`,
+    `kayak boneka baru, lucu sebentar terus ditinggal di pojok 🪆`,
+    `kayak mainan rusak, dibawa-bawa tapi udah gak fungsi 🧸`,
+    `kayak puzzle kurang 1 keping, gak pernah bisa komplit 🧩`,
+    `kayak kartu remi joker, ada tapi gak selalu dibutuhin 🃏`,
+    `kayak dadu curang, hasilnya gak pernah bisa dipercaya 🎲`,
+    `kayak catur tanpa raja, mainin tapi gak ada tujuannya ♟️`,
+    `kayak kendang tanpa suara, gerak-gerak tapi gak ada hasilnya 🥁`,
+    `kayak gitar fals, ada bunyinya tapi bikin telinga sakit 🎸`,
+    `kayak mikrofon mati, ngomong banyak tapi gak ada yang denger 🎤`,
+    `kayak speaker dengan volume 0, ada tapi percuma aja 🔊`,
+    `kayak headset kabel kusut, ada tapi ribet & bikin frustrasi 🎧`,
+    `kayak foto tanpa subjek, ada tapi gak ada isinya 📸`,
+    `kayak video tanpa audio, ada tapi setengah-setengah 🎬`,
+    `kayak film tanpa plot, panjang tapi gak ada ceritanya 🎥`,
+    `kayak buku tanpa ending, bikin penasaran tapi gak memuaskan 📕`,
+    `kayak lagu tanpa lirik, ada melodinya tapi gak ada maknanya 🎵`,
+    `kayak resep tanpa takaran, ada tapi hasilnya gak jelas 📋`,
+    `kayak masakan tanpa garam, ada tapi hambar banget 🧂`,
+    `kayak kopi tanpa kafein, ada tapi gak ada efeknya ☕`,
+    `kayak pizza tanpa topping, ada tapi ngebosenin 🍕`,
+    `kayak burger tanpa isi, ada tapi cuma kulit doang 🍔`,
+    `kayak mi instan tanpa bumbu, ada tapi gak ada rasanya 🍜`,
+    `kayak es krim yang udah mencair, ada tapi udah gak enak 🍦`,
+    `kayak permen tanpa rasa, ada tapi bikin kecewa 🍬`,
+    `kayak coklat pahit tanpa manis, ada tapi ninggalin rasa gak enak 🍫`,
+    `kayak minuman bersoda yang kempes, udah gak ada sparkle-nya 🥤`,
+    `kayak buah busuk, dari luar oke tapi dalamnya udah gak layak 🍎`,
+    `kayak sayur layu, dulunya segar tapi sekarang gak berguna 🥬`,
+    `kayak nasi basi, ada tapi bahaya kalau tetep dipake 🍚`,
+    `kayak telur retak, kelihatannya utuh tapi udah bocor dari dalam 🥚`,
+    `kayak susu kadaluarsa, udah lewat masanya tapi masih sok fresh 🥛`,
+    `kayak roti berjamur, dari luar oke tapi dalamnya udah rusak 🍞`,
+    `kayak teh tanpa daun teh, ada airnya tapi gak ada isinya 🍵`,
+    `kayak jus tanpa buah, ada warnanya tapi gak ada substansinya 🧃`,
+    `kayak sup tanpa kuah, ada mangkuknya tapi kosong melompong 🍲`,
+    `kayak mie tanpa mi, ada wadahnya tapi isinya nihil 🍝`,
+  ];
 
-  try {
-    const aiRes = await fetch('https://router.huggingface.co/hf-inference/models/microsoft/DialoGPT-medium/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.HF_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'mistralai/Mistral-7B-Instruct-v0.3',
-        messages: [{
-          role: 'user',
-          content: `Buat 1 kalimat roast lucu bahasa Indonesia gaul untuk ${targetName}. Langsung tulis roastnya saja tanpa penjelasan.`
-        }],
-        max_tokens: 100
-      })
-    });
-    const aiData = await aiRes.json();
-    const roastText = aiData.choices?.[0]?.message?.content?.trim() || JSON.stringify(aiData);
-    return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roastText}`);
-  } catch (e) {
-    return respond(`⚠️ Error: ${e.message}`);
-  }
+  const roast = roasts[Math.floor(Math.random() * roasts.length)];
+  return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roast}`);
 }
     
 
