@@ -342,6 +342,9 @@ if (cmd === 'roast') {
   const targetId = getOption(options, 'target');
   const targetMention = targetId ? `<@${targetId}>` : `<@${discordId}>`;
   const targetName = targetId ? `user dengan ID ${targetId}` : username;
+
+  if (!env.GEMINI_API_KEY) return respond('⚠️ GEMINI_API_KEY belum diset di Cloudflare!');
+
   try {
     const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${env.GEMINI_API_KEY}`, {
       method: 'POST',
@@ -354,8 +357,14 @@ if (cmd === 'roast') {
         }]
       })
     });
+
+    if (!aiRes.ok) {
+      const errData = await aiRes.json();
+      return respond(`⚠️ Gemini Error: ${errData.error?.message || 'Unknown error'}`);
+    }
+
     const aiData = await aiRes.json();
-    const roastText = aiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || JSON.stringify(aiData);
+    const roastText = aiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Gak ada kata-kata yang cukup buat roast kamu 😂';
     return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roastText}`);
   } catch (e) {
     return respond(`⚠️ Error: ${e.message}`);
