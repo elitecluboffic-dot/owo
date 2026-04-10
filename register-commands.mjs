@@ -63,6 +63,10 @@ const commands = [
     name: 'withdraw',
     description: 'Ambil cowoncy dari bank 💵',
     options: [{ name: 'jumlah', description: 'Jumlah cowoncy (angka atau "all")', type: 3, required: true }]
+  },
+  {
+    name: 'join-giveaway',
+    description: 'Ikut giveaway aktif 🎁'
   }
 ];
 console.log('⏳ Mendaftarkan slash commands...\n');
