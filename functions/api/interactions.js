@@ -205,6 +205,138 @@ export const onRequestPost = async ({ request, env }) => {
       return respond(`✅ Kamu berhasil ikut giveaway!\n👥 Total peserta: **${giveaway.participants.length}**`);
     }
 
+    if (cmd === 'marry') {
+  const targetId = getOption(options, 'target');
+  if (!targetId) return respond('❌ Target tidak valid!');
+  if (targetId === discordId) return respond('❌ Tidak bisa melamar diri sendiri!');
+
+  // Cek sudah punya pasangan
+  if (user.partnerId) {
+    return respond(`❌ Kamu sudah punya pasangan! <@${user.partnerId}>\nGunakan \`/divorce\` dulu.`);
+  }
+
+  // Cek target ada
+  const targetStr = await env.USERS_KV.get(`user:${targetId}`);
+  if (!targetStr) return respond('❌ Target belum punya akun!');
+  const target = JSON.parse(targetStr);
+
+  // Cek target sudah punya pasangan
+  if (target.partnerId) {
+    return respond(`❌ <@${targetId}> sudah punya pasangan!`);
+  }
+
+  // Cek sudah ada lamaran pending
+  const existingProposal = await env.USERS_KV.get(`proposal:${targetId}`);
+  if (existingProposal) {
+    return respond(`❌ <@${targetId}> sudah ada yang melamar! Tunggu dulu.`);
+  }
+
+  // Simpan lamaran
+  await env.USERS_KV.put(`proposal:${targetId}`, JSON.stringify({
+    fromId: discordId,
+    fromUsername: username,
+    createdAt: Date.now()
+  }), { expirationTtl: 300 }); // expired 5 menit
+
+  return respond(
+    `💍 **${username}** melamar <@${targetId}>!\n\n` +
+    `<@${targetId}> ketik:\n` +
+    `✅ \`/accept-marry\` untuk menerima\n` +
+    `❌ \`/tolak-marry\` untuk menolak\n\n` +
+    `⏰ Lamaran expired dalam **5 menit**`
+  );
+}
+
+if (cmd === 'accept-marry') {
+  // Cek ada lamaran
+  const proposalStr = await env.USERS_KV.get(`proposal:${discordId}`);
+  if (!proposalStr) return respond('❌ Tidak ada lamaran untukmu saat ini!');
+  const proposal = JSON.parse(proposalStr);
+
+  // Cek sudah punya pasangan
+  if (user.partnerId) return respond('❌ Kamu sudah punya pasangan!');
+
+  // Cek pelamar masih ada
+  const suitorStr = await env.USERS_KV.get(`user:${proposal.fromId}`);
+  if (!suitorStr) return respond('❌ Data pelamar tidak ditemukan!');
+  const suitor = JSON.parse(suitorStr);
+
+  if (suitor.partnerId) return respond('❌ Pelamar sudah punya pasangan lain!');
+
+  // Jadikan pasangan
+  user.partnerId = proposal.fromId;
+  user.partnerUsername = proposal.fromUsername;
+  user.marriedAt = Date.now();
+
+  suitor.partnerId = discordId;
+  suitor.partnerUsername = username;
+  suitor.marriedAt = Date.now();
+
+  await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+  await env.USERS_KV.put(`user:${proposal.fromId}`, JSON.stringify(suitor));
+  await env.USERS_KV.delete(`proposal:${discordId}`);
+
+  return respond(
+    `💒 **Selamat!** <@${proposal.fromId}> & <@${discordId}> resmi menjadi pasangan!\n` +
+    `👫 Semoga bahagia selalu~ 💕`
+  );
+}
+
+if (cmd === 'tolak-marry') {
+  const proposalStr = await env.USERS_KV.get(`proposal:${discordId}`);
+  if (!proposalStr) return respond('❌ Tidak ada lamaran untukmu saat ini!');
+  const proposal = JSON.parse(proposalStr);
+
+  await env.USERS_KV.delete(`proposal:${discordId}`);
+
+  return respond(
+    `💔 <@${discordId}> menolak lamaran **${proposal.fromUsername}**\n` +
+    `Sabar ya, jodoh masih banyak! 😢`
+  );
+}
+
+if (cmd === 'divorce') {
+  if (!user.partnerId) return respond('❌ Kamu belum punya pasangan!');
+
+  const partnerStr = await env.USERS_KV.get(`user:${user.partnerId}`);
+  const oldPartnerId = user.partnerId;
+
+  // Hapus dari kedua sisi
+  user.partnerId = null;
+  user.partnerUsername = null;
+  user.marriedAt = null;
+  await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+
+  if (partnerStr) {
+    const partner = JSON.parse(partnerStr);
+    partner.partnerId = null;
+    partner.partnerUsername = null;
+    partner.marriedAt = null;
+    await env.USERS_KV.put(`user:${oldPartnerId}`, JSON.stringify(partner));
+  }
+
+  return respond(
+    `💔 **${username}** telah bercerai dari <@${oldPartnerId}>\n` +
+    `Semoga lekas move on~ 😢`
+  );
+}
+
+if (cmd === 'partner') {
+  if (!user.partnerId) return respond('❌ Kamu belum punya pasangan!\nGunakan `/marry @user` untuk melamar seseorang 💍');
+
+  const marriedAt = user.marriedAt ? new Date(user.marriedAt) : null;
+  const daysTogether = marriedAt
+    ? Math.floor((Date.now() - user.marriedAt) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  return respond(
+    `👫 **Pasangan ${username}**\n\n` +
+    `💕 Partner: <@${user.partnerId}>\n` +
+    `📅 Menikah: ${marriedAt ? marriedAt.toLocaleDateString('id-ID') : 'Tidak diketahui'}\n` +
+    `❤️ Sudah bersama: **${daysTogether} hari**`
+  );
+}
+
     return respond('❓ Command tidak dikenal.');
   }
 
