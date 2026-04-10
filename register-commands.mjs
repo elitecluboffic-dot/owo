@@ -37,6 +37,10 @@ const commands = [
   {
     name: 'kerja',
     description: 'Kerja dan dapat gaji 🪙 25.000 (cooldown 1 jam)'
+  },
+  {
+    name: 'ping',
+    description: 'Cek latency bot 🏓'
   }
 ];
 console.log('⏳ Mendaftarkan slash commands...\n');
