@@ -1363,9 +1363,20 @@ if (cmd === 'infopemilikbot') {
   ].join('\n'));
 }
 
-    if (cmd === 'avatar') {
-  const target = interaction.options.getUser('user') || interaction.user;
-  const avatar = target.displayAvatarURL({ size: 1024, extension: 'png', forceStatic: false });
+
+    
+if (cmd === 'avatar') {
+  const targetOption = options.find(o => o.name === 'user');
+  const targetId = targetOption ? String(targetOption.value) : discordId;
+  const targetUser = targetOption 
+    ? interaction.data.resolved?.users?.[targetId]
+    : (interaction.member?.user || interaction.user);
+
+  if (!targetUser) return respond('❌ User tidak ditemukan!');
+
+  const avatar = targetUser.avatar
+    ? `https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar}.${targetUser.avatar.startsWith('a_') ? 'gif' : 'png'}?size=1024`
+    : `https://cdn.discordapp.com/embed/avatars/${parseInt(targetUser.discriminator || 0) % 5}.png`;
 
   return respond([
     `\`\`\`ansi`,
@@ -1373,8 +1384,8 @@ if (cmd === 'infopemilikbot') {
     `\u001b[2;34m║  \u001b[1;33m🖼️  AVATAR USER  🖼️\u001b[0m  \u001b[2;34m║\u001b[0m`,
     `\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m`,
     `\`\`\``,
-    `👤 **User:** ${target.tag}`,
-    `🆔 **ID:** \`${target.id}\``,
+    `👤 **User:** ${targetUser.username}`,
+    `🆔 **ID:** \`${targetUser.id}\``,
     `🔗 **Link:** [Klik disini](${avatar})`,
     ``,
     avatar
