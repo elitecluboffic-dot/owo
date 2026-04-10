@@ -1362,6 +1362,24 @@ if (cmd === 'infopemilikbot') {
     `> 💀 *Dibuat, dirancang & dijalankan oleh* **Bimxr** ⚔️`
   ].join('\n'));
 }
+
+    if (cmd === 'avatar') {
+  const target = interaction.options.getUser('user') || interaction.user;
+  const avatar = target.displayAvatarURL({ size: 1024, extension: 'png', forceStatic: false });
+
+  return respond([
+    `\`\`\`ansi`,
+    `\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m`,
+    `\u001b[2;34m║  \u001b[1;33m🖼️  AVATAR USER  🖼️\u001b[0m  \u001b[2;34m║\u001b[0m`,
+    `\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m`,
+    `\`\`\``,
+    `👤 **User:** ${target.tag}`,
+    `🆔 **ID:** \`${target.id}\``,
+    `🔗 **Link:** [Klik disini](${avatar})`,
+    ``,
+    avatar
+  ].join('\n'));
+}
     
 
     return respond('❓ Command tidak dikenal.');
