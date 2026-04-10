@@ -337,6 +337,49 @@ if (cmd === 'partner') {
   );
 }
 
+
+    if (cmd === 'roast') {
+  const targetId = getOption(options, 'target');
+  const targetMention = targetId ? `<@${targetId}>` : `<@${discordId}>`;
+  const targetName = targetId ? `user dengan ID ${targetId}` : username;
+
+  try {
+    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 150,
+        messages: [{
+          role: 'user',
+          content: `Buat 1 kalimat roast lucu dalam bahasa Indonesia gaul untuk ${targetName}. 
+          Gaya: santai, receh, gak kasar, boleh pakai analogi teknologi/internet/game.
+          Langsung tulis roastnya saja tanpa penjelasan tambahan, tanpa tanda kutip.`
+        }]
+      })
+    });
+
+    const aiData = await aiRes.json();
+    const roastText = aiData.content?.[0]?.text?.trim() || 'Gak ada kata-kata yang cukup buat roast kamu 😂';
+
+    return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roastText}`);
+
+  } catch (e) {
+    // Fallback kalau AI gagal
+    const fallbacks = [
+      `${targetMention} otaknya kayak RAM 256MB, lemot & sering not responding 💀`,
+      `${targetMention} mukanya kayak captcha, bikin orang males lanjut 😭`,
+      `${targetMention} hidupnya kayak wifi gratisan, sering putus & gak bisa diandalkan 📶`,
+    ];
+    return respond(`🔥 **ROASTED!**\n\n${fallbacks[Math.floor(Math.random() * fallbacks.length)]}`);
+  }
+}
+    
+
     return respond('❓ Command tidak dikenal.');
   }
 
