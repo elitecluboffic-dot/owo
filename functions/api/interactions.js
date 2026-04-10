@@ -343,24 +343,19 @@ if (cmd === 'roast') {
   const targetMention = targetId ? `<@${targetId}>` : `<@${discordId}>`;
   const targetName = targetId ? `user dengan ID ${targetId}` : username;
   try {
-    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+    const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${env.GEMINI_API_KEY}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 150,
-        messages: [{
-          role: 'user',
-          content: `Buat 1 kalimat roast lucu dalam bahasa Indonesia gaul untuk ${targetName}. Gaya: santai, receh, gak kasar, boleh pakai analogi teknologi/internet/game. Langsung tulis roastnya saja tanpa penjelasan tambahan, tanpa tanda kutip.`
+        contents: [{
+          parts: [{
+            text: `Buat 1 kalimat roast lucu dalam bahasa Indonesia gaul untuk ${targetName}. Gaya: santai, receh, gak kasar, boleh pakai analogi teknologi/internet/game. Langsung tulis roastnya saja tanpa penjelasan tambahan, tanpa tanda kutip.`
+          }]
         }]
       })
     });
     const aiData = await aiRes.json();
-    const roastText = aiData.content?.[0]?.text?.trim() || JSON.stringify(aiData);
+    const roastText = aiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || JSON.stringify(aiData);
     return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roastText}`);
   } catch (e) {
     return respond(`⚠️ Error: ${e.message}`);
