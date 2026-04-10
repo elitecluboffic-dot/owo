@@ -122,6 +122,38 @@ export const onRequestPost = async ({ request, env }) => {
       return respond(`🏓 Pong! **${latency}ms**`);
     }
 
+    if (cmd === 'stats') {
+      const list = await env.USERS_KV.list({ prefix: 'user:' });
+      let totalPlayers = 0;
+      let totalCowoncy = 0;
+      for (const key of list.keys) {
+        const u = await env.USERS_KV.get(key.name);
+        if (u) {
+          const parsed = JSON.parse(u);
+          totalPlayers++;
+          totalCowoncy += parsed.balance || 0;
+        }
+      }
+      return respond(`📊 **Server Stats**\n👥 Total Pemain: **${totalPlayers}**\n🪙 Total Cowoncy Beredar: **${totalCowoncy.toLocaleString()}**`);
+    }
+
+    if (cmd === 'leaderboard') {
+      const list = await env.USERS_KV.list({ prefix: 'user:' });
+      const players = [];
+      for (const key of list.keys) {
+        const u = await env.USERS_KV.get(key.name);
+        if (u) {
+          const parsed = JSON.parse(u);
+          players.push({ username: key.name.replace('user:', ''), balance: parsed.balance || 0 });
+        }
+      }
+      players.sort((a, b) => b.balance - a.balance);
+      const top = players.slice(0, 10);
+      const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+      const msg = top.map((p, i) => `${medals[i]} **${p.username}** — 🪙 ${p.balance.toLocaleString()}`).join('\n');
+      return respond(`🏆 **Leaderboard Top 10**\n\n${msg || 'Belum ada pemain.'}`);
+    }
+
     return respond('❓ Command tidak dikenal.');
   }
 
