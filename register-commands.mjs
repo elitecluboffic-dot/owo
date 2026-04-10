@@ -49,6 +49,20 @@ const commands = [
   {
     name: 'leaderboard',
     description: 'Ranking 10 pemain terkaya 🏆'
+  },
+  {
+    name: 'bank',
+    description: 'Cek saldo bank & bunga 10%/minggu 🏦'
+  },
+  {
+    name: 'deposit',
+    description: 'Simpan cowoncy ke bank 💰',
+    options: [{ name: 'jumlah', description: 'Jumlah cowoncy (angka atau "all")', type: 3, required: true }]
+  },
+  {
+    name: 'withdraw',
+    description: 'Ambil cowoncy dari bank 💵',
+    options: [{ name: 'jumlah', description: 'Jumlah cowoncy (angka atau "all")', type: 3, required: true }]
   }
 ];
 console.log('⏳ Mendaftarkan slash commands...\n');
