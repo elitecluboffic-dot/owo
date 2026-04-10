@@ -346,16 +346,7 @@ if (cmd === 'roast') {
   if (!env.GEMINI_API_KEY) return respond('⚠️ GEMINI_API_KEY belum diset di Cloudflare!');
 
   try {
-    // Cek model tersedia
-    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${env.GEMINI_API_KEY}`);
-    const listData = await listRes.json();
-    const models = listData.models?.map(m => m.name) || [];
-    
-    // Pilih model yang tersedia
-    const model = models.find(m => m.includes('gemini')) || 'models/gemini-pro';
-    const modelName = model.replace('models/', '');
-
-    const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${env.GEMINI_API_KEY}`, {
+    const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${env.GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
