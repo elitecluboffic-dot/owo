@@ -1326,6 +1326,36 @@ if (cmd === 'unafk') {
   await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
   return respond(`✅ **${username}** sudah tidak AFK\n⏱️ Durasi AFK: **${durStr}**`);
 }
+
+    
+
+    if (cmd === 'infopemilikbot') {
+  const line = (icon, label, value) =>
+    `${icon} **${label}:** ${value}`;
+
+  return respond([
+    `\`\`\`ansi`,
+    `[2;34m╔══════════════════════════════════╗[0m`,
+    `[2;34m║[0m  [1;33m👑 OWO BIM — UNSTOPPABLE[0m  [2;34m║[0m`,
+    `[2;34m╚══════════════════════════════════╝[0m`,
+    `\`\`\``,
+    line('👑', 'Pemilik', '<@1442230317455900823>'),
+    line('🪐', 'Server', "Kraxx's Domain"),
+    line('⚙️', 'Versi', '`v∞.0.0`'),
+    line('⚡', 'Engine', 'Cloudflare Workers — Ultra Fast 🚀'),
+    ``,
+    `\`\`\`ansi`,
+    `[1;32m📦 FITUR UNGGULAN[0m`,
+    `[0;37m• 💰 Ekonomi & bank\n• 💍 Sistem pernikahan\n• 🔥 Roast generator\n• 💤 AFK system\n• 🏆 Leaderboard & giveaway[0m`,
+    `\`\`\``,
+    `\`\`\`ansi`,
+    `[1;31m⚠️  BOT BERMASALAH?[0m`,
+    `[0;37mHubungi pemilik bot segera![0m`,
+    `[1;33m👤 Discord: @bimxr[0m`,
+    `\`\`\``,
+    `> 💀 *Dibuat, dirancang & dijalankan oleh* **Bimxr** ⚔️`
+  ].join('\n'));
+}
     
 
     return respond('❓ Command tidak dikenal.');
