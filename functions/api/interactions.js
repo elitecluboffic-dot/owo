@@ -154,6 +154,46 @@ export const onRequestPost = async ({ request, env }) => {
       return respond(`🏆 **Leaderboard Top 10**\n\n${msg || 'Belum ada pemain.'}`);
     }
 
+    if (cmd === 'bank') {
+      const now = Date.now();
+      const bankBalance = user.bankBalance || 0;
+      const lastBunga = user.lastBunga || now;
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
+      const weeksPassed = Math.floor((now - lastBunga) / weekMs);
+      if (weeksPassed > 0 && bankBalance > 0) {
+        const bunga = Math.floor(bankBalance * 0.1 * weeksPassed);
+        user.bankBalance = bankBalance + bunga;
+        user.lastBunga = lastBunga + (weeksPassed * weekMs);
+        await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+        return respond(`🏦 **Bank ${username}**\n💰 Saldo Bank: 🪙 **${user.bankBalance.toLocaleString()}**\n📈 Bunga +🪙 **${bunga.toLocaleString()}** (${weeksPassed} minggu)\n💵 Saldo Dompet: 🪙 **${user.balance.toLocaleString()}**`);
+      }
+      return respond(`🏦 **Bank ${username}**\n💰 Saldo Bank: 🪙 **${bankBalance.toLocaleString()}**\n📈 Bunga 10%/minggu\n💵 Saldo Dompet: 🪙 **${user.balance.toLocaleString()}**`);
+    }
+
+    if (cmd === 'deposit') {
+      const amountRaw = getOption(options, 'jumlah');
+      const amount = amountRaw === 'all' ? user.balance : parseInt(amountRaw);
+      if (!amount || amount <= 0) return respond('❌ Jumlah tidak valid.');
+      if (amount > user.balance) return respond(`❌ Saldo tidak cukup! Dompet: 🪙 **${user.balance.toLocaleString()}**`);
+      user.balance -= amount;
+      user.bankBalance = (user.bankBalance || 0) + amount;
+      if (!user.lastBunga) user.lastBunga = Date.now();
+      await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+      return respond(`✅ Deposit berhasil! +🪙 **${amount.toLocaleString()}** ke bank\n🏦 Saldo Bank: 🪙 **${user.bankBalance.toLocaleString()}**\n💵 Saldo Dompet: 🪙 **${user.balance.toLocaleString()}**`);
+    }
+
+    if (cmd === 'withdraw') {
+      const amountRaw = getOption(options, 'jumlah');
+      const bankBalance = user.bankBalance || 0;
+      const amount = amountRaw === 'all' ? bankBalance : parseInt(amountRaw);
+      if (!amount || amount <= 0) return respond('❌ Jumlah tidak valid.');
+      if (amount > bankBalance) return respond(`❌ Saldo bank tidak cukup! Bank: 🪙 **${bankBalance.toLocaleString()}**`);
+      user.bankBalance -= amount;
+      user.balance += amount;
+      await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+      return respond(`✅ Withdraw berhasil! +🪙 **${amount.toLocaleString()}** ke dompet\n🏦 Saldo Bank: 🪙 **${user.bankBalance.toLocaleString()}**\n💵 Saldo Dompet: 🪙 **${user.balance.toLocaleString()}**`);
+    }
+
     return respond('❓ Command tidak dikenal.');
   }
 
