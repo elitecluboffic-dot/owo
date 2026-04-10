@@ -102,6 +102,11 @@ const commands = [
 {
   name: 'unafk',
   description: 'Hapus status AFK kamu ✅'
+},
+
+  {
+  name: 'infopemilikbot',
+  description: ' Lihat info & fitur OWO BIM bot'
 }
   
 ];
