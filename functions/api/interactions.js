@@ -343,29 +343,23 @@ if (cmd === 'roast') {
   const targetMention = targetId ? `<@${targetId}>` : `<@${discordId}>`;
   const targetName = targetId ? `user dengan ID ${targetId}` : username;
 
-  if (!env.GEMINI_API_KEY) return respond('⚠️ GEMINI_API_KEY belum diset di Cloudflare!');
+  if (!env.HF_API_KEY) return respond('⚠️ HF_API_KEY belum diset di Cloudflare!');
 
   try {
-    const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${env.GEMINI_API_KEY}`, {
+    const aiRes = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${env.HF_API_KEY}`
+      },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `Buat 1 kalimat roast lucu dalam bahasa Indonesia gaul untuk ${targetName}. Gaya: santai, receh, gak kasar, boleh pakai analogi teknologi/internet/game. Langsung tulis roastnya saja tanpa penjelasan tambahan, tanpa tanda kutip.`
-          }]
-        }]
+        inputs: `Buat 1 kalimat roast lucu bahasa Indonesia gaul untuk ${targetName}. Langsung tulis roastnya saja.`,
+        parameters: { max_new_tokens: 100, return_full_text: false }
       })
     });
-
-    if (!aiRes.ok) {
-      const errData = await aiRes.json();
-      return respond(`⚠️ Gemini Error: ${errData.error?.message || 'Unknown error'}`);
-    }
-
     const aiData = await aiRes.json();
-    const roastText = aiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Gak ada kata-kata yang cukup buat roast kamu 😂';
-    return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roastText}`);
+    const roastText = Array.isArray(aiData) ? aiData[0]?.generated_text?.trim() : JSON.stringify(aiData);
+    return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roastText || 'Gak ada kata-kata buat roast kamu 😂'}`);
   } catch (e) {
     return respond(`⚠️ Error: ${e.message}`);
   }
