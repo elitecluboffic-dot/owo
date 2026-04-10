@@ -41,6 +41,14 @@ const commands = [
   {
     name: 'ping',
     description: 'Cek latency bot 🏓'
+  },
+  {
+    name: 'stats',
+    description: 'Lihat statistik server 📊'
+  },
+  {
+    name: 'leaderboard',
+    description: 'Ranking 10 pemain terkaya 🏆'
   }
 ];
 console.log('⏳ Mendaftarkan slash commands...\n');
