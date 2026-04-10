@@ -109,6 +109,7 @@ const commands = [
   description: ' Lihat info & fitur OWO BIM bot'
 },
 
+  
 {
     name: 'avatar',
     description: 'Ambil foto profil user 🖼️',
@@ -122,10 +123,6 @@ const commands = [
     ]
   },
   {
-    name: 'serverinfo',
-    description: 'Lihat informasi server 🌐'
-  },
-  {
     name: 'userinfo',
     description: 'Lihat info detail user 👤',
     options: [
@@ -137,6 +134,7 @@ const commands = [
       }
     ]
   }
+
   
 ];
 console.log('⏳ Mendaftarkan slash commands...\n');
