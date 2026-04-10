@@ -93,7 +93,17 @@ const commands = [
     name: 'roast',
     description: 'Roast seseorang dengan kata-kata pedas 🔥',
     options: [{ name: 'target', description: 'User yang mau diroast', type: 6, required: false }]
-  }
+  },
+  {
+  name: 'afk',
+  description: 'Set status AFK kamu 💤',
+  options: [{ name: 'alasan', description: 'Alasan AFK (opsional)', type: 3, required: false }]
+},
+{
+  name: 'unafk',
+  description: 'Hapus status AFK kamu ✅'
+}
+  
 ];
 console.log('⏳ Mendaftarkan slash commands...\n');
 const res = await fetch(
