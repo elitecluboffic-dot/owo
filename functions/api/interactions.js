@@ -360,7 +360,7 @@ if (cmd === 'roast') {
       })
     });
     const aiData = await aiRes.json();
-    const roastText = aiData.content?.[0]?.text?.trim() || 'Gak ada kata-kata yang cukup buat roast kamu 😂';
+    const roastText = aiData.content?.[0]?.text?.trim() || JSON.stringify(aiData);
     return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roastText}`);
   } catch (e) {
     return respond(`⚠️ Error: ${e.message}`);
