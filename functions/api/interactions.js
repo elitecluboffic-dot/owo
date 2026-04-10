@@ -20,6 +20,21 @@ export const onRequestPost = async ({ request, env }) => {
   }
 
   if (interaction.type === 2) {
+
+    // Cek kalau ada user yang di-mention, apakah dia lagi AFK
+const mentionedUsers = interaction.data.options?.filter(o => o.type === 6) || [];
+for (const opt of mentionedUsers) {
+  const mentionedId = String(opt.value);
+  const mentionedStr = await env.USERS_KV.get(`user:${mentionedId}`);
+  if (mentionedStr) {
+    const mentionedUser = JSON.parse(mentionedStr);
+    if (mentionedUser.afk?.status) {
+      const menit = Math.floor((Date.now() - mentionedUser.afk.since) / 60000);
+      return respond(`💤 <@${mentionedId}> sedang AFK!\n📝 Alasan: **${mentionedUser.afk.alasan}**\n⏱️ Sudah AFK selama **${menit} menit**`);
+    }
+  }
+}
+    
     const cmd       = interaction.data.name;
     const options   = interaction.data.options || [];
     const discordId = interaction.member?.user?.id || interaction.user?.id;
@@ -1291,6 +1306,25 @@ if (cmd === 'roast') {
 
   const roast = roasts[Math.floor(Math.random() * roasts.length)];
   return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roast}`);
+}
+
+
+    if (cmd === 'afk') {
+  const alasan = getOption(options, 'alasan') || 'Tidak ada alasan';
+  user.afk = { status: true, alasan, since: Date.now() };
+  await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+  return respond(`💤 **${username}** sekarang AFK\n📝 Alasan: **${alasan}**`);
+}
+
+if (cmd === 'unafk') {
+  if (!user.afk?.status) return respond('❌ Kamu tidak sedang AFK!');
+  const duration = Date.now() - user.afk.since;
+  const menit = Math.floor(duration / 60000);
+  const jam = Math.floor(menit / 60);
+  const durStr = jam > 0 ? `${jam} jam ${menit % 60} menit` : `${menit} menit`;
+  user.afk = { status: false, alasan: null, since: null };
+  await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+  return respond(`✅ **${username}** sudah tidak AFK\n⏱️ Durasi AFK: **${durStr}**`);
 }
     
 
