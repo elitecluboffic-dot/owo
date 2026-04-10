@@ -346,20 +346,24 @@ if (cmd === 'roast') {
   if (!env.HF_API_KEY) return respond('⚠️ HF_API_KEY belum diset di Cloudflare!');
 
   try {
-    const aiRes = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3', {
+    const aiRes = await fetch('https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${env.HF_API_KEY}`
       },
       body: JSON.stringify({
-        inputs: `Buat 1 kalimat roast lucu bahasa Indonesia gaul untuk ${targetName}. Langsung tulis roastnya saja.`,
-        parameters: { max_new_tokens: 100, return_full_text: false }
+        model: 'mistralai/Mistral-7B-Instruct-v0.3',
+        messages: [{
+          role: 'user',
+          content: `Buat 1 kalimat roast lucu bahasa Indonesia gaul untuk ${targetName}. Langsung tulis roastnya saja tanpa penjelasan.`
+        }],
+        max_tokens: 100
       })
     });
     const aiData = await aiRes.json();
-    const roastText = Array.isArray(aiData) ? aiData[0]?.generated_text?.trim() : JSON.stringify(aiData);
-    return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roastText || 'Gak ada kata-kata buat roast kamu 😂'}`);
+    const roastText = aiData.choices?.[0]?.message?.content?.trim() || JSON.stringify(aiData);
+    return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roastText}`);
   } catch (e) {
     return respond(`⚠️ Error: ${e.message}`);
   }
