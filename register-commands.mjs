@@ -107,7 +107,36 @@ const commands = [
   {
   name: 'infopemilikbot',
   description: ' Lihat info & fitur OWO BIM bot'
-}
+},
+
+{
+    name: 'avatar',
+    description: 'Ambil foto profil user 🖼️',
+    options: [
+      {
+        name: 'user',
+        description: 'User yang mau diambil avatarnya',
+        type: 6,
+        required: false
+      }
+    ]
+  },
+  {
+    name: 'serverinfo',
+    description: 'Lihat informasi server 🌐'
+  },
+  {
+    name: 'userinfo',
+    description: 'Lihat info detail user 👤',
+    options: [
+      {
+        name: 'user',
+        description: 'User yang mau dilihat infonya',
+        type: 6,
+        required: false
+      }
+    ]
+  }
   
 ];
 console.log('⏳ Mendaftarkan slash commands...\n');
