@@ -88,7 +88,12 @@ const commands = [
 {
   name: 'partner',
   description: 'Lihat info pasangan kamu 👫'
-}
+},
+  {
+    name: 'roast',
+    description: 'Roast seseorang dengan kata-kata pedas 🔥',
+    options: [{ name: 'target', description: 'User yang mau diroast', type: 6, required: false }]
+  }
 ];
 console.log('⏳ Mendaftarkan slash commands...\n');
 const res = await fetch(
