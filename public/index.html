@@ -474,6 +474,22 @@
     </div>
   </div>
 
+  <!-- GIVEAWAY MODAL -->
+<div id="giveaway-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">
+      <i class="fa-solid fa-gift" style="color:#22d3ee"></i> Buat Giveaway
+    </div>
+    <p class="modal-subtitle">Buat giveaway cowoncy untuk pemain</p>
+    <input id="giveaway-jumlah" type="number" placeholder="Jumlah cowoncy" class="modal-input">
+    <input id="giveaway-durasi" type="number" placeholder="Durasi (menit)" class="modal-input">
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="hideGiveawayModal()">Batal</button>
+      <button class="modal-confirm teal" onclick="doCreateGiveaway()">Mulai</button>
+    </div>
+  </div>
+</div>
+
   <!-- ADMIN DASHBOARD MODAL -->
   <div id="admin-dashboard" class="modal-overlay hidden">
     <div class="modal-box large">
@@ -483,7 +499,12 @@
         </div>
         <button class="modal-close" onclick="hideAdminDashboard()">✕</button>
       </div>
-      <div id="players-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+  <button class="btn btn-blue" style="flex:1" onclick="showGiveawayModal()">
+    <i class="fa-solid fa-gift"></i> Giveaway
+  </button>
+</div>
+<div id="players-list" style="display:flex;flex-direction:column;gap:10px;"></div>
     </div>
   </div>
 
