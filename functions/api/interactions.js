@@ -338,21 +338,20 @@ if (cmd === 'partner') {
 }
 
 
-    if (cmd === 'roast') {
+if (cmd === 'roast') {
   const targetId = getOption(options, 'target');
   const targetMention = targetId ? `<@${targetId}>` : `<@${discordId}>`;
   const targetName = targetId ? `user dengan ID ${targetId}` : username;
 
   try {
-    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+    const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
+        'Authorization': `Bearer ${env.OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'gpt-4o-mini',
         max_tokens: 150,
         messages: [{
           role: 'user',
@@ -364,12 +363,10 @@ if (cmd === 'partner') {
     });
 
     const aiData = await aiRes.json();
-    const roastText = aiData.content?.[0]?.text?.trim() || 'Gak ada kata-kata yang cukup buat roast kamu 😂';
-
+    const roastText = aiData.choices?.[0]?.message?.content?.trim() || 'Gak ada kata-kata yang cukup buat roast kamu 😂';
     return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roastText}`);
 
   } catch (e) {
-    // Fallback kalau AI gagal
     const fallbacks = [
       `${targetMention} otaknya kayak RAM 256MB, lemot & sering not responding 💀`,
       `${targetMention} mukanya kayak captcha, bikin orang males lanjut 😭`,
