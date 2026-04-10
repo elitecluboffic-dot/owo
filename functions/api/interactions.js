@@ -346,7 +346,7 @@ if (cmd === 'roast') {
   if (!env.GEMINI_API_KEY) return respond('⚠️ GEMINI_API_KEY belum diset di Cloudflare!');
 
   try {
-    const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${env.GEMINI_API_KEY}`, {
+    const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${env.GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
