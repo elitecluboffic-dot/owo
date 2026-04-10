@@ -346,7 +346,7 @@ if (cmd === 'roast') {
   if (!env.HF_API_KEY) return respond('⚠️ HF_API_KEY belum diset di Cloudflare!');
 
   try {
-    const aiRes = await fetch('https://router.huggingface.co/hf-inference/models/mistralai/Mistral-7B-Instruct-v0.3/v1/chat/completions', {
+    const aiRes = await fetch('https://router.huggingface.co/hf-inference/models/HuggingFaceH4/zephyr-7b-beta/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
