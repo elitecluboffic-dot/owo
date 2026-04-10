@@ -116,6 +116,12 @@ export const onRequestPost = async ({ request, env }) => {
       return respond(`✅ Kamu sudah bekerja keras! +🪙 **25.000**\nSaldo: 🪙 **${user.balance.toLocaleString()}**`);
     }
 
+    if (cmd === 'ping') {
+      const latency = Date.now() - JSON.parse(body === '' ? '{}' : body).id ? 
+        Date.now() - Number(BigInt(interaction.id) >> 22n) - 1420070400000 : 0;
+      return respond(`🏓 Pong! **${latency}ms**`);
+    }
+
     return respond('❓ Command tidak dikenal.');
   }
 
