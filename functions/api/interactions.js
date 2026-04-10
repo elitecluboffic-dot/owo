@@ -194,6 +194,17 @@ export const onRequestPost = async ({ request, env }) => {
       return respond(`✅ Withdraw berhasil! +🪙 **${amount.toLocaleString()}** ke dompet\n🏦 Saldo Bank: 🪙 **${user.bankBalance.toLocaleString()}**\n💵 Saldo Dompet: 🪙 **${user.balance.toLocaleString()}**`);
     }
 
+    if (cmd === 'join-giveaway') {
+      const giveawayStr = await env.USERS_KV.get('giveaway:active');
+      if (!giveawayStr) return respond('❌ Tidak ada giveaway aktif saat ini!');
+      const giveaway = JSON.parse(giveawayStr);
+      if (Date.now() > giveaway.endTime) return respond('❌ Giveaway sudah berakhir!');
+      if (giveaway.participants.includes(discordId)) return respond('❌ Kamu sudah ikut giveaway ini!');
+      giveaway.participants.push(discordId);
+      await env.USERS_KV.put('giveaway:active', JSON.stringify(giveaway));
+      return respond(`✅ Kamu berhasil ikut giveaway!\n👥 Total peserta: **${giveaway.participants.length}**`);
+    }
+
     return respond('❓ Command tidak dikenal.');
   }
 
