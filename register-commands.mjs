@@ -67,7 +67,28 @@ const commands = [
   {
     name: 'join-giveaway',
     description: 'Ikut giveaway aktif 🎁'
-  }
+  },
+  {
+  name: 'marry',
+  description: 'Lamar user lain 💍',
+  options: [{ name: 'target', description: 'User yang mau dilamar', type: 6, required: true }]
+},
+{
+  name: 'accept-marry',
+  description: 'Terima lamaran 💍'
+},
+{
+  name: 'tolak-marry',
+  description: 'Tolak lamaran 💔'
+},
+{
+  name: 'divorce',
+  description: 'Cerai dari pasangan 💔'
+},
+{
+  name: 'partner',
+  description: 'Lihat info pasangan kamu 👫'
+}
 ];
 console.log('⏳ Mendaftarkan slash commands...\n');
 const res = await fetch(
