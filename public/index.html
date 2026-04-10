@@ -490,7 +490,7 @@
   </div>
 </div>
 
-  <!-- ADMIN DASHBOARD MODAL -->
+<!-- ADMIN DASHBOARD MODAL -->
   <div id="admin-dashboard" class="modal-overlay hidden">
     <div class="modal-box large">
       <div class="modal-header">
@@ -500,14 +500,18 @@
         <button class="modal-close" onclick="hideAdminDashboard()">✕</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:12px;">
-  <button class="btn btn-blue" style="flex:1" onclick="showGiveawayModal()">
-    <i class="fa-solid fa-gift"></i> Giveaway
-  </button>
-</div>
-<div id="players-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+        <button class="btn btn-blue" style="flex:1" onclick="showGiveawayModal()">
+          <i class="fa-solid fa-gift"></i> Giveaway
+        </button>
+        <button class="btn" style="flex:1;background:#dc2626;" onclick="doEndGiveaway()">
+          <i class="fa-solid fa-trophy"></i> End Giveaway
+        </button>
+      </div>
+      <div id="players-list" style="display:flex;flex-direction:column;gap:10px;"></div>
     </div>
   </div>
 
+  
   <script src="app.js"></script>
 </body>
 </html>
