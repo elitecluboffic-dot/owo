@@ -287,6 +287,30 @@ async function sendCommand() {
   }
 }
 
+// ── GIVEAWAY ─────────────────────────────────────────────────
+function showGiveawayModal() {
+  document.getElementById('giveaway-modal').classList.remove('hidden');
+}
+function hideGiveawayModal() {
+  document.getElementById('giveaway-modal').classList.add('hidden');
+}
+async function doCreateGiveaway() {
+  var jumlah = parseInt(document.getElementById('giveaway-jumlah').value);
+  var durasi = parseInt(document.getElementById('giveaway-durasi').value);
+  if (!jumlah || !durasi) { alert('Isi semua field!'); return; }
+  var result = await apiCall('create-giveaway', {
+    adminHash: adminHashCache,
+    jumlah: jumlah,
+    durasi: durasi
+  });
+  alert(result.message || (result.success ? 'Giveaway dimulai!' : 'Gagal.'));
+  if (result.success) {
+    hideGiveawayModal();
+    document.getElementById('giveaway-jumlah').value = '';
+    document.getElementById('giveaway-durasi').value = '';
+  }
+}
+
 // ── UTILITY ───────────────────────────────────────────────────
 function escapeHtml(str) {
   return String(str)
