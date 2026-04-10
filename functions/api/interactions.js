@@ -84,6 +84,38 @@ export const onRequestPost = async ({ request, env }) => {
       return respond(`✅ Kirim 🪙 **${amount.toLocaleString()}** ke <@${targetId}>\nSisa: 🪙 **${user.balance.toLocaleString()}**`);
     }
 
+    if (cmd === 'daily') {
+      const now = Date.now();
+      const lastDaily = user.lastDaily || 0;
+      const cooldown = 24 * 60 * 60 * 1000;
+      if (now - lastDaily < cooldown) {
+        const sisa = cooldown - (now - lastDaily);
+        const jam = Math.floor(sisa / 3600000);
+        const menit = Math.floor((sisa % 3600000) / 60000);
+        return respond(`❌ Daily sudah diambil! Coba lagi dalam **${jam}j ${menit}m**`);
+      }
+      user.balance += 15000;
+      user.lastDaily = now;
+      await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+      return respond(`✅ Daily berhasil! +🪙 **15.000**\nSaldo: 🪙 **${user.balance.toLocaleString()}**`);
+    }
+
+    if (cmd === 'kerja') {
+      const now = Date.now();
+      const lastKerja = user.lastKerja || 0;
+      const cooldown = 60 * 60 * 1000;
+      if (now - lastKerja < cooldown) {
+        const sisa = cooldown - (now - lastKerja);
+        const menit = Math.floor(sisa / 60000);
+        const detik = Math.floor((sisa % 60000) / 1000);
+        return respond(`❌ Kamu masih lelah! Istirahat dulu **${menit}m ${detik}d**`);
+      }
+      user.balance += 25000;
+      user.lastKerja = now;
+      await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+      return respond(`✅ Kamu sudah bekerja keras! +🪙 **25.000**\nSaldo: 🪙 **${user.balance.toLocaleString()}**`);
+    }
+
     return respond('❓ Command tidak dikenal.');
   }
 
