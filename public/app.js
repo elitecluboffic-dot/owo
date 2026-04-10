@@ -311,6 +311,12 @@ async function doCreateGiveaway() {
   }
 }
 
+async function doEndGiveaway() {
+  if (!confirm('Akhiri giveaway dan pilih pemenang sekarang?')) return;
+  var result = await apiCall('end-giveaway-admin', { adminHash: adminHashCache });
+  alert(result.message || (result.success ? 'Giveaway selesai!' : 'Gagal.'));
+}
+
 // ── UTILITY ───────────────────────────────────────────────────
 function escapeHtml(str) {
   return String(str)
