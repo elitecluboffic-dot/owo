@@ -342,16 +342,15 @@ if (cmd === 'roast') {
   const targetId = getOption(options, 'target');
   const targetMention = targetId ? `<@${targetId}>` : `<@${discordId}>`;
   const targetName = targetId ? `user dengan ID ${targetId}` : username;
-
   try {
-    const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+    const aiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.OPENAI_API_KEY}`
+        'Authorization': `Bearer ${env.GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'llama3-8b-8192',
         max_tokens: 150,
         messages: [{
           role: 'user',
@@ -361,11 +360,9 @@ if (cmd === 'roast') {
         }]
       })
     });
-
     const aiData = await aiRes.json();
     const roastText = aiData.choices?.[0]?.message?.content?.trim() || 'Gak ada kata-kata yang cukup buat roast kamu 😂';
     return respond(`🔥 **ROASTED!**\n\n${targetMention} ${roastText}`);
-
   } catch (e) {
     const fallbacks = [
       `${targetMention} otaknya kayak RAM 256MB, lemot & sering not responding 💀`,
