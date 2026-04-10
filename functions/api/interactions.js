@@ -1329,29 +1329,36 @@ if (cmd === 'unafk') {
 
     
 
-    if (cmd === 'infopemilikbot') {
+if (cmd === 'infopemilikbot') {
   const line = (icon, label, value) =>
     `${icon} **${label}:** ${value}`;
 
   return respond([
     `\`\`\`ansi`,
-    `[2;34m╔══════════════════════════════════╗[0m`,
-    `[2;34m║[0m  [1;33m👑 OWO BIM — UNSTOPPABLE[0m  [2;34m║[0m`,
-    `[2;34m╚══════════════════════════════════╝[0m`,
+    `[2;34m╔══════════════════════════════════════╗[0m`,
+    `[2;34m║  [1;33m👑  OWO BIM — UNSTOPPABLE  👑[0m  [2;34m║[0m`,
+    `[2;34m║  [0;37m「 The Bot That Cannot Be Stopped 」[0m  [2;34m║[0m`,
+    `[2;34m╚══════════════════════════════════════╝[0m`,
     `\`\`\``,
     line('👑', 'Pemilik', '<@1442230317455900823>'),
     line('🪐', 'Server', "Kraxx's Domain"),
-    line('⚙️', 'Versi', '`v∞.0.0`'),
+    line('⚙️', 'Versi', '`v9.9.9`'),
     line('⚡', 'Engine', 'Cloudflare Workers — Ultra Fast 🚀'),
+    line('🌐', 'Status', '`🟢 ONLINE`'),
     ``,
     `\`\`\`ansi`,
-    `[1;32m📦 FITUR UNGGULAN[0m`,
-    `[0;37m• 💰 Ekonomi & bank\n• 💍 Sistem pernikahan\n• 🔥 Roast generator\n• 💤 AFK system\n• 🏆 Leaderboard & giveaway[0m`,
+    `[1;32m━━━━━━━━━━ FITUR UNGGULAN ━━━━━━━━━━[0m`,
+    `[1;33m 💰[0m [0;37mSistem Ekonomi & Bank[0m`,
+    `[1;33m 💍[0m [0;37mSistem Pernikahan[0m`,
+    `[1;33m 🔥[0m [0;37mRoast Generator[0m`,
+    `[1;33m 💤[0m [0;37mAFK System[0m`,
+    `[1;33m 🏆[0m [0;37mLeaderboard & Giveaway[0m`,
+    `[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m`,
     `\`\`\``,
     `\`\`\`ansi`,
-    `[1;31m⚠️  BOT BERMASALAH?[0m`,
-    `[0;37mHubungi pemilik bot segera![0m`,
-    `[1;33m👤 Discord: @bimxr[0m`,
+    `[1;31m⚠  BOT BERMASALAH? HUBUNGI SEGERA![0m`,
+    `[1;33m👤 Discord  :[0m [0;37m@bimxr[0m`,
+    `[1;33m🪐 Server   :[0m [0;37mKraxx's Domain[0m`,
     `\`\`\``,
     `> 💀 *Dibuat, dirancang & dijalankan oleh* **Bimxr** ⚔️`
   ].join('\n'));
