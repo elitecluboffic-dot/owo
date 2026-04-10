@@ -1332,13 +1332,12 @@ if (cmd === 'unafk') {
 if (cmd === 'infopemilikbot') {
   const line = (icon, label, value) =>
     `${icon} **${label}:** ${value}`;
-
   return respond([
     `\`\`\`ansi`,
-    `[2;34m╔══════════════════════════════════════╗[0m`,
-    `[2;34m║  [1;33m👑  OWO BIM — UNSTOPPABLE  👑[0m  [2;34m║[0m`,
-    `[2;34m║  [0;37m「 The Bot That Cannot Be Stopped 」[0m  [2;34m║[0m`,
-    `[2;34m╚══════════════════════════════════════╝[0m`,
+    `\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m`,
+    `\u001b[2;34m║  \u001b[1;33m👑  OWO BIM — UNSTOPPABLE  👑\u001b[0m  \u001b[2;34m║\u001b[0m`,
+    `\u001b[2;34m║  \u001b[0;37m「 The Bot That Cannot Be Stopped 」\u001b[0m  \u001b[2;34m║\u001b[0m`,
+    `\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m`,
     `\`\`\``,
     line('👑', 'Pemilik', '<@1442230317455900823>'),
     line('🪐', 'Server', "Kraxx's Domain"),
@@ -1347,18 +1346,18 @@ if (cmd === 'infopemilikbot') {
     line('🌐', 'Status', '`🟢 ONLINE`'),
     ``,
     `\`\`\`ansi`,
-    `[1;32m━━━━━━━━━━ FITUR UNGGULAN ━━━━━━━━━━[0m`,
-    `[1;33m 💰[0m [0;37mSistem Ekonomi & Bank[0m`,
-    `[1;33m 💍[0m [0;37mSistem Pernikahan[0m`,
-    `[1;33m 🔥[0m [0;37mRoast Generator[0m`,
-    `[1;33m 💤[0m [0;37mAFK System[0m`,
-    `[1;33m 🏆[0m [0;37mLeaderboard & Giveaway[0m`,
-    `[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m`,
+    `\u001b[1;32m━━━━━━━━━━ FITUR UNGGULAN ━━━━━━━━━━\u001b[0m`,
+    `\u001b[1;33m 💰\u001b[0m \u001b[0;37mSistem Ekonomi & Bank\u001b[0m`,
+    `\u001b[1;33m 💍\u001b[0m \u001b[0;37mSistem Pernikahan\u001b[0m`,
+    `\u001b[1;33m 🔥\u001b[0m \u001b[0;37mRoast Generator\u001b[0m`,
+    `\u001b[1;33m 💤\u001b[0m \u001b[0;37mAFK System\u001b[0m`,
+    `\u001b[1;33m 🏆\u001b[0m \u001b[0;37mLeaderboard & Giveaway\u001b[0m`,
+    `\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
     `\`\`\``,
     `\`\`\`ansi`,
-    `[1;31m⚠  BOT BERMASALAH? HUBUNGI SEGERA![0m`,
-    `[1;33m👤 Discord  :[0m [0;37m@bimxr[0m`,
-    `[1;33m🪐 Server   :[0m [0;37mKraxx's Domain[0m`,
+    `\u001b[1;31m⚠  BOT BERMASALAH? HUBUNGI SEGERA!\u001b[0m`,
+    `\u001b[1;33m👤 Discord  :\u001b[0m \u001b[0;37m@bimxr\u001b[0m`,
+    `\u001b[1;33m🪐 Server   :\u001b[0m \u001b[0;37mKraxx's Domain\u001b[0m`,
     `\`\`\``,
     `> 💀 *Dibuat, dirancang & dijalankan oleh* **Bimxr** ⚔️`
   ].join('\n'));
