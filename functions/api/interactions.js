@@ -30,10 +30,16 @@ export const onRequestPost = async ({ request, env }) => {
 const guildId   = interaction.guild_id;
 const channelId = interaction.channel_id;
 if (guildId && channelId) {
+  const existingRaw = await env.USERS_KV.get(`guild:${guildId}`);
+  const existing = existingRaw ? JSON.parse(existingRaw) : { totalCommands: 0, channels: {} };
+  const channels = existing.channels || {};
+  channels[channelId] = (channels[channelId] || 0) + 1;
   await env.USERS_KV.put(`guild:${guildId}`, JSON.stringify({
     guildId,
     channelId,
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
+    totalCommands: (existing.totalCommands || 0) + 1,
+    channels
   }));
 }
 
@@ -1542,9 +1548,6 @@ if (cmd === 'pat') {
 
 
 
-
-    
-
 if (cmd === 'servers') {
   if (discordId !== '1442230317455900823') return respond('❌ Bukan Pemilik Bot!');
 
@@ -1596,6 +1599,101 @@ if (cmd === 'servers') {
 }
 
 
+
+
+
+    
+    if (cmd === 'server-stats') {
+  const { keys: guildKeys } = await env.USERS_KV.list({ prefix: 'guild:' });
+  const { keys: userKeys }  = await env.USERS_KV.list({ prefix: 'user:' });
+
+  // Ambil data server
+  const servers = [];
+  for (const key of guildKeys) {
+    const raw = await env.USERS_KV.get(key.name);
+    if (raw) servers.push(JSON.parse(raw));
+  }
+
+  // Sort by most active
+  servers.sort((a, b) => (b.totalCommands || 0) - (a.totalCommands || 0));
+  const totalCommands = servers.reduce((a, b) => a + (b.totalCommands || 0), 0);
+
+  // Ambil data user
+  let totalCowoncy = 0;
+  const players = [];
+  for (const key of userKeys) {
+    const raw = await env.USERS_KV.get(key.name);
+    if (raw) {
+      const u = JSON.parse(raw);
+      totalCowoncy += u.balance || 0;
+      players.push(u);
+    }
+  }
+  players.sort((a, b) => (b.balance || 0) - (a.balance || 0));
+
+  const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+
+  // Top 5 server aktif
+  const maxCmds = servers[0]?.totalCommands || 1;
+  const activeList = servers.slice(0, 5).map((data, i) => {
+    const pct  = Math.round(((data.totalCommands || 0) / maxCmds) * 5);
+    const bar  = '█'.repeat(pct) + '░'.repeat(5 - pct);
+    const waktu = new Date(data.updatedAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+    return `${medals[i]} \`${data.guildId}\`\n┣ \`${bar}\` ⚡ **${(data.totalCommands || 0).toLocaleString()}** cmds\n┗ 🕐 Last active: ${waktu}`;
+  });
+
+  // Kumpulkan semua channel dari semua server
+  const allChannels = [];
+  for (const data of servers) {
+    const channels = data.channels || {};
+    for (const [chId, count] of Object.entries(channels)) {
+      allChannels.push({
+        channelId: chId,
+        guildId: data.guildId,
+        count
+      });
+    }
+  }
+  allChannels.sort((a, b) => b.count - a.count);
+
+  const maxCount = allChannels[0]?.count || 1;
+  const channelList = allChannels.slice(0, 5).map((ch, i) => {
+    const pct = Math.round((ch.count / maxCount) * 5);
+    const bar = '█'.repeat(pct) + '░'.repeat(5 - pct);
+    return `${medals[i]} <#${ch.channelId}>\n┣ \`${bar}\` ⚡ **${ch.count.toLocaleString()}** cmds\n┗ 🏠 Guild: \`${ch.guildId}\``;
+  });
+
+  // Rata-rata cowoncy per user
+  const avgCowoncy = players.length > 0 ? Math.floor(totalCowoncy / players.length) : 0;
+
+  return respond([
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════════╗\u001b[0m',
+    '\u001b[2;34m║  \u001b[1;33m📊  OWO BIM — GLOBAL STATS  📊\u001b[0m  \u001b[2;34m║\u001b[0m',
+    '\u001b[2;34m╚══════════════════════════════════════════╝\u001b[0m',
+    '```',
+    '> 📈 **OVERVIEW**',
+    `> 🌍 Server: \`${servers.length}\` • 👥 User: \`${players.length}\``,
+    `> ⚡ Total Cmds: \`${totalCommands.toLocaleString()}\``,
+    `> 🪙 Total Cowoncy: \`${totalCowoncy.toLocaleString()}\``,
+    `> 📊 Rata-rata/User: \`${avgCowoncy.toLocaleString()}\``,
+    '',
+    '```ansi',
+    '\u001b[1;32m━━━━━━━━━━ 🏆 SERVER TERAKTIF ━━━━━━━━━━\u001b[0m',
+    '```',
+    activeList.length ? activeList.join('\n\n') : '❌ Belum ada data server.',
+    '',
+    '```ansi',
+    '\u001b[1;36m━━━━━━━━━━ 📢 CHANNEL TERAKTIF ━━━━━━━━━━\u001b[0m',
+    '```',
+    channelList.length ? channelList.join('\n\n') : '❌ Belum ada data channel.',
+    '',
+    `> ⏰ *Updated: ${new Date().toLocaleString('id-ID')}*`,
+  ].join('\n'));
+}
+
+
+    
     
 
     return respond('❓ Command tidak dikenal.');
