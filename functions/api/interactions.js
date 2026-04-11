@@ -1738,7 +1738,10 @@ if (cmd === 'translate') {
     vi: '🇻🇳 Vietnam', ms: '🇲🇾 Melayu', ar: '🇸🇦 Arab',
     tr: '🇹🇷 Turki', fr: '🇫🇷 Prancis', de: '🇩🇪 Jerman',
     es: '🇪🇸 Spanyol', it: '🇮🇹 Italia', pt: '🇵🇹 Portugis',
-    ru: '🇷🇺 Rusia', pl: '🇵🇱 Polandia', uk: '🇺🇦 Ukraina'
+    ru: '🇷🇺 Rusia', pl: '🇵🇱 Polandia', uk: '🇺🇦 Ukraina',
+    nl: '🇳🇱 Belanda', sv: '🇸🇪 Swedia', da: '🇩🇰 Denmark',
+    fi: '🇫🇮 Finlandia', he: '🇮🇱 Ibrani', fa: '🇮🇷 Persia',
+    hi: '🇮🇳 Hindi', bn: '🇧🇩 Bengali', ur: '🇵🇰 Urdu'
   };
 
   const namaLang = langNames[bahasa] || `🌐 \`${bahasa.toUpperCase()}\``;
@@ -1756,21 +1759,15 @@ if (cmd === 'translate') {
   }
 
   try {
-    const res = await fetch('https://libretranslate.com/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        q: teks,
-        source: 'auto',
-        target: bahasa,
-        format: 'text',
-        api_key: ''
-      })
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${bahasa}&dt=t&q=${encodeURIComponent(teks)}`;
+
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
     });
 
-    const data = await res.json();
-
-    if (!res.ok || data.error) {
+    if (!res.ok) {
       return respond([
         '```ansi',
         '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
@@ -1782,7 +1779,9 @@ if (cmd === 'translate') {
       ].join('\n'));
     }
 
-    const hasil = data.translatedText;
+    const data = await res.json();
+    const hasil = data[0].map(x => x[0]).filter(Boolean).join('');
+    const detectedLang = data[2]?.toUpperCase() || 'AUTO';
 
     return respond([
       '```ansi',
@@ -1798,6 +1797,7 @@ if (cmd === 'translate') {
       ``,
       '```ansi',
       '\u001b[1;32m━━━━━━━━━━━━ DETAIL INFO ━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;33m 🔍 Bahasa Asal  :\u001b[0m \u001b[0;37m${detectedLang}\u001b[0m`,
       `\u001b[1;33m 🌐 Diterjemahkan:\u001b[0m \u001b[0;37m${namaLang}\u001b[0m`,
       `\u001b[1;33m 📏 Panjang Teks :\u001b[0m \u001b[0;37m${teks.length} karakter\u001b[0m`,
       '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
