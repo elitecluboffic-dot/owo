@@ -155,6 +155,11 @@ const commands = [
     description: 'Menampilkan daftar semua command yang tersedia 📖'
   },
 
+
+  {
+  name: 'servers',
+  description: 'Lihat semua server yang menggunakan bot (Owner only)',
+} 
   
   
 ];
