@@ -506,11 +506,47 @@
         <button class="btn" style="flex:1;background:#dc2626;" onclick="doEndGiveaway()">
           <i class="fa-solid fa-trophy"></i> End Giveaway
         </button>
+          <button class="btn" style="flex:1;background:#7c3aed;" onclick="showBroadcastModal()">
+    <i class="fa-solid fa-bullhorn"></i> Broadcast Update
+  </button>
       </div>
       <div id="players-list" style="display:flex;flex-direction:column;gap:10px;"></div>
     </div>
   </div>
 
+
+<!-- BROADCAST MODAL -->
+<div id="broadcast-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">
+      <i class="fa-solid fa-bullhorn" style="color:#a78bfa"></i> Broadcast Update
+    </div>
+    <p class="modal-subtitle">Pesan akan dikirim ke semua server yang pakai bot</p>
+    <input id="broadcast-version" type="text" placeholder="Versi (contoh: v2.1.0)" class="modal-input">
+    <textarea id="broadcast-pesan"
+      placeholder="Tulis isi update disini...&#10;- Fitur baru&#10;- Bug fix"
+      class="modal-input"
+      style="height:120px;resize:vertical;line-height:1.5"></textarea>
+    <div id="broadcast-preview"
+      style="display:none;background:#202225;border-radius:10px;padding:12px;
+             font-size:0.8rem;color:#9ca3af;margin-bottom:10px;line-height:1.6;
+             white-space:pre-wrap;font-family:monospace"></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button class="btn" style="flex:1;background:#40444b;font-size:0.8rem"
+        onclick="previewBroadcast()">
+        <i class="fa-solid fa-eye"></i> Preview
+      </button>
+    </div>
+    <div id="broadcast-status" style="display:none;font-size:0.8rem;
+      padding:8px 12px;border-radius:8px;margin-bottom:10px;text-align:center"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="hideBroadcastModal()">Batal</button>
+      <button class="modal-confirm purple" onclick="doBroadcast()" id="broadcast-btn">
+        <i class="fa-solid fa-paper-plane"></i> Kirim ke Semua Server
+      </button>
+    </div>
+  </div>
+</div>
   
   <script src="app.js"></script>
 </body>
