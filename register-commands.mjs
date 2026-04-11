@@ -169,6 +169,26 @@ const commands = [
   name: 'shorten',
   description: 'Perpendek URL panjang menjadi link pendek 🔗',
   options: [{ name: 'url', description: 'URL yang mau diperpendek', type: 3, required: true }]
+},
+
+
+  {
+  name: 'translate',
+  description: '🌐 Terjemahkan teks ke 30+ bahasa secara instan!',
+  options: [
+    {
+      name: 'teks',
+      description: '📝 Teks yang mau diterjemahkan (maks. 500 karakter)',
+      type: 3,
+      required: true
+    },
+    {
+      name: 'bahasa',
+      description: '🌍 Kode bahasa tujuan — en | ja | ko | zh | ar | fr | de | id | dll',
+      type: 3,
+      required: true
+    }
+  ]
 }
   
   
