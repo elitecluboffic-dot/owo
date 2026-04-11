@@ -41,109 +41,104 @@ if (cmd === 'userinfo') {
     }), { headers: { 'Content-Type': 'application/json' } });
   }
 
-  const member = interaction.data.resolved?.members?.[targetUser.id];
-  const guildId = interaction.guild_id;
-  const discriminator = targetUser.discriminator && targetUser.discriminator !== '0' ? `#${targetUser.discriminator}` : '';
-  const tag = `${targetUser.username}${discriminator}`;
-  const globalName = targetUser.global_name || null;
-  const nickname = member?.nick || null;
-  const isBot = !!targetUser.bot;
-  const isSystem = !!targetUser.system;
-  const createdAt = Math.floor((BigInt(targetUser.id) >> 22n) / 1000n + 1420070400n);
-  const joinedAt = member?.joined_at ? Math.floor(new Date(member.joined_at).getTime() / 1000) : null;
-  const boostedAt = member?.premium_since ? Math.floor(new Date(member.premium_since).getTime() / 1000) : null;
-  const avatarExt = targetUser.avatar?.startsWith('a_') ? 'gif' : 'png';
-  const avatarBase = targetUser.avatar
-    ? `https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar}`
-    : `https://cdn.discordapp.com/embed/avatars/${Number(targetUser.discriminator || 0) % 5}.png`;
-  const avatarUrl = `${avatarBase}.${avatarExt}?size=1024`;
-  const guildAvatarUrl = member?.avatar
-    ? `https://cdn.discordapp.com/guilds/${guildId}/users/${targetUser.id}/avatars/${member.avatar}.${member.avatar.startsWith('a_') ? 'gif' : 'png'}?size=1024`
-    : null;
-  const bannerUrl = targetUser.banner
-    ? `https://cdn.discordapp.com/banners/${targetUser.id}/${targetUser.banner}.${targetUser.banner.startsWith('a_') ? 'gif' : 'png'}?size=1024`
-    : null;
-  const accentHex = targetUser.accent_color
-    ? `#${targetUser.accent_color.toString(16).padStart(6, '0').toUpperCase()}` : null;
+  // Proses di background
+  ctx.waitUntil((async () => {
+    const member = interaction.data.resolved?.members?.[targetUser.id];
+    const guildId = interaction.guild_id;
+    const discriminator = targetUser.discriminator && targetUser.discriminator !== '0' ? `#${targetUser.discriminator}` : '';
+    const tag = `${targetUser.username}${discriminator}`;
+    const globalName = targetUser.global_name || null;
+    const nickname = member?.nick || null;
+    const isBot = !!targetUser.bot;
+    const isSystem = !!targetUser.system;
+    const createdAt = Math.floor((BigInt(targetUser.id) >> 22n) / 1000n + 1420070400n);
+    const joinedAt = member?.joined_at ? Math.floor(new Date(member.joined_at).getTime() / 1000) : null;
+    const boostedAt = member?.premium_since ? Math.floor(new Date(member.premium_since).getTime() / 1000) : null;
+    const avatarExt = targetUser.avatar?.startsWith('a_') ? 'gif' : 'png';
+    const avatarBase = targetUser.avatar
+      ? `https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar}`
+      : `https://cdn.discordapp.com/embed/avatars/${Number(targetUser.discriminator || 0) % 5}.png`;
+    const avatarUrl = `${avatarBase}.${avatarExt}?size=1024`;
+    const guildAvatarUrl = member?.avatar
+      ? `https://cdn.discordapp.com/guilds/${guildId}/users/${targetUser.id}/avatars/${member.avatar}.${member.avatar.startsWith('a_') ? 'gif' : 'png'}?size=1024`
+      : null;
+    const bannerUrl = targetUser.banner
+      ? `https://cdn.discordapp.com/banners/${targetUser.id}/${targetUser.banner}.${targetUser.banner.startsWith('a_') ? 'gif' : 'png'}?size=1024`
+      : null;
+    const accentHex = targetUser.accent_color
+      ? `#${targetUser.accent_color.toString(16).padStart(6, '0').toUpperCase()}` : null;
+    const totalRoles = member?.roles?.length || 0;
+    const rolesDisplay = totalRoles
+      ? member.roles.slice(0, 4).map(r => `<@&${r}>`).join(' ') + (totalRoles > 4 ? ` *(+${totalRoles - 4} lainnya)*` : '')
+      : null;
+    const highestRole = member?.roles?.length ? `<@&${member.roles[0]}>` : null;
+    const perms = BigInt(member?.permissions || 0);
+    const permList = [];
+    if (perms & 8n) permList.push('⚡ Administrator');
+    if (perms & 32n) permList.push('👢 Kick Members');
+    if (perms & 4n) permList.push('🔨 Ban Members');
+    if (perms & 16384n) permList.push('🛡️ Manage Roles');
+    if (perms & 8192n) permList.push('📋 Manage Channels');
+    if (perms & 32768n) permList.push('📨 Manage Messages');
+    const flags = targetUser.public_flags || 0;
+    const badges = [];
+    if (flags & (1 << 0))  badges.push('👑 Discord Staff');
+    if (flags & (1 << 1))  badges.push('🤝 Partner');
+    if (flags & (1 << 2))  badges.push('🎉 HypeSquad Events');
+    if (flags & (1 << 3))  badges.push('🐛 Bug Hunter Lv.1');
+    if (flags & (1 << 6))  badges.push('🏠 Bravery');
+    if (flags & (1 << 7))  badges.push('🏅 Brilliance');
+    if (flags & (1 << 8))  badges.push('⚖️ Balance');
+    if (flags & (1 << 9))  badges.push('💵 Early Nitro');
+    if (flags & (1 << 14)) badges.push('🐛 Bug Hunter Lv.2');
+    if (flags & (1 << 17)) badges.push('⌨️ Early Bot Dev');
+    if (flags & (1 << 18)) badges.push('📖 Mod Alumni');
+    if (flags & (1 << 22)) badges.push('✨ Active Dev');
+    if (member?.premium_since) badges.push('💎 Booster');
+    if (isBot)    badges.push('🤖 Bot');
+    if (isSystem) badges.push('⚙️ System');
 
-  const totalRoles = member?.roles?.length || 0;
-  const rolesDisplay = totalRoles
-    ? member.roles.slice(0, 4).map(r => `<@&${r}>`).join(' ') + (totalRoles > 4 ? ` *(+${totalRoles - 4} lainnya)*` : '')
-    : null;
-  const highestRole = member?.roles?.length ? `<@&${member.roles[0]}>` : null;
+    const SEP  = '══════════════════════';
+    const SEP2 = '──────────────────────';
+    let msg = `**✦ USER INFORMATION ✦**\n${SEP}\n`;
+    msg += `👤 **${tag}**\n`;
+    if (globalName) msg += `🌐 Display Name: **${globalName}**\n`;
+    if (nickname)   msg += `🎭 Nickname: **${nickname}**\n`;
+    if (isBot)      msg += `🤖 Tipe: **Bot**\n`;
+    if (isSystem)   msg += `⚙️ Tipe: **System**\n`;
+    msg += `🆔 ID: \`${targetUser.id}\`\n`;
+    if (accentHex)  msg += `🎨 Accent: \`${accentHex}\`\n`;
+    msg += `${SEP2}\n⏱️ **Timeline**\n`;
+    msg += `📅 Dibuat: <t:${createdAt}:D> (<t:${createdAt}:R>)\n`;
+    if (joinedAt)  msg += `📥 Join: <t:${joinedAt}:D> (<t:${joinedAt}:R>)\n`;
+    if (boostedAt) msg += `💎 Boost: <t:${boostedAt}:D> (<t:${boostedAt}:R>)\n`;
+    if (rolesDisplay) {
+      msg += `${SEP2}\n🎖️ **Roles** (${totalRoles})\n`;
+      msg += `${rolesDisplay}\n`;
+      if (highestRole) msg += `👆 Tertinggi: ${highestRole}\n`;
+    }
+    if (permList.length) {
+      msg += `${SEP2}\n🔐 **Permissions**\n`;
+      msg += permList.join(' • ') + '\n';
+    }
+    if (badges.length) {
+      msg += `${SEP2}\n🏅 **Badges**\n`;
+      msg += badges.join(' • ') + '\n';
+    }
+    msg += `${SEP2}\n🖼️ **Assets**\n`;
+    msg += `Avatar: [${avatarExt.toUpperCase()}](${avatarUrl})`;
+    if (guildAvatarUrl) msg += ` | [Server](${guildAvatarUrl})`;
+    if (bannerUrl) msg += ` | [Banner](${bannerUrl})`;
+    msg += `\n${SEP}`;
+    if (msg.length > 2000) msg = msg.slice(0, 1997) + '...';
 
-  const perms = BigInt(member?.permissions || 0);
-  const permList = [];
-  if (perms & 8n) permList.push('⚡ Administrator');
-  if (perms & 32n) permList.push('👢 Kick Members');
-  if (perms & 4n) permList.push('🔨 Ban Members');
-  if (perms & 16384n) permList.push('🛡️ Manage Roles');
-  if (perms & 8192n) permList.push('📋 Manage Channels');
-  if (perms & 32768n) permList.push('📨 Manage Messages');
+    await editResponse(interaction.application_id, interaction.token, msg);
+  })());
 
-  const flags = targetUser.public_flags || 0;
-  const badges = [];
-  if (flags & (1 << 0))  badges.push('👑 Discord Staff');
-  if (flags & (1 << 1))  badges.push('🤝 Partner');
-  if (flags & (1 << 2))  badges.push('🎉 HypeSquad Events');
-  if (flags & (1 << 3))  badges.push('🐛 Bug Hunter Lv.1');
-  if (flags & (1 << 6))  badges.push('🏠 Bravery');
-  if (flags & (1 << 7))  badges.push('🏅 Brilliance');
-  if (flags & (1 << 8))  badges.push('⚖️ Balance');
-  if (flags & (1 << 9))  badges.push('💵 Early Nitro');
-  if (flags & (1 << 14)) badges.push('🐛 Bug Hunter Lv.2');
-  if (flags & (1 << 17)) badges.push('⌨️ Early Bot Dev');
-  if (flags & (1 << 18)) badges.push('📖 Mod Alumni');
-  if (flags & (1 << 22)) badges.push('✨ Active Dev');
-  if (member?.premium_since) badges.push('💎 Booster');
-  if (isBot)    badges.push('🤖 Bot');
-  if (isSystem) badges.push('⚙️ System');
-
-  const SEP  = '══════════════════════';
-  const SEP2 = '──────────────────────';
-
-  let msg = `**✦ USER INFORMATION ✦**\n${SEP}\n`;
-  msg += `👤 **${tag}**\n`;
-  if (globalName) msg += `🌐 Display Name: **${globalName}**\n`;
-  if (nickname)   msg += `🎭 Nickname: **${nickname}**\n`;
-  if (isBot)      msg += `🤖 Tipe: **Bot**\n`;
-  if (isSystem)   msg += `⚙️ Tipe: **System**\n`;
-  msg += `🆔 ID: \`${targetUser.id}\`\n`;
-  if (accentHex)  msg += `🎨 Accent: \`${accentHex}\`\n`;
-
-  msg += `${SEP2}\n⏱️ **Timeline**\n`;
-  msg += `📅 Dibuat: <t:${createdAt}:D> (<t:${createdAt}:R>)\n`;
-  if (joinedAt)  msg += `📥 Join: <t:${joinedAt}:D> (<t:${joinedAt}:R>)\n`;
-  if (boostedAt) msg += `💎 Boost: <t:${boostedAt}:D> (<t:${boostedAt}:R>)\n`;
-
-  if (rolesDisplay) {
-    msg += `${SEP2}\n🎖️ **Roles** (${totalRoles})\n`;
-    msg += `${rolesDisplay}\n`;
-    if (highestRole) msg += `👆 Tertinggi: ${highestRole}\n`;
-  }
-
-  if (permList.length) {
-    msg += `${SEP2}\n🔐 **Permissions**\n`;
-    msg += permList.join(' • ') + '\n';
-  }
-
-  if (badges.length) {
-    msg += `${SEP2}\n🏅 **Badges**\n`;
-    msg += badges.join(' • ') + '\n';
-  }
-
-  msg += `${SEP2}\n🖼️ **Assets**\n`;
-  msg += `Avatar: [${avatarExt.toUpperCase()}](${avatarUrl})`;
-  if (guildAvatarUrl) msg += ` | [Server](${guildAvatarUrl})`;
-  if (bannerUrl) msg += ` | [Banner](${bannerUrl})`;
-  msg += `\n${SEP}`;
-
-  // Safety trim — Discord limit 2000 karakter
-  if (msg.length > 2000) msg = msg.slice(0, 1997) + '...';
-
-  return new Response(JSON.stringify({
-    type: 4, data: { content: msg }
-  }), { headers: { 'Content-Type': 'application/json' } });
+  // Langsung return loading dulu
+  return new Response(JSON.stringify({ type: 5 }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
 
 
