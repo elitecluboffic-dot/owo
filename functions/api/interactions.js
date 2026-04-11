@@ -65,11 +65,13 @@ if (cmd === 'userinfo') {
     : null;
   const accentHex = targetUser.accent_color
     ? `#${targetUser.accent_color.toString(16).padStart(6, '0').toUpperCase()}` : null;
+
   const totalRoles = member?.roles?.length || 0;
   const rolesDisplay = totalRoles
-    ? member.roles.slice(0, 6).map(r => `<@&${r}>`).join(' ') + (totalRoles > 6 ? `  *(+${totalRoles - 6} lainnya)*` : '')
+    ? member.roles.slice(0, 4).map(r => `<@&${r}>`).join(' ') + (totalRoles > 4 ? ` *(+${totalRoles - 4} lainnya)*` : '')
     : null;
   const highestRole = member?.roles?.length ? `<@&${member.roles[0]}>` : null;
+
   const perms = BigInt(member?.permissions || 0);
   const permList = [];
   if (perms & 8n) permList.push('⚡ Administrator');
@@ -78,58 +80,66 @@ if (cmd === 'userinfo') {
   if (perms & 16384n) permList.push('🛡️ Manage Roles');
   if (perms & 8192n) permList.push('📋 Manage Channels');
   if (perms & 32768n) permList.push('📨 Manage Messages');
+
   const flags = targetUser.public_flags || 0;
   const badges = [];
-  if (flags & (1 << 0)) badges.push('👑 Discord Staff');
-  if (flags & (1 << 1)) badges.push('🤝 Partnered Server Owner');
-  if (flags & (1 << 2)) badges.push('🎉 HypeSquad Events');
-  if (flags & (1 << 3)) badges.push('🐛 Bug Hunter Lv.1');
-  if (flags & (1 << 6)) badges.push('🏠 HypeSquad Bravery');
-  if (flags & (1 << 7)) badges.push('🏅 HypeSquad Brilliance');
-  if (flags & (1 << 8)) badges.push('⚖️ HypeSquad Balance');
-  if (flags & (1 << 9)) badges.push('💵 Early Nitro Supporter');
+  if (flags & (1 << 0))  badges.push('👑 Discord Staff');
+  if (flags & (1 << 1))  badges.push('🤝 Partner');
+  if (flags & (1 << 2))  badges.push('🎉 HypeSquad Events');
+  if (flags & (1 << 3))  badges.push('🐛 Bug Hunter Lv.1');
+  if (flags & (1 << 6))  badges.push('🏠 Bravery');
+  if (flags & (1 << 7))  badges.push('🏅 Brilliance');
+  if (flags & (1 << 8))  badges.push('⚖️ Balance');
+  if (flags & (1 << 9))  badges.push('💵 Early Nitro');
   if (flags & (1 << 14)) badges.push('🐛 Bug Hunter Lv.2');
-  if (flags & (1 << 17)) badges.push('⌨️ Early Verified Bot Dev');
-  if (flags & (1 << 18)) badges.push('📖 Moderator Programs Alumni');
-  if (flags & (1 << 22)) badges.push('✨ Active Developer');
-  if (member?.premium_since) badges.push('💎 Server Booster');
-  if (isBot) badges.push('🤖 Bot');
+  if (flags & (1 << 17)) badges.push('⌨️ Early Bot Dev');
+  if (flags & (1 << 18)) badges.push('📖 Mod Alumni');
+  if (flags & (1 << 22)) badges.push('✨ Active Dev');
+  if (member?.premium_since) badges.push('💎 Booster');
+  if (isBot)    badges.push('🤖 Bot');
   if (isSystem) badges.push('⚙️ System');
 
-  const line  = '═══════════════════════════';
-  const line2 = '───────────────────────────';
-  let msg = `\`\`\`\n✦ USER INFORMATION ✦\n\`\`\`\n`;
-  msg += `${line}\n\n`;
-  msg += `> 👤 **${tag}**\n`;
-  if (globalName) msg += `> 🌐 **Display Name:** ${globalName}\n`;
-  if (nickname)   msg += `> 🎭 **Nickname:** ${nickname}\n`;
-  if (isBot)      msg += `> 🤖 **Tipe:** Bot\n`;
-  if (isSystem)   msg += `> ⚙️ **Tipe:** System\n`;
-  msg += `> 🆔 **ID:** \`${targetUser.id}\`\n`;
-  if (accentHex)  msg += `> 🎨 **Accent Color:** \`${accentHex}\`\n`;
-  msg += `\n${line2}\n⏱️ **Timeline**\n${line2}\n`;
-  msg += `📅 Akun Dibuat: <t:${createdAt}:F>\n🕐 *(<t:${createdAt}:R>)*\n`;
-  if (joinedAt)  msg += `📥 Join Server: <t:${joinedAt}:F>\n🕐 *(<t:${joinedAt}:R>)*\n`;
-  if (boostedAt) msg += `💎 Boost Sejak: <t:${boostedAt}:F>\n🕐 *(<t:${boostedAt}:R>)*\n`;
+  const SEP  = '══════════════════════';
+  const SEP2 = '──────────────────────';
+
+  let msg = `**✦ USER INFORMATION ✦**\n${SEP}\n`;
+  msg += `👤 **${tag}**\n`;
+  if (globalName) msg += `🌐 Display Name: **${globalName}**\n`;
+  if (nickname)   msg += `🎭 Nickname: **${nickname}**\n`;
+  if (isBot)      msg += `🤖 Tipe: **Bot**\n`;
+  if (isSystem)   msg += `⚙️ Tipe: **System**\n`;
+  msg += `🆔 ID: \`${targetUser.id}\`\n`;
+  if (accentHex)  msg += `🎨 Accent: \`${accentHex}\`\n`;
+
+  msg += `${SEP2}\n⏱️ **Timeline**\n`;
+  msg += `📅 Dibuat: <t:${createdAt}:D> (<t:${createdAt}:R>)\n`;
+  if (joinedAt)  msg += `📥 Join: <t:${joinedAt}:D> (<t:${joinedAt}:R>)\n`;
+  if (boostedAt) msg += `💎 Boost: <t:${boostedAt}:D> (<t:${boostedAt}:R>)\n`;
+
   if (rolesDisplay) {
-    msg += `\n${line2}\n🎖️ **Roles** *(${totalRoles})*\n${line2}\n`;
+    msg += `${SEP2}\n🎖️ **Roles** (${totalRoles})\n`;
     msg += `${rolesDisplay}\n`;
-    if (highestRole) msg += `👆 **Tertinggi:** ${highestRole}\n`;
+    if (highestRole) msg += `👆 Tertinggi: ${highestRole}\n`;
   }
+
   if (permList.length) {
-    msg += `\n${line2}\n🔐 **Key Permissions**\n${line2}\n`;
-    msg += permList.map(p => `  • ${p}`).join('\n') + '\n';
+    msg += `${SEP2}\n🔐 **Permissions**\n`;
+    msg += permList.join(' • ') + '\n';
   }
+
   if (badges.length) {
-    msg += `\n${line2}\n🏅 **Badges** *(${badges.length})*\n${line2}\n`;
-    msg += badges.map(b => `  • ${b}`).join('\n') + '\n';
+    msg += `${SEP2}\n🏅 **Badges**\n`;
+    msg += badges.join(' • ') + '\n';
   }
-  msg += `\n${line2}\n🖼️ **Assets**\n${line2}\n`;
-  msg += `🖼️ Avatar: [${avatarExt.toUpperCase()}](${avatarUrl})`;
-  if (avatarExt === 'gif') msg += ` | [GIF](${avatarUrl})`;
-  if (guildAvatarUrl) msg += `\n🖼️ Server Avatar: [Lihat](${guildAvatarUrl})`;
-  if (bannerUrl) msg += `\n🎨 Banner: [Lihat](${bannerUrl})`;
-  msg += `\n\n${line}`;
+
+  msg += `${SEP2}\n🖼️ **Assets**\n`;
+  msg += `Avatar: [${avatarExt.toUpperCase()}](${avatarUrl})`;
+  if (guildAvatarUrl) msg += ` | [Server](${guildAvatarUrl})`;
+  if (bannerUrl) msg += ` | [Banner](${bannerUrl})`;
+  msg += `\n${SEP}`;
+
+  // Safety trim — Discord limit 2000 karakter
+  if (msg.length > 2000) msg = msg.slice(0, 1997) + '...';
 
   return new Response(JSON.stringify({
     type: 4, data: { content: msg }
