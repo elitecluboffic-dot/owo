@@ -1540,6 +1540,43 @@ if (cmd === 'pat') {
   return respond(`✋ **${username}** mengusap kepala <@${targetId}>! *pat pat* 🥰`);
 }
 
+
+
+
+    
+
+    if (cmd === 'servers') {
+  if (discordId !== '1442230317455900823') return respond('❌ Bukan Pemilik Bot!');
+  
+  const { keys } = await env.USERS_KV.list({ prefix: 'guild:' });
+  
+  if (keys.length === 0) return respond('❌ Belum ada server yang terdaftar!');
+
+  const serverList = [];
+  for (const key of keys) {
+    const raw = await env.USERS_KV.get(key.name);
+    if (raw) {
+      const data = JSON.parse(raw);
+      const waktu = new Date(data.updatedAt).toLocaleDateString('id-ID');
+      serverList.push(`• \`${data.guildId}\` — <#${data.channelId}> — 📅 ${waktu}`);
+    }
+  }
+
+  return respond([
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[2;34m║  \u001b[1;33m🌐  SERVER LIST  🌐\u001b[0m  \u001b[2;34m║\u001b[0m',
+    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `👥 **Total Server:** \`${keys.length}\``,
+    '',
+    serverList.join('\n')
+  ].join('\n'));
+}
+
+
+    
+
     return respond('❓ Command tidak dikenal.');
   }
 
