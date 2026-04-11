@@ -1813,8 +1813,9 @@ if (cmd === 'translate') {
 
 
 
-    if (cmd === 'weather') {
-  const EMOJI = '<a:Owo2:1492603439879028776>';
+if (cmd === 'weather') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const API_KEY = env.OPENWEATHER_API_KEY;
   const kota = getOption(options, 'kota');
 
   const cuacaEmoji = {
@@ -1852,7 +1853,7 @@ if (cmd === 'translate') {
   };
 
   try {
-    const geoUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(kota)}&limit=1&appid=${process.env.OPENWEATHER_API_KEY}`;
+    const geoUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(kota)}&limit=1&appid=${API_KEY}`;
     const geoRes = await fetch(geoUrl);
     const geoData = await geoRes.json();
 
@@ -1871,8 +1872,8 @@ if (cmd === 'translate') {
     const { lat, lon, name, country } = geoData[0];
 
     const [weatherRes, uvRes] = await Promise.all([
-      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric&lang=id`),
-      fetch(`https://api.openweathermap.org/data/2.5/uvi?lat=${lat}&lon=${lon}&appid=${process.env.OPENWEATHER_API_KEY}`)
+      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=id`),
+      fetch(`https://api.openweathermap.org/data/2.5/uvi?lat=${lat}&lon=${lon}&appid=${API_KEY}`)
     ]);
 
     const w = await weatherRes.json();
