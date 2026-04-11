@@ -29,135 +29,204 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
     // ✅ Handle userinfo DULUAN sebelum await apapun
 if (cmd === 'userinfo') {
-  // 1. Defer secepat mungkin
+  // 1. Defer immediately
   await fetch(`https://discord.com/api/v10/interactions/${interaction.id}/${interaction.token}/callback`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: 5 })
   });
 
-  // 2. Proses di background
   ctx.waitUntil((async () => {
     try {
+      const BOT_TOKEN = env.TOKEN; // ✅ fix: sesuai nama di Cloudflare env
+
+      // ─── Tentukan target user ───────────────────────────────────────
       const targetOption = options.find(o => o.name === 'user');
-      const targetId = targetOption?.value ? String(targetOption.value) : discordId;
+      const targetId = targetOption?.value
+        ? String(targetOption.value)
+        : (interaction.member?.user?.id || interaction.user?.id);
 
-      const targetUser = targetOption?.value
-        ? interaction.data.resolved?.users?.[targetId]
-        : (interaction.member?.user || interaction.user);
+      if (!targetId) {
+        await editResponse(interaction.application_id, interaction.token, '❌ Tidak dapat menentukan user!');
+        return;
+      }
 
-      if (!targetUser) {
+      // ─── Extra API Call: Fetch user object lengkap ──────────────────
+      const userRes = await fetch(`https://discord.com/api/v10/users/${targetId}`, {
+        headers: { Authorization: `Bot ${BOT_TOKEN}` }
+      });
+
+      if (!userRes.ok) {
         await editResponse(interaction.application_id, interaction.token, '❌ User tidak ditemukan!');
         return;
       }
 
-      const member = interaction.data.resolved?.members?.[targetUser.id];
+      const targetUser = await userRes.json();
+
+      // ─── Extra API Call: Fetch member info ──────────────────────────
       const guildId = interaction.guild_id;
+      let member = interaction.data.resolved?.members?.[targetId] || null;
 
-      // === OPTIMIZATION: Kurangi operasi berat ===
-      const discriminator = targetUser.discriminator && targetUser.discriminator !== '0' 
+      if (guildId && !member) {
+        const memberRes = await fetch(
+          `https://discord.com/api/v10/guilds/${guildId}/members/${targetId}`,
+          { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
+        );
+        if (memberRes.ok) {
+          member = await memberRes.json();
+        }
+      }
+
+      // ─── Computed values ────────────────────────────────────────────
+      const discriminator = targetUser.discriminator && targetUser.discriminator !== '0'
         ? `#${targetUser.discriminator}` : '';
-
-      const tag = `${targetUser.username}${discriminator}`;
+      const tag        = `${targetUser.username}${discriminator}`;
       const globalName = targetUser.global_name || null;
-      const nickname = member?.nick || null;
+      const nickname   = member?.nick || null;
 
-      const createdAt = Math.floor((BigInt(targetUser.id) >> 22n) / 1000n + 1420070400n);
-      const joinedAt = member?.joined_at 
+      const createdAt = Math.floor(
+        (BigInt(targetUser.id) >> 22n) / 1000n + 1420070400n
+      );
+      const joinedAt  = member?.joined_at
         ? Math.floor(new Date(member.joined_at).getTime() / 1000) : null;
-      const boostedAt = member?.premium_since 
+      const boostedAt = member?.premium_since
         ? Math.floor(new Date(member.premium_since).getTime() / 1000) : null;
 
+      // Avatar
       const avatarExt = targetUser.avatar?.startsWith('a_') ? 'gif' : 'png';
-      const avatarUrl = targetUser.avatar 
+      const avatarUrl = targetUser.avatar
         ? `https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar}.${avatarExt}?size=1024`
-        : `https://cdn.discordapp.com/embed/avatars/${Number(targetUser.discriminator || 0) % 5}.png`;
+        : `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(targetUser.id) % 6n)}.png`;
 
-      const guildAvatarUrl = member?.avatar 
+      // Guild avatar
+      const guildAvatarUrl = member?.avatar
         ? `https://cdn.discordapp.com/guilds/${guildId}/users/${targetUser.id}/avatars/${member.avatar}.${member.avatar.startsWith('a_') ? 'gif' : 'png'}?size=1024`
         : null;
 
-      const bannerUrl = targetUser.banner 
+      // Banner (hanya tersedia via direct API call, bukan resolved)
+      const bannerUrl = targetUser.banner
         ? `https://cdn.discordapp.com/banners/${targetUser.id}/${targetUser.banner}.${targetUser.banner.startsWith('a_') ? 'gif' : 'png'}?size=1024`
         : null;
 
-      const accentHex = targetUser.accent_color 
-        ? `#${targetUser.accent_color.toString(16).padStart(6, '0').toUpperCase()}` : null;
+      const accentColor = targetUser.accent_color || 0x5865F2;
 
-      // Roles (dibatasi agar lebih ringan)
-      const totalRoles = member?.roles?.length || 0;
-      const rolesDisplay = totalRoles 
-        ? member.roles.slice(0, 3).map(r => `<@&${r}>`).join(' ') + 
-          (totalRoles > 3 ? ` *(+${totalRoles - 3} lainnya)*` : '') 
+      // ─── Roles ──────────────────────────────────────────────────────
+      const totalRoles   = member?.roles?.length || 0;
+      const rolesDisplay = totalRoles
+        ? member.roles.slice(0, 5).map(r => `<@&${r}>`).join(' ') +
+          (totalRoles > 5 ? ` *(+${totalRoles - 5} more)*` : '')
         : null;
+      const highestRole = member?.roles?.[0] ? `<@&${member.roles[0]}>` : null;
 
-      const highestRole = member?.roles?.length ? `<@&${member.roles[0]}>` : null;
-
-      // Permissions (hanya yang penting)
-      const perms = BigInt(member?.permissions || 0);
+      // ─── Permissions ────────────────────────────────────────────────
+      const perms    = BigInt(member?.permissions || 0);
       const permList = [];
-      if (perms & 8n) permList.push('⚡ Admin');
-      if (perms & 32n) permList.push('👢 Kick');
-      if (perms & 4n) permList.push('🔨 Ban');
-      if (perms & 16384n) permList.push('🛡️ Roles');
-      if (perms & 8192n) permList.push('📋 Channels');
+      if (perms & 8n)     permList.push('⚡ Admin');
+      if (perms & 32n)    permList.push('👢 Kick');
+      if (perms & 4n)     permList.push('🔨 Ban');
+      if (perms & 16384n) permList.push('🛡️ Manage Roles');
+      if (perms & 8192n)  permList.push('📋 Manage Channels');
+      if (perms & 32768n) permList.push('🎤 Mute Members');
 
-      // Badges (dipercepat)
-      const flags = targetUser.public_flags || 0;
+      // ─── Badges ─────────────────────────────────────────────────────
+      const flags  = targetUser.public_flags || 0;
       const badges = [];
-      if (flags & (1 << 0)) badges.push('👑 Staff');
-      if (flags & (1 << 1)) badges.push('🤝 Partner');
-      if (flags & (1 << 2)) badges.push('🎉 Hypesquad');
+      if (flags & (1 << 0))  badges.push('👑 Staff');
+      if (flags & (1 << 1))  badges.push('🤝 Partner');
+      if (flags & (1 << 2))  badges.push('🎉 HypeSquad');
+      if (flags & (1 << 6))  badges.push('🏠 HypeSquad House');
+      if (flags & (1 << 3))  badges.push('🐛 Bug Hunter');
+      if (flags & (1 << 9))  badges.push('✨ Early Supporter');
+      if (flags & (1 << 14)) badges.push('🤖 BotDev');
+      if (flags & (1 << 17)) badges.push('🔩 Bug Hunter Gold');
+      if (flags & (1 << 19)) badges.push('🏅 Active Dev');
       if (member?.premium_since) badges.push('💎 Booster');
-      if (targetUser.bot) badges.push('🤖 Bot');
+      if (targetUser.bot)        badges.push('🤖 Bot');
 
-      // === BUILD MESSAGE (lebih efisien) ===
-      let msg = `**✦ USER INFORMATION ✦**\n══════════════════════\n`;
-      msg += `👤 **${tag}**\n`;
-      if (globalName) msg += `🌐 Display: **${globalName}**\n`;
-      if (nickname) msg += `🎭 Nick: **${nickname}**\n`;
-      msg += `🆔 \`${targetUser.id}\`\n`;
-      if (accentHex) msg += `🎨 Accent: \`${accentHex}\`\n`;
+      // ─── Build embed ─────────────────────────────────────────────────
+      const embed = {
+        color: accentColor,
+        author: {
+          name: `${tag}${globalName && globalName !== targetUser.username ? ` (${globalName})` : ''}`,
+          icon_url: avatarUrl
+        },
+        thumbnail: { url: guildAvatarUrl || avatarUrl },
+        fields: [],
+        footer: { text: `ID: ${targetUser.id}` },
+        timestamp: new Date().toISOString()
+      };
 
-      msg += `\n──────────────────────\n⏱️ **Timeline**\n──────────────────────\n`;
-      msg += `📅 Created: <t:${createdAt}:R>\n`;
-      if (joinedAt) msg += `📥 Joined: <t:${joinedAt}:R>\n`;
-      if (boostedAt) msg += `💎 Boosted: <t:${boostedAt}:R>\n`;
+      // Identity
+      const identityLines = [];
+      if (nickname)       identityLines.push(`🎭 **Nick:** ${nickname}`);
+      if (targetUser.bot) identityLines.push(`🤖 **Type:** Bot`);
+      if (identityLines.length) {
+        embed.fields.push({ name: '👤 Identity', value: identityLines.join('\n'), inline: false });
+      }
 
+      // Timeline
+      const timeLines = [`📅 Created: <t:${createdAt}:R> (<t:${createdAt}:d>)`];
+      if (joinedAt)  timeLines.push(`📥 Joined: <t:${joinedAt}:R> (<t:${joinedAt}:d>)`);
+      if (boostedAt) timeLines.push(`💎 Boosted: <t:${boostedAt}:R>`);
+      embed.fields.push({ name: '⏱️ Timeline', value: timeLines.join('\n'), inline: false });
+
+      // Roles
       if (rolesDisplay) {
-        msg += `\n──────────────────────\n🎖️ **Roles** (${totalRoles})\n──────────────────────\n`;
-        msg += `${rolesDisplay}\n`;
-        if (highestRole) msg += `👆 Highest: ${highestRole}\n`;
+        embed.fields.push({
+          name: `🎖️ Roles (${totalRoles})`,
+          value: rolesDisplay + (highestRole ? `\n👆 Highest: ${highestRole}` : ''),
+          inline: false
+        });
       }
 
+      // Permissions
       if (permList.length) {
-        msg += `\n──────────────────────\n🔐 **Key Perms**\n──────────────────────\n`;
-        msg += permList.join(' • ') + '\n';
+        embed.fields.push({
+          name: '🔐 Key Permissions',
+          value: permList.join(' • '),
+          inline: false
+        });
       }
 
+      // Badges
       if (badges.length) {
-        msg += `\n──────────────────────\n🏅 **Badges**\n──────────────────────\n`;
-        msg += badges.join(' • ') + '\n';
+        embed.fields.push({
+          name: '🏅 Badges',
+          value: badges.join(' • '),
+          inline: false
+        });
       }
 
-      msg += `\n──────────────────────\n🖼️ **Assets**\n──────────────────────\n`;
-      msg += `Avatar: [${avatarExt.toUpperCase()}](${avatarUrl})`;
-      if (guildAvatarUrl) msg += ` | [Server](${guildAvatarUrl})`;
-      if (bannerUrl) msg += ` | [Banner](${bannerUrl})`;
+      // Assets
+      const assetLinks = [`[Avatar](${avatarUrl})`];
+      if (guildAvatarUrl) assetLinks.push(`[Server Avatar](${guildAvatarUrl})`);
+      if (bannerUrl)      assetLinks.push(`[Banner](${bannerUrl})`);
+      embed.fields.push({ name: '🖼️ Assets', value: assetLinks.join(' • '), inline: false });
 
-      if (msg.length > 2000) msg = msg.slice(0, 1997) + '...';
+      if (bannerUrl) embed.image = { url: bannerUrl };
 
-      await editResponse(interaction.application_id, interaction.token, msg);
+      // ─── Send ────────────────────────────────────────────────────────
+      await fetch(
+        `https://discord.com/api/v10/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ embeds: [embed] })
+        }
+      );
 
     } catch (error) {
-      console.error("Userinfo Error:", error);
-      await editResponse(interaction.application_id, interaction.token, "❌ Terjadi kesalahan saat memproses.");
+      console.error('Userinfo Error:', error);
+      await editResponse(
+        interaction.application_id,
+        interaction.token,
+        '❌ Terjadi kesalahan saat memproses.'
+      );
     }
   })());
 
   return new Response(null, { status: 202 });
 }
-
     
     
 
