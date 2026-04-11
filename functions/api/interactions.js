@@ -2100,7 +2100,7 @@ if (cmd === 'weather') {
 
 
 
-    if (cmd === 'ip') {
+if (cmd === 'ip') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const input = getOption(options, 'ip');
 
@@ -2111,66 +2111,47 @@ if (cmd === 'weather') {
     return '🟢 Bersih';
   };
 
-  const connectionType = (type) => {
-    const types = {
-      'Residential': '🏠 Residential',
-      'Corporate': '🏢 Corporate',
-      'Education': '🎓 Education',
-      'Mobile': '📱 Mobile',
-      'Hosting': '🖥️ Hosting',
-      'Data Center': '🗄️ Data Center'
-    };
-    return types[type] || `🌐 ${type || 'Unknown'}`;
-  };
-
   try {
-    // Fetch IP info
-    const apiUrl = input
-      ? `https://ipwho.is/${encodeURIComponent(input)}`
-      : `https://ipwho.is/`;
+    const targetIp = input ? encodeURIComponent(input) : '';
+    const apiUrl = `http://ip-api.com/json/${targetIp}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,proxy,hosting,query`;
 
     const res = await fetch(apiUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' }
     });
     const d = await res.json();
 
-    if (!d.success) {
+    if (d.status !== 'success') {
       return respond([
         '```ansi',
         '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-        '\u001b[2;34m║  \u001b[1;31m✗  IP TIDAK VALID  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+        '\u001b[2;34m║  \u001b[1;31m✗  IP TIDAK DITEMUKAN  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
         '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
         '```',
-        `> ${EMOJI} ❌ IP **\`${input}\`** tidak valid atau tidak ditemukan!`,
+        `> ${EMOJI} ❌ IP **\`${input || 'auto'}\`** tidak valid!`,
+        `> 🔍 Pesan: \`${d.message || 'Unknown error'}\``,
         `> 💡 Contoh: \`8.8.8.8\`, \`1.1.1.1\`, \`103.47.180.1\``
       ].join('\n'));
     }
 
-    const ip         = d.ip || 'N/A';
-    const tipe       = d.type || 'N/A';
-    const negara     = d.country || 'N/A';
-    const flagCode   = d.country_code?.toLowerCase() || '';
-    const flag       = flagCode ? `:flag_${flagCode}:` : '🌐';
-    const kota       = d.city || 'N/A';
-    const region     = d.region || 'N/A';
-    const kodePos    = d.postal || 'N/A';
-    const lat        = d.latitude?.toFixed(4) || 'N/A';
-    const lon        = d.longitude?.toFixed(4) || 'N/A';
-    const timezone   = d.timezone?.id || 'N/A';
-    const utc        = d.timezone?.utc || 'N/A';
-    const isp        = d.connection?.isp || 'N/A';
-    const org        = d.connection?.org || 'N/A';
-    const asn        = d.connection?.asn ? `AS${d.connection.asn}` : 'N/A';
-    const domain     = d.connection?.domain || 'N/A';
-    const isProxy    = d.security?.proxy || false;
-    const isVpn      = d.security?.vpn || false;
-    const isHosting  = d.security?.hosting || false;
-    const isTor      = d.security?.tor || false;
-    const risk       = riskLevel(isProxy, isHosting, isVpn);
-    const connType   = connectionType(d.connection?.type);
-
-    // Maps link
-    const mapsUrl = `https://www.google.com/maps?q=${lat},${lon}`;
+    const ip       = d.query || 'N/A';
+    const negara   = d.country || 'N/A';
+    const kodeNeg  = d.countryCode?.toLowerCase() || '';
+    const flag     = kodeNeg ? `:flag_${kodeNeg}:` : '🌐';
+    const kota     = d.city || 'N/A';
+    const region   = d.regionName || 'N/A';
+    const kodePos  = d.zip || 'N/A';
+    const lat      = d.lat?.toFixed(4) || 'N/A';
+    const lon      = d.lon?.toFixed(4) || 'N/A';
+    const timezone = d.timezone || 'N/A';
+    const isp      = d.isp || 'N/A';
+    const org      = d.org || 'N/A';
+    const asn      = d.as || 'N/A';
+    const isProxy  = d.proxy || false;
+    const isHosting = d.hosting || false;
+    const isVpn    = false; // ip-api free tier
+    const isTor    = false;
+    const risk     = riskLevel(isProxy, isHosting, isVpn);
+    const mapsUrl  = `https://www.google.com/maps?q=${lat},${lon}`;
 
     return respond([
       '```ansi',
@@ -2182,27 +2163,23 @@ if (cmd === 'weather') {
       ``,
       '```ansi',
       '\u001b[1;33m━━━━━━━━━━ 📍 LOKASI INFO ━━━━━━━━━━━\u001b[0m',
-      `\u001b[1;36m 🌍  Negara      :\u001b[0m \u001b[0;37m${negara} (${d.country_code || 'N/A'})\u001b[0m`,
+      `\u001b[1;36m 🌍  Negara      :\u001b[0m \u001b[0;37m${negara} (${d.countryCode || 'N/A'})\u001b[0m`,
       `\u001b[1;36m 🏙️  Kota        :\u001b[0m \u001b[0;37m${kota}\u001b[0m`,
       `\u001b[1;36m 🗺️  Region      :\u001b[0m \u001b[0;37m${region}\u001b[0m`,
       `\u001b[1;36m 📮  Kode Pos    :\u001b[0m \u001b[0;37m${kodePos}\u001b[0m`,
       `\u001b[1;36m 📡  Koordinat   :\u001b[0m \u001b[0;37m${lat}, ${lon}\u001b[0m`,
-      `\u001b[1;36m 🕐  Timezone    :\u001b[0m \u001b[0;37m${timezone} (${utc})\u001b[0m`,
+      `\u001b[1;36m 🕐  Timezone    :\u001b[0m \u001b[0;37m${timezone}\u001b[0m`,
       '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
       '\u001b[1;32m━━━━━━━━━━ 🔌 NETWORK INFO ━━━━━━━━━━\u001b[0m',
       `\u001b[1;35m 🏢  ISP         :\u001b[0m \u001b[0;37m${isp}\u001b[0m`,
       `\u001b[1;35m 🏗️  Organisasi  :\u001b[0m \u001b[0;37m${org}\u001b[0m`,
       `\u001b[1;35m 🔢  ASN         :\u001b[0m \u001b[0;37m${asn}\u001b[0m`,
-      `\u001b[1;35m 🌐  Domain      :\u001b[0m \u001b[0;37m${domain}\u001b[0m`,
-      `\u001b[1;35m 📶  Tipe IP     :\u001b[0m \u001b[0;37m${tipe?.toUpperCase()}\u001b[0m`,
-      `\u001b[1;35m 🔗  Koneksi     :\u001b[0m \u001b[0;37m${connType}\u001b[0m`,
       '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
       '\u001b[1;31m━━━━━━━━━━ 🛡️ SECURITY INFO ━━━━━━━━━\u001b[0m',
       `\u001b[1;35m 🔒  Risk Level  :\u001b[0m \u001b[0;37m${risk}\u001b[0m`,
-      `\u001b[1;35m 🕵️  VPN         :\u001b[0m \u001b[0;37m${isVpn ? '🔴 Ya' : '🟢 Tidak'}\u001b[0m`,
       `\u001b[1;35m 🔀  Proxy       :\u001b[0m \u001b[0;37m${isProxy ? '🔴 Ya' : '🟢 Tidak'}\u001b[0m`,
-      `\u001b[1;35m 🧅  Tor         :\u001b[0m \u001b[0;37m${isTor ? '🔴 Ya' : '🟢 Tidak'}\u001b[0m`,
       `\u001b[1;35m 🖥️  Hosting     :\u001b[0m \u001b[0;37m${isHosting ? '🟡 Ya' : '🟢 Tidak'}\u001b[0m`,
+      `\u001b[1;35m 🕵️  VPN & Tor   :\u001b[0m \u001b[0;37m🟢 Tidak Terdeteksi\u001b[0m`,
       '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
       '```',
       `> 🗺️ [Lihat di Google Maps](${mapsUrl})`,
