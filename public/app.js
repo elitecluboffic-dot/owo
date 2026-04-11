@@ -317,6 +317,77 @@ async function doEndGiveaway() {
   alert(result.message || (result.success ? 'Giveaway selesai!' : 'Gagal.'));
 }
 
+
+// ── BROADCAST UPDATE ─────────────────────────────────────────
+function showBroadcastModal() {
+  document.getElementById('broadcast-modal').classList.remove('hidden');
+  document.getElementById('broadcast-preview').style.display = 'none';
+  document.getElementById('broadcast-status').style.display = 'none';
+  document.getElementById('broadcast-btn').disabled = false;
+  document.getElementById('broadcast-btn').innerHTML = '<i class="fa-solid fa-paper-plane"></i> Kirim ke Semua Server';
+}
+
+function hideBroadcastModal() {
+  document.getElementById('broadcast-modal').classList.add('hidden');
+  document.getElementById('broadcast-version').value = '';
+  document.getElementById('broadcast-pesan').value = '';
+  document.getElementById('broadcast-preview').style.display = 'none';
+  document.getElementById('broadcast-status').style.display = 'none';
+}
+
+function previewBroadcast() {
+  var version = document.getElementById('broadcast-version').value.trim() || 'vX.X.X';
+  var pesan   = document.getElementById('broadcast-pesan').value.trim();
+  if (!pesan) { alert('Tulis pesan dulu!'); return; }
+  var preview =
+    '🚀 OWO BIM BOT TELAH DIUPDATE!\n' +
+    'Versi Baru: ' + version + '\n\n' +
+    pesan + '\n\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━\n' +
+    '✅ Ketik /help untuk melihat command terbaru\n' +
+    '❤️ Terima kasih telah menggunakan OWO BIM!';
+  var el = document.getElementById('broadcast-preview');
+  el.textContent = preview;
+  el.style.display = 'block';
+}
+
+async function doBroadcast() {
+  var version = document.getElementById('broadcast-version').value.trim() || 'vX.X.X';
+  var pesan   = document.getElementById('broadcast-pesan').value.trim();
+  if (!pesan) { alert('Tulis pesan dulu!'); return; }
+  if (!confirm('Kirim broadcast ke semua server sekarang?')) return;
+
+  var btn    = document.getElementById('broadcast-btn');
+  var status = document.getElementById('broadcast-status');
+
+  btn.disabled  = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...';
+  status.style.display    = 'block';
+  status.style.background = '#1e1e35';
+  status.style.color      = '#a78bfa';
+  status.textContent      = '📡 Sedang broadcast ke semua server...';
+
+  var result = await apiCall('post-update', {
+    discordId: '1442230317455900823',
+    version:   version,
+    pesan:     pesan
+  });
+
+  if (result.success) {
+    status.style.background = '#14532d';
+    status.style.color      = '#86efac';
+    status.textContent      = '✅ ' + (result.message || 'Broadcast berhasil!');
+    btn.innerHTML = '✅ Terkirim!';
+    setTimeout(hideBroadcastModal, 2000);
+  } else {
+    status.style.background = '#450a0a';
+    status.style.color      = '#fca5a5';
+    status.textContent      = '❌ ' + (result.message || 'Gagal broadcast.');
+    btn.disabled  = false;
+    btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Kirim ke Semua Server';
+  }
+}
+
 // ── UTILITY ───────────────────────────────────────────────────
 function escapeHtml(str) {
   return String(str)
