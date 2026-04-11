@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — OWO BIM</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: rgba(255,255,255,0.07);
+    --accent: #6dccfa;
+    --accent2: #7c6dfa;
+    --text: #e8e6f0;
+    --muted: #7a7890;
+    --heading-font: 'Syne', sans-serif;
+    --body-font: 'DM Sans', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body-font);
+    font-size: 16px;
+    line-height: 1.8;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(109,204,250,0.07) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -200px; left: -200px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(124,109,250,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .container {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+  header {
+    padding: 60px 0 48px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 56px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 40px;
+  }
+  .brand-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .brand-name {
+    font-family: var(--heading-font);
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+  .brand-name span { color: var(--accent); }
+  h1 {
+    font-family: var(--heading-font);
+    font-size: clamp(36px, 6vw, 52px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: #fff;
+    margin-bottom: 16px;
+  }
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .meta {
+    font-size: 14px;
+    color: var(--muted);
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .meta span::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc-title {
+    font-family: var(--heading-font);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .toc ol { padding-left: 20px; }
+  .toc ol li { margin-bottom: 6px; }
+  .toc a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s;
+  }
+  .toc a:hover { color: var(--text); }
+  section {
+    margin-bottom: 52px;
+    scroll-margin-top: 24px;
+  }
+  h2 {
+    font-family: var(--heading-font);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #fff;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2 .num {
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(109,204,250,0.12);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+  }
+  p { color: #b8b4cc; margin-bottom: 14px; font-weight: 300; }
+  p:last-child { margin-bottom: 0; }
+  ul, ol { padding-left: 20px; margin-bottom: 14px; }
+  li { color: #b8b4cc; margin-bottom: 8px; font-weight: 300; }
+  li::marker { color: var(--accent); }
+  strong { color: var(--text); font-weight: 500; }
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+  .data-table th {
+    background: rgba(109,204,250,0.08);
+    color: var(--accent);
+    font-family: var(--heading-font);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: #b8b4cc;
+    vertical-align: top;
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .highlight-box {
+    background: rgba(109,204,250,0.07);
+    border: 1px solid rgba(109,204,250,0.18);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 20px 0;
+  }
+  .highlight-box p { color: #c4dce8; margin: 0; }
+  .green-box {
+    background: rgba(109,250,155,0.07);
+    border: 1px solid rgba(109,250,155,0.18);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 20px 0;
+  }
+  .green-box p { color: #c4e8cc; margin: 0; }
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 52px 0;
+  }
+  footer {
+    padding: 40px 0 60px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  footer p { color: var(--muted); font-size: 13px; margin: 0; }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  @media (max-width: 600px) {
+    header { padding: 40px 0 32px; }
+    h1 { font-size: 32px; }
+    footer { flex-direction: column; }
+    .data-table { font-size: 12px; }
+    .data-table th, .data-table td { padding: 10px 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🦉</div>
+      <div class="brand-name">OWO <span>BIM</span></div>
+    </div>
+    <h1>Privacy<br><em>Policy</em></h1>
+    <div class="meta">
+      <span>Berlaku sejak 11 April 2026</span>
+      <span>Versi 1.0</span>
+      <span>Bahasa Indonesia</span>
+    </div>
+  </header>
+
+  <div class="toc">
+    <div class="toc-title">Daftar Isi</div>
+    <ol>
+      <li><a href="#s1">Data yang Kami Kumpulkan</a></li>
+      <li><a href="#s2">Bagaimana Data Digunakan</a></li>
+      <li><a href="#s3">Penyimpanan Data</a></li>
+      <li><a href="#s4">Berbagi Data dengan Pihak Ketiga</a></li>
+      <li><a href="#s5">Keamanan Data</a></li>
+      <li><a href="#s6">Hak Pengguna</a></li>
+      <li><a href="#s7">Data Anak-anak</a></li>
+      <li><a href="#s8">Perubahan Kebijakan</a></li>
+      <li><a href="#s9">Kontak</a></li>
+    </ol>
+  </div>
+
+  <div class="highlight-box">
+    <p>Privasi kamu penting bagi kami. Kebijakan ini menjelaskan secara transparan data apa yang dikumpulkan OWO BIM, bagaimana data tersebut digunakan, dan hak-hak kamu sebagai pengguna.</p>
+  </div>
+
+  <section id="s1">
+    <h2><span class="num">01</span> Data yang Kami Kumpulkan</h2>
+    <p>OWO BIM hanya mengumpulkan data yang diperlukan untuk menjalankan fungsionalitas layanan:</p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Jenis Data</th>
+          <th>Contoh</th>
+          <th>Keperluan</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Discord User ID</strong></td>
+          <td>1442230317455900823</td>
+          <td>Identifikasi unik pengguna</td>
+        </tr>
+        <tr>
+          <td><strong>Username Discord</strong></td>
+          <td>bimxr</td>
+          <td>Tampilan di leaderboard & profil</td>
+        </tr>
+        <tr>
+          <td><strong>Saldo & Ekonomi</strong></td>
+          <td>Balance, bank, transaksi</td>
+          <td>Sistem ekonomi virtual</td>
+        </tr>
+        <tr>
+          <td><strong>Riwayat Aktivitas</strong></td>
+          <td>Last daily, last kerja</td>
+          <td>Pengelolaan cooldown command</td>
+        </tr>
+        <tr>
+          <td><strong>Data Sosial</strong></td>
+          <td>Partner ID, status AFK</td>
+          <td>Fitur sosial bot</td>
+        </tr>
+        <tr>
+          <td><strong>Data Server</strong></td>
+          <td>Guild ID, Channel ID</td>
+          <td>Broadcast & statistik server</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Kami <strong>tidak</strong> mengumpulkan isi pesan, email, IP address, atau informasi pribadi lainnya di luar platform Discord.</p>
+  </section>
+
+  <section id="s2">
+    <h2><span class="num">02</span> Bagaimana Data Digunakan</h2>
+    <p>Data yang dikumpulkan digunakan semata-mata untuk:</p>
+    <ul>
+      <li>Menjalankan sistem ekonomi virtual (saldo, transaksi, cooldown)</li>
+      <li>Menyimpan progress dan riwayat aktivitas pengguna</li>
+      <li>Menampilkan statistik dan leaderboard komunitas</li>
+      <li>Mengirim broadcast update ke server yang terdaftar</li>
+      <li>Mendeteksi dan mencegah penyalahgunaan layanan</li>
+    </ul>
+    <div class="green-box">
+      <p>Data kamu <strong>tidak pernah</strong> digunakan untuk keperluan iklan, profiling komersial, atau tujuan di luar fungsi bot.</p>
+    </div>
+  </section>
+
+  <section id="s3">
+    <h2><span class="num">03</span> Penyimpanan Data</h2>
+    <p>Semua data disimpan menggunakan <strong>Cloudflare KV</strong> — layanan penyimpanan terenkripsi milik Cloudflare, Inc. Data disimpan di infrastruktur Cloudflare yang tersebar secara global dengan keamanan tingkat enterprise.</p>
+    <ul>
+      <li>Data disimpan selama pengguna masih aktif menggunakan layanan</li>
+      <li>Data server dihapus otomatis jika bot dikeluarkan dari server</li>
+      <li>Pengguna dapat meminta penghapusan data kapan saja</li>
+    </ul>
+  </section>
+
+  <section id="s4">
+    <h2><span class="num">04</span> Berbagi Data dengan Pihak Ketiga</h2>
+    <p>OWO BIM <strong>tidak menjual, menyewakan, atau membagikan</strong> data pengguna kepada pihak ketiga untuk tujuan komersial.</p>
+    <p>Data hanya dapat diberikan kepada pihak lain dalam kondisi berikut:</p>
+    <ul>
+      <li>Diwajibkan oleh hukum atau perintah pengadilan yang berlaku</li>
+      <li>Diperlukan untuk melindungi keamanan pengguna lain atau publik</li>
+      <li>Infrastruktur pihak ketiga yang digunakan (Cloudflare) sebagai penyedia layanan teknis</li>
+    </ul>
+    <p>Kebijakan privasi Cloudflare dapat dilihat di <strong>cloudflare.com/privacypolicy</strong>.</p>
+  </section>
+
+  <section id="s5">
+    <h2><span class="num">05</span> Keamanan Data</h2>
+    <p>Kami menerapkan langkah-langkah keamanan untuk melindungi data kamu:</p>
+    <ul>
+      <li>Password disimpan dalam bentuk <strong>hash SHA-256</strong> yang tidak dapat dibalik</li>
+      <li>Semua komunikasi menggunakan enkripsi <strong>HTTPS/TLS</strong></li>
+      <li>Akses ke data admin dibatasi dengan verifikasi Discord ID</li>
+      <li>Tidak ada data sensitif yang disimpan dalam log atau cache</li>
+    </ul>
+    <div class="highlight-box">
+      <p>Meskipun kami menerapkan keamanan terbaik, tidak ada sistem yang 100% aman. Jika kamu menemukan celah keamanan, harap laporkan segera kepada kami.</p>
+    </div>
+  </section>
+
+  <section id="s6">
+    <h2><span class="num">06</span> Hak Pengguna</h2>
+    <p>Sebagai pengguna, kamu memiliki hak berikut:</p>
+    <ul>
+      <li><strong>Akses</strong> — Mengetahui data apa yang kami simpan tentang kamu</li>
+      <li><strong>Koreksi</strong> — Meminta perbaikan data yang tidak akurat</li>
+      <li><strong>Penghapusan</strong> — Meminta penghapusan seluruh data kamu dari sistem</li>
+      <li><strong>Portabilitas</strong> — Meminta salinan data kamu dalam format yang dapat dibaca</li>
+    </ul>
+    <p>Untuk menggunakan hak-hak ini, hubungi kami melalui kontak yang tersedia di bagian bawah halaman ini.</p>
+  </section>
+
+  <section id="s7">
+    <h2><span class="num">07</span> Data Anak-anak</h2>
+    <p>OWO BIM mengikuti kebijakan Discord yang mensyaratkan pengguna berusia minimal <strong>13 tahun</strong> (atau 16 tahun di beberapa negara sesuai regulasi setempat).</p>
+    <p>Kami tidak secara sengaja mengumpulkan data dari anak-anak di bawah usia minimum. Jika kamu percaya bahwa data anak di bawah umur telah dikumpulkan, harap hubungi kami segera untuk penghapusan.</p>
+  </section>
+
+  <section id="s8">
+    <h2><span class="num">08</span> Perubahan Kebijakan</h2>
+    <p>Kebijakan Privasi ini dapat diperbarui sewaktu-waktu. Perubahan signifikan akan diumumkan melalui sistem broadcast bot dan halaman ini akan diperbarui dengan tanggal berlaku yang baru.</p>
+    <p>Penggunaan layanan setelah pembaruan dianggap sebagai persetujuan terhadap kebijakan privasi yang baru.</p>
+  </section>
+
+  <section id="s9">
+    <h2><span class="num">09</span> Kontak</h2>
+    <p>Untuk pertanyaan terkait privasi, permintaan penghapusan data, atau laporan masalah keamanan:</p>
+    <ul>
+      <li>Discord: <strong>bimxr</strong></li>
+      <li>Website: <strong>owo.kraxx.my.id</strong></li>
+    </ul>
+    <div class="green-box">
+      <p>Kami berkomitmen untuk merespons pertanyaan terkait privasi dalam waktu <strong>7 hari kerja</strong>.</p>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <footer>
+    <p>© 2026 OWO BIM. All rights reserved.</p>
+    <p><a href="terms-of-service.html">Terms of Service</a> · <a href="#">Kembali ke atas</a></p>
+  </footer>
+</div>
+</body>
+</html>
