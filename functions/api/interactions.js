@@ -1951,6 +1951,153 @@ if (cmd === 'weather') {
   }
 }
 
+
+
+    if (cmd === 'kurs') {
+  const EMOJI = '<a:Owo3:1492611511087140985>';
+  const dari = getOption(options, 'dari')?.toUpperCase() || 'USD';
+  const ke = getOption(options, 'ke')?.toUpperCase() || 'IDR';
+  const jumlah = parseFloat(getOption(options, 'jumlah') || '1');
+
+  const flagEmoji = {
+    USD: '🇺🇸', IDR: '🇮🇩', JPY: '🇯🇵', KRW: '🇰🇷', EUR: '🇪🇺',
+    GBP: '🇬🇧', CNY: '🇨🇳', SGD: '🇸🇬', MYR: '🇲🇾', AUD: '🇦🇺',
+    CAD: '🇨🇦', CHF: '🇨🇭', HKD: '🇭🇰', THB: '🇹🇭', INR: '🇮🇳',
+    SAR: '🇸🇦', AED: '🇦🇪', NZD: '🇳🇿', BRL: '🇧🇷', RUB: '🇷🇺',
+    TRY: '🇹🇷', MXN: '🇲🇽', PHP: '🇵🇭', VND: '🇻🇳', PKR: '🇵🇰',
+    BDT: '🇧🇩', EGP: '🇪🇬', NOK: '🇳🇴', SEK: '🇸🇪', DKK: '🇩🇰'
+  };
+
+  const namaMatuang = {
+    USD: 'Dolar Amerika', IDR: 'Rupiah Indonesia', JPY: 'Yen Jepang',
+    KRW: 'Won Korea', EUR: 'Euro', GBP: 'Poundsterling Inggris',
+    CNY: 'Yuan Tiongkok', SGD: 'Dolar Singapura', MYR: 'Ringgit Malaysia',
+    AUD: 'Dolar Australia', CAD: 'Dolar Kanada', CHF: 'Franc Swiss',
+    HKD: 'Dolar Hong Kong', THB: 'Baht Thailand', INR: 'Rupee India',
+    SAR: 'Riyal Arab Saudi', AED: 'Dirham UEA', NZD: 'Dolar Selandia Baru',
+    BRL: 'Real Brasil', RUB: 'Rubel Rusia', TRY: 'Lira Turki',
+    MXN: 'Peso Meksiko', PHP: 'Peso Filipina', VND: 'Dong Vietnam',
+    PKR: 'Rupee Pakistan', BDT: 'Taka Bangladesh', EGP: 'Pound Mesir',
+    NOK: 'Krone Norwegia', SEK: 'Krona Swedia', DKK: 'Krone Denmark'
+  };
+
+  const trendEmoji = (rate) => {
+    if (rate > 1000) return '📈 Sangat Tinggi';
+    if (rate > 100) return '📊 Tinggi';
+    if (rate > 10) return '📉 Sedang';
+    return '💹 Rendah';
+  };
+
+  if (isNaN(jumlah) || jumlah <= 0) {
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m✗  JUMLAH TIDAK VALID  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ❌ Jumlah harus berupa angka positif!`,
+      `> 💡 Contoh: \`1\`, \`100\`, \`1000\``
+    ].join('\n'));
+  }
+
+  try {
+    // Ambil semua rate sekaligus dari API gratis
+    const apiUrl = `https://api.exchangerate-api.com/v4/latest/${dari}`;
+    const res = await fetch(apiUrl);
+
+    if (!res.ok) {
+      return respond([
+        '```ansi',
+        '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[2;34m║  \u001b[1;31m✗  KODE MATA UANG INVALID  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+        '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> ${EMOJI} ❌ Kode mata uang **\`${dari}\`** tidak valid!`,
+        `> 💡 Contoh: \`USD\`, \`IDR\`, \`JPY\`, \`EUR\`, \`SGD\``
+      ].join('\n'));
+    }
+
+    const data = await res.json();
+    const rates = data.rates;
+
+    if (!rates[ke]) {
+      return respond([
+        '```ansi',
+        '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[2;34m║  \u001b[1;31m✗  MATA UANG TUJUAN INVALID  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+        '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> ${EMOJI} ❌ Kode mata uang **\`${ke}\`** tidak valid!`,
+        `> 💡 Contoh: \`USD\`, \`IDR\`, \`JPY\`, \`EUR\`, \`SGD\``
+      ].join('\n'));
+    }
+
+    const rate = rates[ke];
+    const hasil = jumlah * rate;
+    const rateBalik = (1 / rate);
+
+    // Format angka
+    const formatAngka = (n) => {
+      if (n >= 1000000) return n.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+      if (n >= 1) return n.toLocaleString('id-ID', { maximumFractionDigits: 4 });
+      return n.toFixed(6);
+    };
+
+    // Snapshot multi-currency vs IDR (mata uang populer)
+    const popularVsDari = ['USD', 'EUR', 'JPY', 'SGD', 'MYR', 'GBP', 'CNY', 'AUD']
+      .filter(c => c !== dari && rates[c])
+      .slice(0, 6)
+      .map(c => {
+        const r = rates[c];
+        const flag = flagEmoji[c] || '🌐';
+        const val = formatAngka(r);
+        const bar = Math.min(Math.round((Math.log10(r + 1) / 6) * 8), 8);
+        const barStr = '█'.repeat(bar) + '░'.repeat(8 - bar);
+        return `\u001b[1;33m ${flag} ${c.padEnd(4)}\u001b[0m \u001b[0;37m\`${barStr}\` ${val}\u001b[0m`;
+      });
+
+    const flagDari = flagEmoji[dari] || '🌐';
+    const flagKe = flagEmoji[ke] || '🌐';
+    const namaDari = namaMatuang[dari] || dari;
+    const namaKe = namaMatuang[ke] || ke;
+    const updateTime = new Date(data.date).toLocaleDateString('id-ID', {
+      day: '2-digit', month: 'long', year: 'numeric'
+    });
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      `\u001b[2;34m║  \u001b[1;33m💱  CURRENCY EXCHANGE  💱\u001b[0m  \u001b[2;34m║\u001b[0m`,
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `${EMOJI} ${flagDari} **${dari}** → ${flagKe} **${ke}**`,
+      ``,
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━ 💰 HASIL KONVERSI ━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m 💵  Jumlah      :\u001b[0m \u001b[1;37m${formatAngka(jumlah)} ${dari}\u001b[0m`,
+      `\u001b[1;36m 💱  Hasil       :\u001b[0m \u001b[1;32m${formatAngka(hasil)} ${ke}\u001b[0m`,
+      `\u001b[1;36m 📊  Rate        :\u001b[0m \u001b[0;37m1 ${dari} = ${formatAngka(rate)} ${ke}\u001b[0m`,
+      `\u001b[1;36m 🔄  Rate Balik  :\u001b[0m \u001b[0;37m1 ${ke} = ${formatAngka(rateBalik)} ${dari}\u001b[0m`,
+      `\u001b[1;36m 📈  Tren        :\u001b[0m \u001b[0;37m${trendEmoji(rate)}\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[1;32m━━━━━━━━━ 🌍 INFO MATA UANG ━━━━━━━━━\u001b[0m',
+      `\u001b[1;35m 🏦  Dari        :\u001b[0m \u001b[0;37m${flagDari} ${namaDari} (${dari})\u001b[0m`,
+      `\u001b[1;35m 🏦  Ke          :\u001b[0m \u001b[0;37m${flagKe} ${namaKe} (${ke})\u001b[0m`,
+      `\u001b[1;35m 🕐  Update      :\u001b[0m \u001b[0;37m${updateTime}\u001b[0m`,
+      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[1;36m━━━━━━━━━ 📊 SNAPSHOT MULTI-KURS ━━━━━\u001b[0m',
+      `\u001b[0;37m 1 ${dari} terhadap mata uang lain:\u001b[0m`,
+      ...popularVsDari,
+      '\u001b[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> 🤖 *Powered by OwoBim Exchange Engine* ${EMOJI}`
+    ].join('\n'));
+
+  } catch (err) {
+    return respond(`${EMOJI} ❌ Terjadi error: \`${err.message}\``);
+  }
+}
+
     
     
 
