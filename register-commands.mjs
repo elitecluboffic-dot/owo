@@ -202,6 +202,33 @@ const commands = [
       required: true
     }
   ]
+},
+
+
+
+  {
+  name: 'kurs',
+  description: '💱 Cek kurs mata uang real-time ke 150+ negara!',
+  options: [
+    {
+      name: 'dari',
+      description: '💵 Mata uang asal — USD | IDR | JPY | EUR | dll',
+      type: 3,
+      required: true
+    },
+    {
+      name: 'ke',
+      description: '💴 Mata uang tujuan — IDR | USD | SGD | dll',
+      type: 3,
+      required: true
+    },
+    {
+      name: 'jumlah',
+      description: '🔢 Jumlah yang mau dikonversi (default: 1)',
+      type: 3,
+      required: false
+    }
+  ]
 }
   
   
