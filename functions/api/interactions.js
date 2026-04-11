@@ -1698,7 +1698,7 @@ if (cmd === 'servers') {
   const url = getOption(options, 'url');
 
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    return respond(`<:owobim1:1492578629732008159> URL harus diawali dengan \`http://\` atau \`https://\``);
+    return respond(`<a:Owo1:1492563819464102078> URL harus diawali dengan \`http://\` atau \`https://\``);
   }
 
   const res = await fetch('https://api-ssl.bitly.com/v4/shorten', {
@@ -1713,11 +1713,11 @@ if (cmd === 'servers') {
   const data = await res.json();
 
   if (!res.ok) {
-    return respond(`<:owobim1:1492578629732008159> Gagal: ${data.message}`);
+    return respond(`<a:Owo1:1492563819464102078> Gagal: ${data.message}`);
   }
 
   return respond(
-    `<:owobim1:1492578629732008159> **URL Berhasil Diperpendek!**\n\n` +
+    `<a:Owo1:1492563819464102078> **URL Berhasil Diperpendek!**\n\n` +
     `🔗 **Asli:** \`${url}\`\n` +
     `✅ **Pendek:** **${data.link}**`
   );
@@ -1728,7 +1728,7 @@ if (cmd === 'servers') {
 
 
 if (cmd === 'translate') {
-  const EMOJI = '<:GifOwoBim:1492597822275457114>';
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const teks = getOption(options, 'teks');
   const bahasa = getOption(options, 'bahasa').toLowerCase();
 
