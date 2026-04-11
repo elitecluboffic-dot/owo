@@ -1857,7 +1857,21 @@ if (cmd === 'weather') {
     const geoRes = await fetch(geoUrl);
     const geoData = await geoRes.json();
 
-    if (!geoData || geoData.length === 0) {
+    // Cek API key invalid / error dari OpenWeather
+    if (!Array.isArray(geoData)) {
+      return respond([
+        '```ansi',
+        '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[2;34m║  \u001b[1;31m✗  API ERROR  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+        '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> ${EMOJI} ❌ Gagal konek ke OpenWeather API!`,
+        `> 🔍 Response: \`${JSON.stringify(geoData)}\``,
+        `> 🔑 Cek API Key di Cloudflare Variables!`
+      ].join('\n'));
+    }
+
+    if (geoData.length === 0) {
       return respond([
         '```ansi',
         '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
@@ -1936,7 +1950,6 @@ if (cmd === 'weather') {
     return respond(`${EMOJI} ❌ Terjadi error: \`${err.message}\``);
   }
 }
-
 
     
     
