@@ -65,9 +65,9 @@ for (const opt of mentionedUsers) {
 
 
 
-        if (cmd === 'help') {
-      return respond(
-`🌟 **Bantuan Command Bot OWO BIM**
+    // ==================== HELP COMMAND (MUDAH DIUPDATE) ====================
+    if (cmd === 'help') {
+      const helpText = `🌟 **Bantuan Command Bot OWO BIM**
 
 **Ekonomi Utama:**
 • \`/register password:xxx\` → Buat akun baru
@@ -104,11 +104,10 @@ for (const opt of mentionedUsers) {
 • \`/infopemilikbot\` → Info pemilik bot
 
 > **Tips:** Beberapa command support \`all\` untuk jumlah (contoh: /wcf jumlah:all)
+Butuh bantuan lebih lanjut? Hubungi <@1442230317455900823> 💬`;
 
-Butuh bantuan lebih lanjut? Hubungi <@1442230317455900823> 💬`
-      );
+      return respond(helpText);
     }
-
 
 
     
