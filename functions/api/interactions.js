@@ -29,14 +29,12 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
     // ✅ Handle userinfo DULUAN sebelum await apapun
 if (cmd === 'userinfo') {
-  // 1. Defer secepat mungkin
-  await fetch(`https://discord.com/api/v10/interactions/${interaction.id}/${interaction.token}/callback`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 5 })
-  });
+  // Defer langsung dengan response sederhana
+  const defer = new Response(
+    JSON.stringify({ type: 5 }),
+    { headers: { 'Content-Type': 'application/json' } }
+  );
 
-  // 2. Proses ringan di background
   ctx.waitUntil((async () => {
     try {
       const targetOption = options.find(o => o.name === 'user');
@@ -51,34 +49,24 @@ if (cmd === 'userinfo') {
         return;
       }
 
-      const member = interaction.data.resolved?.members?.[targetUser.id];
-
       const createdAt = Math.floor((BigInt(targetUser.id) >> 22n) / 1000n + 1420070400n);
 
-      let msg = `**✦ USER INFORMATION ✦**\n══════════════════════\n`;
-      msg += `👤 **${targetUser.username}**\n`;
-      msg += `🆔 \`${targetUser.id}\`\n`;
-      msg += `📅 Created: <t:${createdAt}:R>\n`;
-
-      if (member?.nick) msg += `🎭 Nick: **${member.nick}**\n`;
-      if (targetUser.global_name) msg += `🌐 Display: **${targetUser.global_name}**\n`;
-
-      const avatarUrl = targetUser.avatar
-        ? `https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar}.png?size=1024`
-        : `https://cdn.discordapp.com/embed/avatars/${Number(targetUser.discriminator || 0) % 5}.png`;
-
-      msg += `\n──────────────────────\n🖼️ **Assets**\n──────────────────────\n`;
-      msg += `Avatar: [View](${avatarUrl})`;
+      const msg = `**✦ USER INFORMATION ✦**\n` +
+                  `══════════════════════\n` +
+                  `👤 **${targetUser.username}**\n` +
+                  `🆔 \`${targetUser.id}\`\n` +
+                  `📅 Created: <t:${createdAt}:R>\n\n` +
+                  `🖼️ Avatar: [View](https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar || '0'}.png?size=1024)`;
 
       await editResponse(interaction.application_id, interaction.token, msg);
 
-    } catch (error) {
-      console.error("Userinfo Error:", error);
-      await editResponse(interaction.application_id, interaction.token, "❌ Terjadi kesalahan saat memproses.");
+    } catch (e) {
+      console.error(e);
+      await editResponse(interaction.application_id, interaction.token, "❌ Error saat memproses userinfo.");
     }
   })());
 
-  return new Response(null, { status: 202 });
+  return defer;
 }
     
     
