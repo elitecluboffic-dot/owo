@@ -1479,19 +1479,21 @@ if (cmd === 'pat') {
 
     
 
-    if (cmd === 'userinfo') {
+if (cmd === 'userinfo') {
+  // ✅ Defer dulu biar Discord tidak timeout
+  await respond({ type: 5 });
+
   const targetOption = options.find(o => o.name === 'user');
   const targetId = targetOption?.value ? String(targetOption.value) : discordId;
   const targetUser = targetOption?.value
     ? interaction.data.resolved?.users?.[targetId]
     : (interaction.member?.user || interaction.user);
 
-  if (!targetUser) return respond('❌ User tidak ditemukan!');
+  if (!targetUser) return editResponse('❌ User tidak ditemukan!');
 
   const member = interaction.data.resolved?.members?.[targetUser.id];
   const guildId = interaction.guild_id;
 
-  // ── Identity ──────────────────────────────────────────
   const discriminator = targetUser.discriminator && targetUser.discriminator !== '0'
     ? `#${targetUser.discriminator}` : '';
   const tag        = `${targetUser.username}${discriminator}`;
@@ -1500,14 +1502,12 @@ if (cmd === 'pat') {
   const isBot      = !!targetUser.bot;
   const isSystem   = !!targetUser.system;
 
-  // ── Snowflake → Timestamp ─────────────────────────────
   const createdAt  = Math.floor((BigInt(targetUser.id) >> 22n) / 1000n + 1420070400n);
   const joinedAt   = member?.joined_at
     ? Math.floor(new Date(member.joined_at).getTime() / 1000) : null;
   const boostedAt  = member?.premium_since
     ? Math.floor(new Date(member.premium_since).getTime() / 1000) : null;
 
-  // ── Assets ────────────────────────────────────────────
   const avatarExt  = targetUser.avatar?.startsWith('a_') ? 'gif' : 'png';
   const avatarBase = targetUser.avatar
     ? `https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar}`
@@ -1524,32 +1524,26 @@ if (cmd === 'pat') {
     ? `https://cdn.discordapp.com/banners/${targetUser.id}/${targetUser.banner}.${bannerExt}?size=1024`
     : null;
 
-  // ── Accent Color ──────────────────────────────────────
   const accentHex  = targetUser.accent_color
     ? `#${targetUser.accent_color.toString(16).padStart(6, '0').toUpperCase()}`
     : null;
 
-  // ── Roles ─────────────────────────────────────────────
   const totalRoles = member?.roles?.length || 0;
   const rolesDisplay = totalRoles
     ? member.roles.slice(0, 6).map(r => `<@&${r}>`).join(' ') +
       (totalRoles > 6 ? `  *(+${totalRoles - 6} lainnya)*` : '')
     : null;
+  const highestRole = member?.roles?.length ? `<@&${member.roles[0]}>` : null;
 
-  const highestRole = member?.roles?.length
-    ? `<@&${member.roles[0]}>` : null;
-
-  // ── Permissions highlight ─────────────────────────────
   const perms = BigInt(member?.permissions || 0);
   const permList = [];
-  if (perms & 8n)           permList.push('⚡ Administrator');
-  if (perms & 32n)          permList.push('👢 Kick Members');
-  if (perms & 4n)           permList.push('🔨 Ban Members');
-  if (perms & 16384n)       permList.push('🛡️ Manage Roles');
-  if (perms & 8192n)        permList.push('📋 Manage Channels');
-  if (perms & 32768n)       permList.push('📨 Manage Messages');
+  if (perms & 8n)      permList.push('⚡ Administrator');
+  if (perms & 32n)     permList.push('👢 Kick Members');
+  if (perms & 4n)      permList.push('🔨 Ban Members');
+  if (perms & 16384n)  permList.push('🛡️ Manage Roles');
+  if (perms & 8192n)   permList.push('📋 Manage Channels');
+  if (perms & 32768n)  permList.push('📨 Manage Messages');
 
-  // ── Badges ────────────────────────────────────────────
   const flags = targetUser.public_flags || 0;
   const badges = [];
   if (flags & (1 << 0))   badges.push('👑 Discord Staff');
@@ -1568,75 +1562,59 @@ if (cmd === 'pat') {
   if (isBot)               badges.push('🤖 Bot');
   if (isSystem)            badges.push('⚙️ System');
 
-  // ── Status / Activity ─────────────────────────────────
-  const presence = interaction.data.resolved?.presences?.[targetUser.id];
-  const statusMap = { online: '🟢 Online', idle: '🌙 Idle', dnd: '🔴 Do Not Disturb', offline: '⚫ Offline' };
-  const statusText = presence?.status ? (statusMap[presence.status] || '⚫ Offline') : null;
-  const activity = presence?.activities?.[0];
+  const presence    = interaction.data.resolved?.presences?.[targetUser.id];
+  const statusMap   = { online: '🟢 Online', idle: '🌙 Idle', dnd: '🔴 Do Not Disturb', offline: '⚫ Offline' };
+  const statusText  = presence?.status ? (statusMap[presence.status] || '⚫ Offline') : null;
+  const activity    = presence?.activities?.[0];
   const activityText = activity
     ? (activity.type === 4 ? `💬 *${activity.state || ''}*` : `🎮 ${activity.name}`)
     : null;
 
-  // ── Build Message ─────────────────────────────────────
   const line  = '═══════════════════════════';
   const line2 = '───────────────────────────';
 
   let msg = `\`\`\`\n✦ USER INFORMATION ✦\n\`\`\`\n`;
   msg += `${line}\n\n`;
-
-  // Identity block
   msg += `> 👤 **${tag}**\n`;
-  if (globalName) msg += `> 🌐 **Display Name:** ${globalName}\n`;
-  if (nickname)   msg += `> 🎭 **Nickname:** ${nickname}\n`;
-  if (isBot)      msg += `> 🤖 **Tipe:** Bot\n`;
-  if (isSystem)   msg += `> ⚙️ **Tipe:** System\n`;
+  if (globalName)   msg += `> 🌐 **Display Name:** ${globalName}\n`;
+  if (nickname)     msg += `> 🎭 **Nickname:** ${nickname}\n`;
+  if (isBot)        msg += `> 🤖 **Tipe:** Bot\n`;
+  if (isSystem)     msg += `> ⚙️ **Tipe:** System\n`;
   msg += `> 🆔 **ID:** \`${targetUser.id}\`\n`;
-  if (accentHex)  msg += `> 🎨 **Accent Color:** \`${accentHex}\`\n`;
-  if (statusText) msg += `> ${statusText}\n`;
+  if (accentHex)    msg += `> 🎨 **Accent Color:** \`${accentHex}\`\n`;
+  if (statusText)   msg += `> ${statusText}\n`;
   if (activityText) msg += `> ${activityText}\n`;
 
-  msg += `\n${line2}\n`;
-  msg += `⏱️ **Timeline**\n${line2}\n`;
-  msg += `📅 Akun Dibuat: <t:${createdAt}:F>\n`;
-  msg += `🕐 *(<t:${createdAt}:R>)*\n`;
-  if (joinedAt) {
-    msg += `📥 Join Server: <t:${joinedAt}:F>\n`;
-    msg += `🕐 *(<t:${joinedAt}:R>)*\n`;
-  }
-  if (boostedAt) {
-    msg += `💎 Boost Sejak: <t:${boostedAt}:F>\n`;
-    msg += `🕐 *(<t:${boostedAt}:R>)*\n`;
-  }
+  msg += `\n${line2}\n⏱️ **Timeline**\n${line2}\n`;
+  msg += `📅 Akun Dibuat: <t:${createdAt}:F>\n🕐 *(<t:${createdAt}:R>)*\n`;
+  if (joinedAt)  msg += `📥 Join Server: <t:${joinedAt}:F>\n🕐 *(<t:${joinedAt}:R>)*\n`;
+  if (boostedAt) msg += `💎 Boost Sejak: <t:${boostedAt}:F>\n🕐 *(<t:${boostedAt}:R>)*\n`;
 
   if (rolesDisplay) {
-    msg += `\n${line2}\n`;
-    msg += `🎖️ **Roles** *(${totalRoles})*\n${line2}\n`;
+    msg += `\n${line2}\n🎖️ **Roles** *(${totalRoles})*\n${line2}\n`;
     msg += `${rolesDisplay}\n`;
     if (highestRole) msg += `👆 **Tertinggi:** ${highestRole}\n`;
   }
 
   if (permList.length) {
-    msg += `\n${line2}\n`;
-    msg += `🔐 **Key Permissions**\n${line2}\n`;
+    msg += `\n${line2}\n🔐 **Key Permissions**\n${line2}\n`;
     msg += permList.map(p => `  • ${p}`).join('\n') + '\n';
   }
 
   if (badges.length) {
-    msg += `\n${line2}\n`;
-    msg += `🏅 **Badges** *(${badges.length})*\n${line2}\n`;
+    msg += `\n${line2}\n🏅 **Badges** *(${badges.length})*\n${line2}\n`;
     msg += badges.map(b => `  • ${b}`).join('\n') + '\n';
   }
 
-  msg += `\n${line2}\n`;
-  msg += `🖼️ **Assets**\n${line2}\n`;
+  msg += `\n${line2}\n🖼️ **Assets**\n${line2}\n`;
   msg += `🖼️ Avatar: [${avatarExt.toUpperCase()}](${avatarUrl})`;
   if (avatarExt === 'gif') msg += ` | [GIF](${avatarUrl})`;
   if (guildAvatarUrl) msg += `\n🖼️ Server Avatar: [Lihat](${guildAvatarUrl})`;
   if (bannerUrl) msg += `\n🎨 Banner: [${bannerExt.toUpperCase()}](${bannerUrl})`;
-
   msg += `\n\n${line}`;
 
-  return respond(msg);
+  // ✅ Edit response setelah defer
+  return editResponse(msg);
 }
 
 
