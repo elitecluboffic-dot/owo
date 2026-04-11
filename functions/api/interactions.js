@@ -1692,8 +1692,36 @@ if (cmd === 'servers') {
   ].join('\n'));
 }
 
-
     
+
+    if (cmd === 'shorten') {
+  const url = getOption(options, 'url');
+
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return respond(`<:owobim1:1492578629732008159> URL harus diawali dengan \`http://\` atau \`https://\``);
+  }
+
+  const res = await fetch('https://api-ssl.bitly.com/v4/shorten', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.BITLY_TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ long_url: url })
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    return respond(`<:owobim1:1492578629732008159> Gagal: ${data.message}`);
+  }
+
+  return respond(
+    `<:owobim1:1492578629732008159> **URL Berhasil Diperpendek!**\n\n` +
+    `🔗 **Asli:** \`${url}\`\n` +
+    `✅ **Pendek:** **${data.link}**`
+  );
+}
     
 
     return respond('❓ Command tidak dikenal.');
