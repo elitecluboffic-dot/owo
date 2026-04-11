@@ -63,6 +63,56 @@ for (const opt of mentionedUsers) {
     if (!userStr) return respond('❌ Data tidak ditemukan.');
     let user = JSON.parse(userStr);
 
+
+
+        if (cmd === 'help') {
+      return respond(
+`🌟 **Bantuan Command Bot OWO BIM**
+
+**Ekonomi Utama:**
+• \`/register password:xxx\` → Buat akun baru
+• \`/wcash\` → Cek saldo cowoncy kamu
+• \`/wcf jumlah:1000\` atau \`/wcf jumlah:all\` → Coinflip (50/50)
+• \`/wsend target:@user jumlah:5000\` → Kirim cowoncy ke orang lain
+• \`/daily\` → Klaim daily reward (15.000)
+• \`/kerja\` → Kerja setiap 1 jam (25.000)
+
+**Bank:**
+• \`/bank\` → Cek saldo bank & bunga
+• \`/deposit jumlah:10000\` atau \`/deposit jumlah:all\` → Masukkan uang ke bank
+• \`/withdraw jumlah:5000\` atau \`/withdraw jumlah:all\` → Ambil uang dari bank
+
+**Sosial & Fun:**
+• \`/marry target:@user\` → Melamar seseorang
+• \`/accept-marry\` → Terima lamaran
+• \`/tolak-marry\` → Tolak lamaran
+• \`/divorce\` → Cerai
+• \`/partner\` → Cek status pernikahan
+• \`/hug target:@user\` → Peluk seseorang
+• \`/slap target:@user\` → Tampar seseorang
+• \`/pat target:@user\` → Usap kepala (pat pat)
+• \`/roast target:@user\` → Roast random super pedas
+• \`/afk alasan:lagi belajar\` → Set AFK
+• \`/unafk\` → Keluar dari AFK
+
+**Lainnya:**
+• \`/ping\` → Cek latency bot
+• \`/stats\` → Statistik total pemain & cowoncy
+• \`/leaderboard\` → Top 10 saldo tertinggi
+• \`/level\` → Level leaderboard (berdasarkan total earned)
+• \`/avatar user:@user\` → Tampilkan avatar user
+• \`/infopemilikbot\` → Info pemilik bot
+
+> **Tips:** Beberapa command support \`all\` untuk jumlah (contoh: /wcf jumlah:all)
+
+Butuh bantuan lebih lanjut? Hubungi <@1442230317455900823> 💬`
+      );
+    }
+
+
+
+    
+
     if (cmd === 'wcash') {
       return respond(`💰 **${username}**: 🪙 **${user.balance.toLocaleString()}**`);
     }
@@ -1478,53 +1528,6 @@ if (cmd === 'pat') {
   if (!targetId) return respond('❌ Pilih user yang mau di-pat!');
   if (targetId === discordId) return respond('❌ Masa pat diri sendiri! 😂');
   return respond(`✋ **${username}** mengusap kepala <@${targetId}>! *pat pat* 🥰`);
-}
-
-
-    if (cmd === 'help') {
-  return respond([
-    `\`\`\`ansi`,
-    `\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m`,
-    `\u001b[2;34m║  \u001b[1;33m📖  DAFTAR COMMAND BOT  📖\u001b[0m  \u001b[2;34m║\u001b[0m`,
-    `\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m`,
-    `\`\`\``,
-    `\`\`\`ansi`,
-    `\u001b[1;32m━━━━━━ 💰 EKONOMI ━━━━━━\u001b[0m`,
-    `\u001b[1;33m/register\u001b[0m     \u001b[0;37mDaftar akun baru (+10.000 cowoncy)\u001b[0m`,
-    `\u001b[1;33m/wcash\u001b[0m        \u001b[0;37mCek saldo dompet kamu\u001b[0m`,
-    `\u001b[1;33m/daily\u001b[0m        \u001b[0;37mAmbil hadiah harian (+15.000)\u001b[0m`,
-    `\u001b[1;33m/kerja\u001b[0m        \u001b[0;37mKerja tiap 1 jam (+25.000)\u001b[0m`,
-    `\u001b[1;33m/wcf\u001b[0m          \u001b[0;37mCoin flip — taruhan koin\u001b[0m`,
-    `\u001b[1;33m/wsend\u001b[0m        \u001b[0;37mKirim cowoncy ke user lain\u001b[0m`,
-    `\u001b[1;32m━━━━━━ 🏦 BANK ━━━━━━\u001b[0m`,
-    `\u001b[1;33m/bank\u001b[0m         \u001b[0;37mInfo saldo bank & bunga 10%/minggu\u001b[0m`,
-    `\u001b[1;33m/deposit\u001b[0m      \u001b[0;37mSetor cowoncy ke bank\u001b[0m`,
-    `\u001b[1;33m/withdraw\u001b[0m     \u001b[0;37mTarik cowoncy dari bank\u001b[0m`,
-    `\u001b[1;32m━━━━━━ 💍 SOSIAL ━━━━━━\u001b[0m`,
-    `\u001b[1;33m/marry\u001b[0m        \u001b[0;37mLamar user lain\u001b[0m`,
-    `\u001b[1;33m/accept-marry\u001b[0m \u001b[0;37mTerima lamaran\u001b[0m`,
-    `\u001b[1;33m/tolak-marry\u001b[0m  \u001b[0;37mTolak lamaran\u001b[0m`,
-    `\u001b[1;33m/divorce\u001b[0m      \u001b[0;37mCerai dari pasangan\u001b[0m`,
-    `\u001b[1;33m/partner\u001b[0m      \u001b[0;37mInfo pasangan kamu\u001b[0m`,
-    `\u001b[1;33m/hug\u001b[0m          \u001b[0;37mPeluk user\u001b[0m`,
-    `\u001b[1;33m/slap\u001b[0m         \u001b[0;37mTampar user\u001b[0m`,
-    `\u001b[1;33m/pat\u001b[0m          \u001b[0;37mUsap kepala user\u001b[0m`,
-    `\u001b[1;32m━━━━━━ 🏆 RANKING ━━━━━━\u001b[0m`,
-    `\u001b[1;33m/leaderboard\u001b[0m  \u001b[0;37mTop 10 saldo tertinggi\u001b[0m`,
-    `\u001b[1;33m/level\u001b[0m        \u001b[0;37mLeaderboard level & XP\u001b[0m`,
-    `\u001b[1;33m/stats\u001b[0m        \u001b[0;37mStatistik server\u001b[0m`,
-    `\u001b[1;32m━━━━━━ 🎉 LAINNYA ━━━━━━\u001b[0m`,
-    `\u001b[1;33m/roast\u001b[0m        \u001b[0;37mRoast user dengan roast random 🔥\u001b[0m`,
-    `\u001b[1;33m/afk\u001b[0m          \u001b[0;37mSet status AFK\u001b[0m`,
-    `\u001b[1;33m/unafk\u001b[0m        \u001b[0;37mHapus status AFK\u001b[0m`,
-    `\u001b[1;33m/avatar\u001b[0m       \u001b[0;37mLihat avatar user\u001b[0m`,
-    `\u001b[1;33m/join-giveaway\u001b[0m \u001b[0;37mIkut giveaway aktif\u001b[0m`,
-    `\u001b[1;33m/ping\u001b[0m         \u001b[0;37mCek latensi bot\u001b[0m`,
-    `\u001b[1;33m/infopemilikbot\u001b[0m \u001b[0;37mInfo pemilik & bot\u001b[0m`,
-    `\u001b[1;33m/help\u001b[0m         \u001b[0;37mTampilkan pesan ini\u001b[0m`,
-    `\`\`\``,
-    `> 💀 *Gunakan dengan bijak — dibuat oleh* **Bimxr** ⚔️`
-  ].join('\n'));
 }
 
     return respond('❓ Command tidak dikenal.');
