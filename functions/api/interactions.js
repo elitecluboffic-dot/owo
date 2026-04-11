@@ -1722,6 +1722,92 @@ if (cmd === 'servers') {
     `✅ **Pendek:** **${data.link}**`
   );
 }
+
+
+
+    if (cmd === 'translate') {
+  const EMOJI = '<:Owo1:1492563819464102078>';
+  const teks = getOption(options, 'teks');
+  const bahasa = getOption(options, 'bahasa').toLowerCase();
+
+  const langNames = {
+    id: '🇮🇩 Indonesia', en: '🇬🇧 Inggris', ja: '🇯🇵 Jepang',
+    ko: '🇰🇷 Korea', zh: '🇨🇳 Mandarin', th: '🇹🇭 Thailand',
+    vi: '🇻🇳 Vietnam', ms: '🇲🇾 Melayu', tl: '🇵🇭 Filipina',
+    hi: '🇮🇳 Hindi', ar: '🇸🇦 Arab', tr: '🇹🇷 Turki',
+    fr: '🇫🇷 Prancis', de: '🇩🇪 Jerman', es: '🇪🇸 Spanyol',
+    it: '🇮🇹 Italia', pt: '🇵🇹 Portugis', ru: '🇷🇺 Rusia',
+    nl: '🇳🇱 Belanda', pl: '🇵🇱 Polandia', sv: '🇸🇪 Swedia',
+    da: '🇩🇰 Denmark', fi: '🇫🇮 Finlandia', no: '🇳🇴 Norwegia',
+    uk: '🇺🇦 Ukraina', el: '🇬🇷 Yunani', he: '🇮🇱 Ibrani',
+    fa: '🇮🇷 Persia', bn: '🇧🇩 Bengali', ur: '🇵🇰 Urdu',
+    sw: '🇰🇪 Swahili', af: '🇿🇦 Afrikaans'
+  };
+
+  const namaLang = langNames[bahasa] || `🌐 \`${bahasa.toUpperCase()}\``;
+
+  if (teks.length > 500) {
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m✗  TEKS TERLALU PANJANG  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ⚠️ Maksimal **500 karakter**!`,
+      `> 📏 Teks kamu **${teks.length} karakter** — kelebihan **${teks.length - 500} karakter**.`
+    ].join('\n'));
+  }
+
+  const res = await fetch(
+    `https://api.mymemory.translated.net/get?q=${encodeURIComponent(teks)}&langpair=auto|${bahasa}&de=${env.TRANSLATE_EMAIL}`
+  );
+
+  const data = await res.json();
+
+  if (!res.ok || String(data.responseStatus) !== '200') {
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m✗  TRANSLATE GAGAL  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ❌ Kode bahasa **\`${bahasa}\`** tidak valid atau tidak didukung!`,
+      `> 💡 Contoh kode yang benar: \`en\`, \`ja\`, \`ko\`, \`id\`, \`ar\``
+    ].join('\n'));
+  }
+
+  const hasil = data.responseData.translatedText;
+  const match = data.responseData.match
+    ? `${Math.round(parseFloat(data.responseData.match) * 100)}%`
+    : 'N/A';
+  const detectedLang = data.matches?.[0]?.source?.toUpperCase() || 'AUTO';
+
+  return respond([
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+    `\u001b[2;34m║  \u001b[1;33m🌐  TRANSLATE RESULT  🌐\u001b[0m  \u001b[2;34m║\u001b[0m`,
+    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `${EMOJI} 📝 **Teks Asli**`,
+    `> \`\`${teks}\`\``,
+    ``,
+    `${EMOJI} ✅ **Hasil Terjemahan**`,
+    `> \`\`${hasil}\`\``,
+    ``,
+    '```ansi',
+    '\u001b[1;32m━━━━━━━━━━━━ DETAIL INFO ━━━━━━━━━━━━\u001b[0m',
+    `\u001b[1;33m ${EMOJI} Bahasa Asal  :\u001b[0m \u001b[0;37m${detectedLang}\u001b[0m`,
+    `\u001b[1;33m 🌐 Diterjemahkan:\u001b[0m \u001b[0;37m${namaLang}\u001b[0m`,
+    `\u001b[1;33m 🎯 Akurasi      :\u001b[0m \u001b[0;37m${match}\u001b[0m`,
+    `\u001b[1;33m 📏 Panjang Teks :\u001b[0m \u001b[0;37m${teks.length} karakter\u001b[0m`,
+    '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '```',
+    `> 🤖 *Powered by OwoBim Translation Engine* ${EMOJI}`
+  ].join('\n'));
+}
+
+
+
     
 
     return respond('❓ Command tidak dikenal.');
