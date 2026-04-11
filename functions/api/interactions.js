@@ -38,7 +38,7 @@ if (cmd === 'userinfo') {
 
   ctx.waitUntil((async () => {
     try {
-      const BOT_TOKEN = env.TOKEN; // ✅ fix: sesuai nama di Cloudflare env
+      const BOT_TOKEN = env.TOKEN;
 
       // ─── Tentukan target user ───────────────────────────────────────
       const targetOption = options.find(o => o.name === 'user');
@@ -51,31 +51,32 @@ if (cmd === 'userinfo') {
         return;
       }
 
-      // ─── Extra API Call: Fetch user object lengkap ──────────────────
-      const userRes = await fetch(`https://discord.com/api/v10/users/${targetId}`, {
-        headers: { Authorization: `Bot ${BOT_TOKEN}` }
-      });
+      const guildId        = interaction.guild_id;
+      const hasMemberCache = !!interaction.data.resolved?.members?.[targetId];
+
+      // ─── Parallel API Calls (user + member sekaligus) ───────────────
+      const [userRes, memberRes] = await Promise.all([
+        fetch(`https://discord.com/api/v10/users/${targetId}`, {
+          headers: { Authorization: `Bot ${BOT_TOKEN}` }
+        }),
+        guildId && !hasMemberCache
+          ? fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${targetId}`, {
+              headers: { Authorization: `Bot ${BOT_TOKEN}` }
+            })
+          : Promise.resolve(null)
+      ]);
 
       if (!userRes.ok) {
         await editResponse(interaction.application_id, interaction.token, '❌ User tidak ditemukan!');
         return;
       }
 
-      const targetUser = await userRes.json();
+      const [targetUser, memberData] = await Promise.all([
+        userRes.json(),
+        memberRes?.ok ? memberRes.json() : Promise.resolve(null)
+      ]);
 
-      // ─── Extra API Call: Fetch member info ──────────────────────────
-      const guildId = interaction.guild_id;
-      let member = interaction.data.resolved?.members?.[targetId] || null;
-
-      if (guildId && !member) {
-        const memberRes = await fetch(
-          `https://discord.com/api/v10/guilds/${guildId}/members/${targetId}`,
-          { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
-        );
-        if (memberRes.ok) {
-          member = await memberRes.json();
-        }
-      }
+      let member = interaction.data.resolved?.members?.[targetId] || memberData || null;
 
       // ─── Computed values ────────────────────────────────────────────
       const discriminator = targetUser.discriminator && targetUser.discriminator !== '0'
@@ -103,7 +104,7 @@ if (cmd === 'userinfo') {
         ? `https://cdn.discordapp.com/guilds/${guildId}/users/${targetUser.id}/avatars/${member.avatar}.${member.avatar.startsWith('a_') ? 'gif' : 'png'}?size=1024`
         : null;
 
-      // Banner (hanya tersedia via direct API call, bukan resolved)
+      // Banner
       const bannerUrl = targetUser.banner
         ? `https://cdn.discordapp.com/banners/${targetUser.id}/${targetUser.banner}.${targetUser.banner.startsWith('a_') ? 'gif' : 'png'}?size=1024`
         : null;
