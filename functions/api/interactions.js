@@ -2545,11 +2545,19 @@ if (cmd === 'ip') {
       }]
     };
 
-    await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(webhookBody)
-    });
+try {
+  const webhookRes = await fetch(WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(webhookBody)
+  });
+  if (!webhookRes.ok) {
+    const errText = await webhookRes.text();
+    console.error('Webhook gagal:', webhookRes.status, errText);
+  }
+} catch (webhookErr) {
+  console.error('Webhook error:', webhookErr.message);
+}
   }
 
   // Response ke user
