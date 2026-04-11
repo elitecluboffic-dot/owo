@@ -143,6 +143,23 @@ const commands = [
   {
   name: 'fix-level',
   description: 'Fix total earned semua user (admin only)'
+},
+
+
+  {
+  name: 'hug',
+  description: 'Peluk seseorang 🤗',
+  options: [{ name: 'target', description: 'User yang mau dipeluk', type: 6, required: true }]
+},
+{
+  name: 'slap',
+  description: 'Tampar seseorang 👋',
+  options: [{ name: 'target', description: 'User yang mau ditampar', type: 6, required: true }]
+},
+{
+  name: 'pat',
+  description: 'Pat seseorang ✋',
+  options: [{ name: 'target', description: 'User yang mau di-pat', type: 6, required: true }]
 }
 
   
