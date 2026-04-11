@@ -163,6 +163,12 @@ const commands = [
   {
   name: 'server-stats',
   description: 'Lihat statistik server & channel teraktif',
+},
+
+  {
+  name: 'shorten',
+  description: 'Perpendek URL panjang menjadi link pendek 🔗',
+  options: [{ name: 'url', description: 'URL yang mau diperpendek', type: 3, required: true }]
 }
   
   
