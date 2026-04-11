@@ -29,18 +29,11 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
     // ✅ Handle userinfo DULUAN sebelum await apapun
 if (cmd === 'userinfo') {
-  // 1. Defer immediately
-  await fetch(`https://discord.com/api/v10/interactions/${interaction.id}/${interaction.token}/callback`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 5 })
-  });
-
+  // ✅ Langsung return type 5 ke Discord (tanpa extra fetch)
   ctx.waitUntil((async () => {
     try {
       const BOT_TOKEN = env.TOKEN;
 
-      // ─── Tentukan target user ───────────────────────────────────────
       const targetOption = options.find(o => o.name === 'user');
       const targetId = targetOption?.value
         ? String(targetOption.value)
@@ -54,7 +47,6 @@ if (cmd === 'userinfo') {
       const guildId        = interaction.guild_id;
       const hasMemberCache = !!interaction.data.resolved?.members?.[targetId];
 
-      // ─── Parallel API Calls (user + member sekaligus) ───────────────
       const [userRes, memberRes] = await Promise.all([
         fetch(`https://discord.com/api/v10/users/${targetId}`, {
           headers: { Authorization: `Bot ${BOT_TOKEN}` }
@@ -76,42 +68,35 @@ if (cmd === 'userinfo') {
         memberRes?.ok ? memberRes.json() : Promise.resolve(null)
       ]);
 
-      let member = interaction.data.resolved?.members?.[targetId] || memberData || null;
+      const member = interaction.data.resolved?.members?.[targetId] || memberData || null;
 
-      // ─── Computed values ────────────────────────────────────────────
       const discriminator = targetUser.discriminator && targetUser.discriminator !== '0'
         ? `#${targetUser.discriminator}` : '';
       const tag        = `${targetUser.username}${discriminator}`;
       const globalName = targetUser.global_name || null;
       const nickname   = member?.nick || null;
 
-      const createdAt = Math.floor(
-        (BigInt(targetUser.id) >> 22n) / 1000n + 1420070400n
-      );
+      const createdAt = Math.floor((BigInt(targetUser.id) >> 22n) / 1000n + 1420070400n);
       const joinedAt  = member?.joined_at
         ? Math.floor(new Date(member.joined_at).getTime() / 1000) : null;
       const boostedAt = member?.premium_since
         ? Math.floor(new Date(member.premium_since).getTime() / 1000) : null;
 
-      // Avatar
       const avatarExt = targetUser.avatar?.startsWith('a_') ? 'gif' : 'png';
       const avatarUrl = targetUser.avatar
         ? `https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar}.${avatarExt}?size=1024`
         : `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(targetUser.id) % 6n)}.png`;
 
-      // Guild avatar
       const guildAvatarUrl = member?.avatar
         ? `https://cdn.discordapp.com/guilds/${guildId}/users/${targetUser.id}/avatars/${member.avatar}.${member.avatar.startsWith('a_') ? 'gif' : 'png'}?size=1024`
         : null;
 
-      // Banner
       const bannerUrl = targetUser.banner
         ? `https://cdn.discordapp.com/banners/${targetUser.id}/${targetUser.banner}.${targetUser.banner.startsWith('a_') ? 'gif' : 'png'}?size=1024`
         : null;
 
       const accentColor = targetUser.accent_color || 0x5865F2;
 
-      // ─── Roles ──────────────────────────────────────────────────────
       const totalRoles   = member?.roles?.length || 0;
       const rolesDisplay = totalRoles
         ? member.roles.slice(0, 5).map(r => `<@&${r}>`).join(' ') +
@@ -119,7 +104,6 @@ if (cmd === 'userinfo') {
         : null;
       const highestRole = member?.roles?.[0] ? `<@&${member.roles[0]}>` : null;
 
-      // ─── Permissions ────────────────────────────────────────────────
       const perms    = BigInt(member?.permissions || 0);
       const permList = [];
       if (perms & 8n)     permList.push('⚡ Admin');
@@ -129,7 +113,6 @@ if (cmd === 'userinfo') {
       if (perms & 8192n)  permList.push('📋 Manage Channels');
       if (perms & 32768n) permList.push('🎤 Mute Members');
 
-      // ─── Badges ─────────────────────────────────────────────────────
       const flags  = targetUser.public_flags || 0;
       const badges = [];
       if (flags & (1 << 0))  badges.push('👑 Staff');
@@ -144,7 +127,6 @@ if (cmd === 'userinfo') {
       if (member?.premium_since) badges.push('💎 Booster');
       if (targetUser.bot)        badges.push('🤖 Bot');
 
-      // ─── Build embed ─────────────────────────────────────────────────
       const embed = {
         color: accentColor,
         author: {
@@ -157,7 +139,6 @@ if (cmd === 'userinfo') {
         timestamp: new Date().toISOString()
       };
 
-      // Identity
       const identityLines = [];
       if (nickname)       identityLines.push(`🎭 **Nick:** ${nickname}`);
       if (targetUser.bot) identityLines.push(`🤖 **Type:** Bot`);
@@ -165,13 +146,11 @@ if (cmd === 'userinfo') {
         embed.fields.push({ name: '👤 Identity', value: identityLines.join('\n'), inline: false });
       }
 
-      // Timeline
       const timeLines = [`📅 Created: <t:${createdAt}:R> (<t:${createdAt}:d>)`];
       if (joinedAt)  timeLines.push(`📥 Joined: <t:${joinedAt}:R> (<t:${joinedAt}:d>)`);
       if (boostedAt) timeLines.push(`💎 Boosted: <t:${boostedAt}:R>`);
       embed.fields.push({ name: '⏱️ Timeline', value: timeLines.join('\n'), inline: false });
 
-      // Roles
       if (rolesDisplay) {
         embed.fields.push({
           name: `🎖️ Roles (${totalRoles})`,
@@ -180,25 +159,14 @@ if (cmd === 'userinfo') {
         });
       }
 
-      // Permissions
       if (permList.length) {
-        embed.fields.push({
-          name: '🔐 Key Permissions',
-          value: permList.join(' • '),
-          inline: false
-        });
+        embed.fields.push({ name: '🔐 Key Permissions', value: permList.join(' • '), inline: false });
       }
 
-      // Badges
       if (badges.length) {
-        embed.fields.push({
-          name: '🏅 Badges',
-          value: badges.join(' • '),
-          inline: false
-        });
+        embed.fields.push({ name: '🏅 Badges', value: badges.join(' • '), inline: false });
       }
 
-      // Assets
       const assetLinks = [`[Avatar](${avatarUrl})`];
       if (guildAvatarUrl) assetLinks.push(`[Server Avatar](${guildAvatarUrl})`);
       if (bannerUrl)      assetLinks.push(`[Banner](${bannerUrl})`);
@@ -206,7 +174,6 @@ if (cmd === 'userinfo') {
 
       if (bannerUrl) embed.image = { url: bannerUrl };
 
-      // ─── Send ────────────────────────────────────────────────────────
       await fetch(
         `https://discord.com/api/v10/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`,
         {
@@ -218,15 +185,14 @@ if (cmd === 'userinfo') {
 
     } catch (error) {
       console.error('Userinfo Error:', error);
-      await editResponse(
-        interaction.application_id,
-        interaction.token,
-        '❌ Terjadi kesalahan saat memproses.'
-      );
+      await editResponse(interaction.application_id, interaction.token, '❌ Terjadi kesalahan.');
     }
   })());
 
-  return new Response(null, { status: 202 });
+  // ✅ Return type 5 langsung — tidak perlu extra fetch ke callback URL
+  return new Response(JSON.stringify({ type: 5 }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
     
     
