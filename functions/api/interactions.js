@@ -21,6 +21,18 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
   if (interaction.type === 2) {
 
+    const cmd       = interaction.data.name;
+    const options   = interaction.data.options || [];
+    const discordId = interaction.member?.user?.id || interaction.user?.id;
+    const username  = interaction.member?.user?.username || interaction.user?.username;
+
+    // ✅ Handle userinfo DULUAN sebelum await apapun
+    if (cmd === 'userinfo') {
+      // ... paste seluruh block userinfo di sini ...
+    }
+
+    
+
     // Cek kalau ada user yang di-mention, apakah dia lagi AFK
 const mentionedUsers = interaction.data.options?.filter(o => o.type === 6) || [];
 for (const opt of mentionedUsers) {
