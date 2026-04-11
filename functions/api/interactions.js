@@ -1,4 +1,4 @@
-export const onRequestPost = async ({ request, env }) => {
+export const onRequestPost = async ({ request, env, waitUntil }) => {
   const headers = { 'Content-Type': 'application/json' };
   const signature = request.headers.get('x-signature-ed25519');
   const timestamp = request.headers.get('x-signature-timestamp');
@@ -2404,7 +2404,6 @@ if (cmd === 'feedback') {
   const targetId = options.find(o => o.name === 'target')?.value || null;
   const bukti = getOption(options, 'bukti') || null;
 
-  // Validasi dulu (ringan, tidak ada KV)
   if (pesan.length > 1000) {
     return respond(`> ${EMOJI} ❌ Maksimal **1000 karakter**! Pesan kamu **${pesan.length}** karakter.`);
   }
@@ -2413,7 +2412,6 @@ if (cmd === 'feedback') {
     return respond(`> ${EMOJI} ❌ Untuk **Report User**, kamu harus mention usernya!`);
   }
 
-  // Cek cooldown
   const cooldownKey = `feedback_cooldown:${discordId}`;
   const lastFeedback = await env.USERS_KV.get(cooldownKey);
   if (lastFeedback) {
@@ -2447,7 +2445,6 @@ if (cmd === 'feedback') {
     report:    `🚨 Report diterima! Owner akan menindaklanjuti dalam waktu dekat.`
   };
 
-  // Buat response dulu
   const responseMsg = respond([
     '```ansi',
     '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
@@ -2467,8 +2464,8 @@ if (cmd === 'feedback') {
     `> 🤖 *Powered by OwoBim Feedback Engine* ${EMOJI}`
   ].join('\n'));
 
-  // Jalankan KV & webhook TANPA nunggu
-  (async () => {
+  // FIX: pakai waitUntil supaya Worker tidak mati sebelum webhook selesai
+  waitUntil((async () => {
     try {
       const totalRaw = await env.USERS_KV.get(`feedback_total:${discordId}`);
       const totalFeedback = totalRaw ? parseInt(totalRaw) + 1 : 1;
@@ -2513,7 +2510,7 @@ if (cmd === 'feedback') {
     } catch (e) {
       console.error('Background task error:', e.message);
     }
-  })();
+  })());
 
   return responseMsg;
 }
