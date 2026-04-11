@@ -133,7 +133,12 @@ const commands = [
         required: false
       }
     ]
-  }
+  },
+
+  {
+  name: 'level',
+  description: 'Lihat leaderboard level semua user 🏅'
+}
 
   
 ];
