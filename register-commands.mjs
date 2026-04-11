@@ -189,6 +189,19 @@ const commands = [
       required: true
     }
   ]
+},
+
+  {
+  name: 'weather',
+  description: '🌤️ Cek cuaca real-time kota mana aja di seluruh dunia!',
+  options: [
+    {
+      name: 'kota',
+      description: '📍 Nama kota yang mau dicek — Jakarta | Tokyo | London | dll',
+      type: 3,
+      required: true
+    }
+  ]
 }
   
   
