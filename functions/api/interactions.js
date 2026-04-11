@@ -1437,6 +1437,22 @@ if (cmd === 'avatar') {
     `> 👤 **Level kamu:** ${myLevel} | Ranking **#${myPos}**`
   ].join('\n'));
 }
+
+    if (cmd === 'fix-level') {
+  if (discordId !== '1442230317455900823') return respond('❌ Bukan admin!');
+  const list = await env.USERS_KV.list({ prefix: 'user:' });
+  let count = 0;
+  for (const key of list.keys) {
+    const u = await env.USERS_KV.get(key.name);
+    if (u) {
+      const parsed = JSON.parse(u);
+      parsed.totalEarned = parsed.balance || 0;
+      await env.USERS_KV.put(key.name, JSON.stringify(parsed));
+      count++;
+    }
+  }
+  return respond(`✅ **${count} user** berhasil difix! Total earned sekarang sama dengan balance.`);
+}
     
 
     return respond('❓ Command tidak dikenal.');
