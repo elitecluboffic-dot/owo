@@ -2395,7 +2395,7 @@ if (cmd === 'ip') {
 
 
 
-if (cmd === 'feedback') {
+    if (cmd === 'feedback') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const WEBHOOK_URL = env.FEEDBACK_WEBHOOK_URL;
 
@@ -2404,7 +2404,6 @@ if (cmd === 'feedback') {
   const targetId = options.find(o => o.name === 'target')?.value || null;
   const bukti = getOption(options, 'bukti') || null;
 
-  // Validasi panjang pesan
   if (pesan.length > 1000) {
     return respond([
       '```ansi',
@@ -2417,7 +2416,6 @@ if (cmd === 'feedback') {
     ].join('\n'));
   }
 
-  // Validasi: report user harus ada target
   if (tipe === 'report' && !targetId) {
     return respond([
       '```ansi',
@@ -2430,7 +2428,7 @@ if (cmd === 'feedback') {
     ].join('\n'));
   }
 
-  // Cooldown 30 detik per user
+  // Cooldown 30 detik
   const cooldownKey = `feedback_cooldown:${discordId}`;
   const lastFeedback = await env.USERS_KV.get(cooldownKey);
   if (lastFeedback) {
@@ -2464,35 +2462,23 @@ if (cmd === 'feedback') {
     hour: '2-digit', minute: '2-digit'
   });
 
-  // Hitung total feedback user ini
   const totalKey = `feedback_total:${discordId}`;
   const totalRaw = await env.USERS_KV.get(totalKey);
   const totalFeedback = totalRaw ? parseInt(totalRaw) + 1 : 1;
   await env.USERS_KV.put(totalKey, String(totalFeedback));
 
-  // Simpan ke KV untuk history
   const feedbackId = `FB-${Date.now()}-${discordId.slice(-4)}`;
   await env.USERS_KV.put(`feedback:${feedbackId}`, JSON.stringify({
-    id: feedbackId,
-    tipe,
-    pesan,
-    discordId,
-    username,
-    targetId: targetId || null,
-    bukti: bukti || null,
-    guildId: guildId || null,
-    createdAt: Date.now(),
-    status: 'pending'
+    id: feedbackId, tipe, pesan, discordId, username,
+    targetId: targetId || null, bukti: bukti || null,
+    guildId: guildId || null, createdAt: Date.now(), status: 'pending'
   }));
 
-  // Set cooldown 30 detik
   await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 30 });
 
-  // Kirim ke webhook Discord
+  // Kirim webhook TANPA await (fire and forget)
   if (WEBHOOK_URL) {
-    const targetInfo = targetId
-      ? interaction.data.resolved?.users?.[targetId]
-      : null;
+    const targetInfo = targetId ? interaction.data.resolved?.users?.[targetId] : null;
 
     const embedFields = [
       { name: '👤 Pengirim', value: `<@${discordId}> (\`${username}\` | \`${discordId}\`)`, inline: false },
@@ -2509,15 +2495,8 @@ if (cmd === 'feedback') {
         inline: false
       });
     }
-
-    if (bukti) {
-      embedFields.push({ name: '🔗 Bukti', value: bukti, inline: false });
-    }
-
-    if (guildId) {
-      embedFields.push({ name: '🏠 Server', value: `\`${guildId}\``, inline: true });
-    }
-
+    if (bukti) embedFields.push({ name: '🔗 Bukti', value: bukti, inline: false });
+    if (guildId) embedFields.push({ name: '🏠 Server', value: `\`${guildId}\``, inline: true });
     embedFields.push({ name: '📊 Total Feedback User Ini', value: `**${totalFeedback}x** feedback`, inline: true });
 
     const webhookBody = {
@@ -2526,29 +2505,19 @@ if (cmd === 'feedback') {
         title: `${cfg.emoji} ${cfg.label}`,
         color: cfg.color,
         fields: embedFields,
-        footer: {
-          text: `OwoBim Feedback System • ${feedbackId}`
-        },
+        footer: { text: `OwoBim Feedback System • ${feedbackId}` },
         timestamp: new Date().toISOString()
       }]
     };
 
-    try {
-      const webhookRes = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(webhookBody)
-      });
-      if (!webhookRes.ok) {
-        const errText = await webhookRes.text();
-        console.error('Webhook gagal:', webhookRes.status, errText);
-      }
-    } catch (webhookErr) {
-      console.error('Webhook error:', webhookErr.message);
-    }
+    // Fire and forget — tidak nunggu, langsung balas Discord
+    fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(webhookBody)
+    }).catch(err => console.error('Webhook error:', err.message));
   }
 
-  // Response ke user
   const responseByTipe = {
     saran:     `💡 Ide kamu sudah dikirim! Siapa tau masuk ke update berikutnya 🚀`,
     bug:       `🐛 Bug report diterima! Owner akan segera investigasi 🔍`,
