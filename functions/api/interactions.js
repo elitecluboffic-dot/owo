@@ -1812,6 +1812,132 @@ if (cmd === 'translate') {
 
 
 
+
+    if (cmd === 'weather') {
+  const EMOJI = '<a:Owo2:1492603439879028776>';
+  const kota = getOption(options, 'kota');
+
+  const cuacaEmoji = {
+    'clear sky': '☀️', 'few clouds': '🌤️', 'scattered clouds': '⛅',
+    'broken clouds': '🌥️', 'overcast clouds': '☁️',
+    'light rain': '🌦️', 'moderate rain': '🌧️', 'heavy intensity rain': '⛈️',
+    'very heavy rain': '🌊', 'extreme rain': '🌊', 'freezing rain': '🧊',
+    'light snow': '🌨️', 'snow': '❄️', 'heavy snow': '☃️',
+    'thunderstorm': '⛈️', 'thunderstorm with light rain': '⛈️',
+    'thunderstorm with heavy rain': '🌩️', 'drizzle': '🌦️',
+    'light intensity drizzle': '🌦️', 'mist': '🌫️', 'fog': '🌫️',
+    'haze': '🌫️', 'smoke': '💨', 'dust': '🌪️', 'sand': '🌪️',
+    'tornado': '🌪️', 'squalls': '💨'
+  };
+
+  const arahAngin = (deg) => {
+    const dirs = ['↑ Utara', '↗ Timur Laut', '→ Timur', '↘ Tenggara',
+                  '↓ Selatan', '↙ Barat Daya', '← Barat', '↖ Barat Laut'];
+    return dirs[Math.round(deg / 45) % 8];
+  };
+
+  const uvLevel = (uv) => {
+    if (uv <= 2) return '🟢 Rendah';
+    if (uv <= 5) return '🟡 Sedang';
+    if (uv <= 7) return '🟠 Tinggi';
+    if (uv <= 10) return '🔴 Sangat Tinggi';
+    return '🟣 Ekstrem';
+  };
+
+  const visLevel = (vis) => {
+    if (vis >= 10000) return '✅ Sangat Jelas';
+    if (vis >= 5000) return '🟡 Jelas';
+    if (vis >= 2000) return '🟠 Berkabut';
+    return '🔴 Sangat Berkabut';
+  };
+
+  try {
+    const geoUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(kota)}&limit=1&appid=${process.env.OPENWEATHER_API_KEY}`;
+    const geoRes = await fetch(geoUrl);
+    const geoData = await geoRes.json();
+
+    if (!geoData || geoData.length === 0) {
+      return respond([
+        '```ansi',
+        '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[2;34m║  \u001b[1;31m✗  KOTA TIDAK DITEMUKAN  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+        '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> ${EMOJI} ❌ Kota **\`${kota}\`** tidak ditemukan!`,
+        `> 💡 Contoh: \`Jakarta\`, \`Tokyo\`, \`New York\`, \`London\``
+      ].join('\n'));
+    }
+
+    const { lat, lon, name, country } = geoData[0];
+
+    const [weatherRes, uvRes] = await Promise.all([
+      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric&lang=id`),
+      fetch(`https://api.openweathermap.org/data/2.5/uvi?lat=${lat}&lon=${lon}&appid=${process.env.OPENWEATHER_API_KEY}`)
+    ]);
+
+    const w = await weatherRes.json();
+    const uvData = await uvRes.json();
+
+    const desc = w.weather[0].description;
+    const descEn = w.weather[0].main.toLowerCase();
+    const icon = cuacaEmoji[w.weather[0].description.toLowerCase()] || cuacaEmoji[descEn] || '🌡️';
+    const uv = uvData.value ?? 'N/A';
+    const vis = w.visibility ?? 0;
+
+    const suhu = Math.round(w.main.temp);
+    const feelsLike = Math.round(w.main.feels_like);
+    const tempMin = Math.round(w.main.temp_min);
+    const tempMax = Math.round(w.main.temp_max);
+    const humidity = w.main.humidity;
+    const pressure = w.main.pressure;
+    const windSpeed = (w.wind.speed * 3.6).toFixed(1);
+    const windDeg = w.wind.deg ?? 0;
+    const cloudiness = w.clouds.all;
+
+    const sunriseTime = new Date(w.sys.sunrise * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
+    const sunsetTime = new Date(w.sys.sunset * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
+    const updateTime = new Date(w.dt * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
+
+    const namaKota = `${name}, ${country}`;
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      `\u001b[2;34m║  \u001b[1;33m${icon}  WEATHER REPORT  ${icon}\u001b[0m  \u001b[2;34m║\u001b[0m`,
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `${EMOJI} 📍 **Lokasi** — ${namaKota}`,
+      `${EMOJI} ${icon} **Kondisi** — ${desc.charAt(0).toUpperCase() + desc.slice(1)}`,
+      ``,
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━ 🌡️ SUHU & UDARA ━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m 🌡️  Suhu Saat Ini :\u001b[0m \u001b[1;37m${suhu}°C\u001b[0m`,
+      `\u001b[1;36m 🤔  Terasa Seperti:\u001b[0m \u001b[0;37m${feelsLike}°C\u001b[0m`,
+      `\u001b[1;36m 🔻  Suhu Min      :\u001b[0m \u001b[0;37m${tempMin}°C\u001b[0m`,
+      `\u001b[1;36m 🔺  Suhu Max      :\u001b[0m \u001b[0;37m${tempMax}°C\u001b[0m`,
+      `\u001b[1;36m 💧  Kelembaban    :\u001b[0m \u001b[0;37m${humidity}%\u001b[0m`,
+      `\u001b[1;36m 🌬️  Angin         :\u001b[0m \u001b[0;37m${windSpeed} km/h ${arahAngin(windDeg)}\u001b[0m`,
+      `\u001b[1;36m ☁️  Awan          :\u001b[0m \u001b[0;37m${cloudiness}%\u001b[0m`,
+      `\u001b[1;36m 👁️  Visibilitas   :\u001b[0m \u001b[0;37m${(vis / 1000).toFixed(1)} km — ${visLevel(vis)}\u001b[0m`,
+      `\u001b[1;36m ⏱️  Tekanan       :\u001b[0m \u001b[0;37m${pressure} hPa\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[1;32m━━━━━━━━━━━ ☀️ INFO LANJUT ━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;35m 🌅  Matahari Terbit:\u001b[0m \u001b[0;37m${sunriseTime} WIB\u001b[0m`,
+      `\u001b[1;35m 🌇  Matahari Terbenam:\u001b[0m \u001b[0;37m${sunsetTime} WIB\u001b[0m`,
+      `\u001b[1;35m 🕶️  Indeks UV     :\u001b[0m \u001b[0;37m${uv} — ${uvLevel(uv)}\u001b[0m`,
+      `\u001b[1;35m 🕐  Update       :\u001b[0m \u001b[0;37m${updateTime} WIB\u001b[0m`,
+      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> 🤖 *Powered by OwoBim Weather Engine* ${EMOJI}`
+    ].join('\n'));
+
+  } catch (err) {
+    return respond(`${EMOJI} ❌ Terjadi error: \`${err.message}\``);
+  }
+}
+
+
+    
     
 
     return respond('❓ Command tidak dikenal.');
