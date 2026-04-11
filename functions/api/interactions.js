@@ -1,4 +1,4 @@
-export const onRequestPost = async ({ request, env, ctx }) => {
+export const onRequestPost = async ({ request, env }) => {
   const headers = { 'Content-Type': 'application/json' };
   const signature = request.headers.get('x-signature-ed25519');
   const timestamp = request.headers.get('x-signature-timestamp');
@@ -25,53 +25,7 @@ export const onRequestPost = async ({ request, env, ctx }) => {
     const options   = interaction.data.options || [];
     const discordId = interaction.member?.user?.id || interaction.user?.id;
     const username  = interaction.member?.user?.username || interaction.user?.username;
-    
 
-    // ✅ Handle userinfo DULUAN sebelum await apapun
-if (cmd === 'userinfo') {
-  // ✅ Langsung return defer secepat mungkin
-  ctx.waitUntil(handleUserInfo(interaction, options));
-  
-  return new Response(
-    JSON.stringify({ type: 5 }), 
-    { headers: { 'Content-Type': 'application/json' } }
-  );
-}
-
-// Pisahkan jadi function terpisah
-async function handleUserInfo(interaction, options) {
-  try {
-    const targetOption = options.find(o => o.name === 'user');
-    const targetId = targetOption?.value ? String(targetOption.value) : interaction.member?.user?.id || interaction.user?.id;
-
-    // Ambil user data
-    let targetUser = targetOption?.value 
-      ? interaction.data.resolved?.users?.[targetId]
-      : (interaction.member?.user || interaction.user);
-
-    if (!targetUser) {
-      await editResponse(interaction.application_id, interaction.token, '❌ User tidak ditemukan!');
-      return;
-    }
-
-    const createdAt = Math.floor((BigInt(targetUser.id) >> 22n) / 1000n + 1420070400n);
-
-    const msg = `**✦ USER INFORMATION ✦**\n` +
-                `══════════════════════\n` +
-                `👤 **${targetUser.username}**\n` +
-                `🆔 \`${targetUser.id}\`\n` +
-                `📅 Created: <t:${createdAt}:R>\n\n` +
-                `🖼️ Avatar: [View](https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar || '0'}.png?size=1024)`;
-
-    await editResponse(interaction.application_id, interaction.token, msg);
-    
-  } catch (e) {
-    console.error(e);
-    await editResponse(interaction.application_id, interaction.token, "❌ Error saat memproses userinfo.");
-  }
-}
-    
-    
 
     // Cek kalau ada user yang di-mention, apakah dia lagi AFK
 const mentionedUsers = interaction.data.options?.filter(o => o.type === 6) || [];
@@ -86,8 +40,7 @@ for (const opt of mentionedUsers) {
     }
   }
 }
-
-    // USER KEY DISCORD
+    // KEY DISCORD
     const userKey   = await env.USERS_KV.get(`discord:${discordId}`);
 
 
@@ -1503,6 +1456,7 @@ if (cmd === 'avatar') {
   }
   return respond(`✅ **${count} user** berhasil difix! Total earned sekarang sama dengan balance.`);
 }
+
     
 
     if (cmd === 'hug') {
@@ -1526,6 +1480,52 @@ if (cmd === 'pat') {
   return respond(`✋ **${username}** mengusap kepala <@${targetId}>! *pat pat* 🥰`);
 }
 
+
+    if (cmd === 'help') {
+  return respond([
+    `\`\`\`ansi`,
+    `\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m`,
+    `\u001b[2;34m║  \u001b[1;33m📖  DAFTAR COMMAND BOT  📖\u001b[0m  \u001b[2;34m║\u001b[0m`,
+    `\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m`,
+    `\`\`\``,
+    `\`\`\`ansi`,
+    `\u001b[1;32m━━━━━━ 💰 EKONOMI ━━━━━━\u001b[0m`,
+    `\u001b[1;33m/register\u001b[0m     \u001b[0;37mDaftar akun baru (+10.000 cowoncy)\u001b[0m`,
+    `\u001b[1;33m/wcash\u001b[0m        \u001b[0;37mCek saldo dompet kamu\u001b[0m`,
+    `\u001b[1;33m/daily\u001b[0m        \u001b[0;37mAmbil hadiah harian (+15.000)\u001b[0m`,
+    `\u001b[1;33m/kerja\u001b[0m        \u001b[0;37mKerja tiap 1 jam (+25.000)\u001b[0m`,
+    `\u001b[1;33m/wcf\u001b[0m          \u001b[0;37mCoin flip — taruhan koin\u001b[0m`,
+    `\u001b[1;33m/wsend\u001b[0m        \u001b[0;37mKirim cowoncy ke user lain\u001b[0m`,
+    `\u001b[1;32m━━━━━━ 🏦 BANK ━━━━━━\u001b[0m`,
+    `\u001b[1;33m/bank\u001b[0m         \u001b[0;37mInfo saldo bank & bunga 10%/minggu\u001b[0m`,
+    `\u001b[1;33m/deposit\u001b[0m      \u001b[0;37mSetor cowoncy ke bank\u001b[0m`,
+    `\u001b[1;33m/withdraw\u001b[0m     \u001b[0;37mTarik cowoncy dari bank\u001b[0m`,
+    `\u001b[1;32m━━━━━━ 💍 SOSIAL ━━━━━━\u001b[0m`,
+    `\u001b[1;33m/marry\u001b[0m        \u001b[0;37mLamar user lain\u001b[0m`,
+    `\u001b[1;33m/accept-marry\u001b[0m \u001b[0;37mTerima lamaran\u001b[0m`,
+    `\u001b[1;33m/tolak-marry\u001b[0m  \u001b[0;37mTolak lamaran\u001b[0m`,
+    `\u001b[1;33m/divorce\u001b[0m      \u001b[0;37mCerai dari pasangan\u001b[0m`,
+    `\u001b[1;33m/partner\u001b[0m      \u001b[0;37mInfo pasangan kamu\u001b[0m`,
+    `\u001b[1;33m/hug\u001b[0m          \u001b[0;37mPeluk user\u001b[0m`,
+    `\u001b[1;33m/slap\u001b[0m         \u001b[0;37mTampar user\u001b[0m`,
+    `\u001b[1;33m/pat\u001b[0m          \u001b[0;37mUsap kepala user\u001b[0m`,
+    `\u001b[1;32m━━━━━━ 🏆 RANKING ━━━━━━\u001b[0m`,
+    `\u001b[1;33m/leaderboard\u001b[0m  \u001b[0;37mTop 10 saldo tertinggi\u001b[0m`,
+    `\u001b[1;33m/level\u001b[0m        \u001b[0;37mLeaderboard level & XP\u001b[0m`,
+    `\u001b[1;33m/stats\u001b[0m        \u001b[0;37mStatistik server\u001b[0m`,
+    `\u001b[1;32m━━━━━━ 🎉 LAINNYA ━━━━━━\u001b[0m`,
+    `\u001b[1;33m/roast\u001b[0m        \u001b[0;37mRoast user dengan roast random 🔥\u001b[0m`,
+    `\u001b[1;33m/afk\u001b[0m          \u001b[0;37mSet status AFK\u001b[0m`,
+    `\u001b[1;33m/unafk\u001b[0m        \u001b[0;37mHapus status AFK\u001b[0m`,
+    `\u001b[1;33m/avatar\u001b[0m       \u001b[0;37mLihat avatar user\u001b[0m`,
+    `\u001b[1;33m/join-giveaway\u001b[0m \u001b[0;37mIkut giveaway aktif\u001b[0m`,
+    `\u001b[1;33m/ping\u001b[0m         \u001b[0;37mCek latensi bot\u001b[0m`,
+    `\u001b[1;33m/infopemilikbot\u001b[0m \u001b[0;37mInfo pemilik & bot\u001b[0m`,
+    `\u001b[1;33m/help\u001b[0m         \u001b[0;37mTampilkan pesan ini\u001b[0m`,
+    `\`\`\``,
+    `> 💀 *Gunakan dengan bijak — dibuat oleh* **Bimxr** ⚔️`
+  ].join('\n'));
+}
 
     return respond('❓ Command tidak dikenal.');
   }
@@ -1564,28 +1564,6 @@ function respond(content) {
   });
 }
 
-// USER INFO
-async function editResponse(applicationId, interactionToken, content) {
-  try {
-    const response = await fetch(
-      `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}/messages/@original`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content: content })
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Discord API Error: ${response.status} - ${errorText}`);
-    }
-  } catch (error) {
-    console.error('Error saat editResponse:', error);
-  }
-}
 
 // LEVEL
 function getLevel(totalEarned) {
