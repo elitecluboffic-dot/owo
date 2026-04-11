@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terms of Service — OWO BIM</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: rgba(255,255,255,0.07);
+    --accent: #7c6dfa;
+    --accent2: #fa6d9b;
+    --text: #e8e6f0;
+    --muted: #7a7890;
+    --heading-font: 'Syne', sans-serif;
+    --body-font: 'DM Sans', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body-font);
+    font-size: 16px;
+    line-height: 1.8;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(124,109,250,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -200px; right: -200px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(250,109,155,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .container {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+  header {
+    padding: 60px 0 48px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 56px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 40px;
+  }
+  .brand-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .brand-name {
+    font-family: var(--heading-font);
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+  .brand-name span { color: var(--accent); }
+  h1 {
+    font-family: var(--heading-font);
+    font-size: clamp(36px, 6vw, 52px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: #fff;
+    margin-bottom: 16px;
+  }
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .meta {
+    font-size: 14px;
+    color: var(--muted);
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .meta span::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc-title {
+    font-family: var(--heading-font);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .toc ol {
+    padding-left: 20px;
+  }
+  .toc ol li {
+    margin-bottom: 6px;
+  }
+  .toc a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s;
+  }
+  .toc a:hover { color: var(--text); }
+  section {
+    margin-bottom: 52px;
+    scroll-margin-top: 24px;
+  }
+  h2 {
+    font-family: var(--heading-font);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #fff;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2 .num {
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(124,109,250,0.15);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+  }
+  p { color: #b8b4cc; margin-bottom: 14px; font-weight: 300; }
+  p:last-child { margin-bottom: 0; }
+  ul, ol {
+    padding-left: 20px;
+    margin-bottom: 14px;
+  }
+  li {
+    color: #b8b4cc;
+    margin-bottom: 8px;
+    font-weight: 300;
+  }
+  li::marker { color: var(--accent); }
+  strong { color: var(--text); font-weight: 500; }
+  .highlight-box {
+    background: rgba(124,109,250,0.08);
+    border: 1px solid rgba(124,109,250,0.2);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 20px 0;
+  }
+  .highlight-box p { color: #c8c4e0; margin: 0; }
+  .warning-box {
+    background: rgba(250,109,155,0.08);
+    border: 1px solid rgba(250,109,155,0.2);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 20px 0;
+  }
+  .warning-box p { color: #e0c4cc; margin: 0; }
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 52px 0;
+  }
+  footer {
+    padding: 40px 0 60px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: gap;
+    gap: 16px;
+  }
+  footer p {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0;
+  }
+  footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  footer a:hover { text-decoration: underline; }
+  @media (max-width: 600px) {
+    header { padding: 40px 0 32px; }
+    h1 { font-size: 32px; }
+    footer { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🦉</div>
+      <div class="brand-name">OWO <span>BIM</span></div>
+    </div>
+    <h1>Terms of<br><em>Service</em></h1>
+    <div class="meta">
+      <span>Berlaku sejak 11 April 2026</span>
+      <span>Versi 1.0</span>
+      <span>Bahasa Indonesia</span>
+    </div>
+  </header>
+
+  <div class="toc">
+    <div class="toc-title">Daftar Isi</div>
+    <ol>
+      <li><a href="#s1">Penerimaan Syarat</a></li>
+      <li><a href="#s2">Deskripsi Layanan</a></li>
+      <li><a href="#s3">Penggunaan yang Diizinkan</a></li>
+      <li><a href="#s4">Larangan Penggunaan</a></li>
+      <li><a href="#s5">Data & Privasi</a></li>
+      <li><a href="#s6">Kepemilikan & Hak Kekayaan Intelektual</a></li>
+      <li><a href="#s7">Penghentian Layanan</a></li>
+      <li><a href="#s8">Batasan Tanggung Jawab</a></li>
+      <li><a href="#s9">Perubahan Ketentuan</a></li>
+      <li><a href="#s10">Kontak</a></li>
+    </ol>
+  </div>
+
+  <section id="s1">
+    <h2><span class="num">01</span> Penerimaan Syarat</h2>
+    <p>Dengan menggunakan atau mengakses layanan OWO BIM ("Bot", "Layanan"), kamu menyatakan telah membaca, memahami, dan menyetujui Syarat & Ketentuan ini. Jika kamu tidak menyetujui syarat ini, harap hentikan penggunaan layanan.</p>
+    <div class="highlight-box">
+      <p>Layanan ini beroperasi di dalam platform Discord dan tunduk pada <strong>Discord Terms of Service</strong> yang berlaku secara bersamaan dengan syarat ini.</p>
+    </div>
+  </section>
+
+  <section id="s2">
+    <h2><span class="num">02</span> Deskripsi Layanan</h2>
+    <p>OWO BIM adalah Discord bot yang menyediakan fitur hiburan dan ekonomi virtual, meliputi:</p>
+    <ul>
+      <li>Sistem ekonomi virtual dengan mata uang <strong>Cowoncy</strong></li>
+      <li>Command interaktif seperti <code>/daily</code>, <code>/kerja</code>, <code>/slot</code>, dan lainnya</li>
+      <li>Fitur sosial seperti <code>/marry</code>, <code>/slap</code>, <code>/pat</code></li>
+      <li>Giveaway dan event komunitas</li>
+      <li>Statistik server dan pengguna</li>
+    </ul>
+    <p>Semua mata uang, item, dan aset dalam bot bersifat <strong>virtual</strong> dan tidak memiliki nilai moneter di dunia nyata.</p>
+  </section>
+
+  <section id="s3">
+    <h2><span class="num">03</span> Penggunaan yang Diizinkan</h2>
+    <p>Kamu diizinkan untuk:</p>
+    <ul>
+      <li>Menggunakan semua command yang tersedia sesuai fungsinya</li>
+      <li>Mengajak bot ke server Discord yang kamu miliki atau kelola</li>
+      <li>Melaporkan bug atau memberikan masukan kepada developer</li>
+      <li>Berpartisipasi dalam event dan giveaway yang diadakan</li>
+    </ul>
+  </section>
+
+  <section id="s4">
+    <h2><span class="num">04</span> Larangan Penggunaan</h2>
+    <p>Pengguna <strong>dilarang keras</strong> melakukan hal berikut:</p>
+    <ul>
+      <li>Mengeksploitasi bug atau celah sistem untuk mendapatkan keuntungan tidak wajar</li>
+      <li>Menggunakan script, bot, atau otomasi untuk menjalankan command secara massal</li>
+      <li>Mencoba meretas, memanipulasi, atau mengganggu infrastruktur layanan</li>
+      <li>Menyalahgunakan fitur untuk melecehkan atau merugikan pengguna lain</li>
+      <li>Melakukan jual-beli akun atau saldo Cowoncy dengan uang nyata</li>
+      <li>Membuat akun ganda untuk mengeksploitasi sistem reward</li>
+    </ul>
+    <div class="warning-box">
+      <p>Pelanggaran terhadap larangan di atas dapat mengakibatkan <strong>pemblokiran permanen</strong> tanpa pemberitahuan sebelumnya.</p>
+    </div>
+  </section>
+
+  <section id="s5">
+    <h2><span class="num">05</span> Data & Privasi</h2>
+    <p>Bot ini menyimpan data yang diperlukan untuk fungsionalitas layanan, termasuk Discord User ID, saldo, dan riwayat aktivitas. Data ini tidak dijual atau dibagikan ke pihak ketiga.</p>
+    <p>Selengkapnya dapat dibaca di <a href="privacy-policy.html" style="color: var(--accent);">Kebijakan Privasi</a> kami.</p>
+  </section>
+
+  <section id="s6">
+    <h2><span class="num">06</span> Kepemilikan & Hak Kekayaan Intelektual</h2>
+    <p>Semua kode, desain, nama, logo, dan konten yang terkait dengan OWO BIM adalah milik eksklusif developer. Kamu tidak diizinkan untuk:</p>
+    <ul>
+      <li>Menyalin, mendistribusikan, atau memodifikasi kode bot</li>
+      <li>Menggunakan nama atau brand OWO BIM untuk keperluan komersial</li>
+      <li>Membuat bot tiruan berdasarkan sistem OWO BIM</li>
+    </ul>
+  </section>
+
+  <section id="s7">
+    <h2><span class="num">07</span> Penghentian Layanan</h2>
+    <p>Developer berhak untuk menghentikan, menangguhkan, atau memodifikasi layanan kapan saja dengan atau tanpa pemberitahuan. Akun pengguna dapat dihentikan jika:</p>
+    <ul>
+      <li>Melanggar Syarat & Ketentuan ini</li>
+      <li>Melanggar Discord Terms of Service</li>
+      <li>Terindikasi melakukan kecurangan atau penyalahgunaan sistem</li>
+    </ul>
+  </section>
+
+  <section id="s8">
+    <h2><span class="num">08</span> Batasan Tanggung Jawab</h2>
+    <p>Layanan ini disediakan <strong>"sebagaimana adanya"</strong> tanpa jaminan apapun. Developer tidak bertanggung jawab atas:</p>
+    <ul>
+      <li>Kehilangan data akibat gangguan teknis atau pemeliharaan</li>
+      <li>Kerugian yang timbul akibat penggunaan layanan</li>
+      <li>Downtime atau gangguan layanan yang disebabkan oleh pihak ketiga (Discord, Cloudflare, dll.)</li>
+    </ul>
+    <div class="highlight-box">
+      <p>Karena semua aset bersifat virtual, tidak ada kompensasi finansial yang akan diberikan atas kehilangan data atau gangguan layanan.</p>
+    </div>
+  </section>
+
+  <section id="s9">
+    <h2><span class="num">09</span> Perubahan Ketentuan</h2>
+    <p>Developer berhak mengubah Syarat & Ketentuan ini sewaktu-waktu. Perubahan signifikan akan diumumkan melalui sistem broadcast bot. Penggunaan layanan setelah perubahan dianggap sebagai persetujuan terhadap ketentuan baru.</p>
+  </section>
+
+  <section id="s10">
+    <h2><span class="num">10</span> Kontak</h2>
+    <p>Untuk pertanyaan, laporan, atau masukan terkait Syarat & Ketentuan ini, hubungi:</p>
+    <ul>
+      <li>Discord: <strong>bimxr</strong></li>
+      <li>Website: <strong>owo.kraxx.my.id</strong></li>
+    </ul>
+  </section>
+
+  <div class="divider"></div>
+
+  <footer>
+    <p>© 2026 OWO BIM. All rights reserved.</p>
+    <p><a href="privacy-policy.html">Kebijakan Privasi</a> · <a href="#">Kembali ke atas</a></p>
+  </footer>
+</div>
+</body>
+</html>
