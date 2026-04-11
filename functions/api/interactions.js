@@ -26,6 +26,17 @@ export const onRequestPost = async ({ request, env }) => {
     const discordId = interaction.member?.user?.id || interaction.user?.id;
     const username  = interaction.member?.user?.username || interaction.user?.username;
 
+    // ✅ Guild untuk broadcast
+const guildId   = interaction.guild_id;
+const channelId = interaction.channel_id;
+if (guildId && channelId) {
+  await env.USERS_KV.put(`guild:${guildId}`, JSON.stringify({
+    guildId,
+    channelId,
+    updatedAt: Date.now()
+  }));
+}
+
 
     // Cek kalau ada user yang di-mention, apakah dia lagi AFK
 const mentionedUsers = interaction.data.options?.filter(o => o.type === 6) || [];
