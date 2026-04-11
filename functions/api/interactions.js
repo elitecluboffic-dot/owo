@@ -1764,7 +1764,7 @@ if (cmd === 'servers') {
 
   const data = await res.json();
 
-  if (!res.ok || String(data.responseStatus) !== '200') {
+  if (!res.ok || (data.responseStatus !== 200 && data.responseStatus !== '200')) {
     return respond([
       '```ansi',
       '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
