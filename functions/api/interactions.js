@@ -2191,6 +2191,208 @@ if (cmd === 'ip') {
   }
 }
 
+
+
+
+    if (cmd === 'color') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const input = getOption(options, 'hex')?.replace('#', '').toUpperCase();
+
+  const hexToRgb = (hex) => {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return { r, g, b };
+  };
+
+  const rgbToHsl = (r, g, b) => {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+    if (max === min) { h = s = 0; }
+    else {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+    return {
+      h: Math.round(h * 360),
+      s: Math.round(s * 100),
+      l: Math.round(l * 100)
+    };
+  };
+
+  const rgbToCmyk = (r, g, b) => {
+    r /= 255; g /= 255; b /= 255;
+    const k = 1 - Math.max(r, g, b);
+    if (k === 1) return { c: 0, m: 0, y: 0, k: 100 };
+    return {
+      c: Math.round(((1 - r - k) / (1 - k)) * 100),
+      m: Math.round(((1 - g - k) / (1 - k)) * 100),
+      y: Math.round(((1 - b - k) / (1 - k)) * 100),
+      k: Math.round(k * 100)
+    };
+  };
+
+  const rgbToHsv = (r, g, b) => {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const d = max - min;
+    let h;
+    const s = max === 0 ? 0 : d / max;
+    const v = max;
+    if (max === min) { h = 0; }
+    else {
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+    return {
+      h: Math.round(h * 360),
+      s: Math.round(s * 100),
+      v: Math.round(v * 100)
+    };
+  };
+
+  const getLuminance = (r, g, b) => {
+    const toLinear = c => c / 255 <= 0.03928 ? c / 255 / 12.92 : Math.pow((c / 255 + 0.055) / 1.055, 2.4);
+    return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  };
+
+  const getContrastRatio = (lum1, lum2) => {
+    const lighter = Math.max(lum1, lum2);
+    const darker = Math.min(lum1, lum2);
+    return ((lighter + 0.05) / (darker + 0.05)).toFixed(2);
+  };
+
+  const getColorName = (r, g, b) => {
+    const colors = [
+      { name: 'Merah', r: 255, g: 0, b: 0 }, { name: 'Hijau', r: 0, g: 128, b: 0 },
+      { name: 'Biru', r: 0, g: 0, b: 255 }, { name: 'Kuning', r: 255, g: 255, b: 0 },
+      { name: 'Oranye', r: 255, g: 165, b: 0 }, { name: 'Ungu', r: 128, g: 0, b: 128 },
+      { name: 'Pink', r: 255, g: 192, b: 203 }, { name: 'Coklat', r: 165, g: 42, b: 42 },
+      { name: 'Abu-abu', r: 128, g: 128, b: 128 }, { name: 'Hitam', r: 0, g: 0, b: 0 },
+      { name: 'Putih', r: 255, g: 255, b: 255 }, { name: 'Cyan', r: 0, g: 255, b: 255 },
+      { name: 'Magenta', r: 255, g: 0, b: 255 }, { name: 'Lime', r: 0, g: 255, b: 0 },
+      { name: 'Indigo', r: 75, g: 0, b: 130 }, { name: 'Violet', r: 238, g: 130, b: 238 },
+      { name: 'Gold', r: 255, g: 215, b: 0 }, { name: 'Silver', r: 192, g: 192, b: 192 },
+      { name: 'Teal', r: 0, g: 128, b: 128 }, { name: 'Navy', r: 0, g: 0, b: 128 },
+      { name: 'Maroon', r: 128, g: 0, b: 0 }, { name: 'Olive', r: 128, g: 128, b: 0 },
+      { name: 'Coral', r: 255, g: 127, b: 80 }, { name: 'Salmon', r: 250, g: 128, b: 114 },
+      { name: 'Crimson', r: 220, g: 20, b: 60 }, { name: 'Turquoise', r: 64, g: 224, b: 208 },
+      { name: 'Lavender', r: 230, g: 230, b: 250 }, { name: 'Beige', r: 245, g: 245, b: 220 },
+      { name: 'Mint', r: 152, g: 255, b: 152 }, { name: 'Peach', r: 255, g: 218, b: 185 }
+    ];
+    let closest = colors[0], minDist = Infinity;
+    for (const c of colors) {
+      const dist = Math.sqrt((r-c.r)**2 + (g-c.g)**2 + (b-c.b)**2);
+      if (dist < minDist) { minDist = dist; closest = c; }
+    }
+    return closest.name;
+  };
+
+  const getColorEmoji = (h, s, l) => {
+    if (l < 10) return '⬛';
+    if (l > 90) return '⬜';
+    if (s < 15) return '🩶';
+    if (h < 15 || h >= 345) return '🟥';
+    if (h < 45) return '🟧';
+    if (h < 75) return '🟨';
+    if (h < 150) return '🟩';
+    if (h < 195) return '🩵';
+    if (h < 255) return '🟦';
+    if (h < 285) return '🟪';
+    if (h < 345) return '🩷';
+    return '🟥';
+  };
+
+  const complementary = (h) => `#${((parseInt(input, 16) ^ 0xFFFFFF)).toString(16).padStart(6, '0').toUpperCase()}`;
+
+  const getWcagLevel = (ratio) => {
+    if (ratio >= 7) return '✅ AAA (Sempurna)';
+    if (ratio >= 4.5) return '✅ AA (Baik)';
+    if (ratio >= 3) return '⚠️ AA Large (Cukup)';
+    return '❌ Gagal WCAG';
+  };
+
+  if (!input || !/^[0-9A-F]{6}$/.test(input)) {
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m✗  HEX TIDAK VALID  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ❌ Format hex tidak valid!`,
+      `> 💡 Contoh: \`#FF5733\`, \`#00FF00\`, \`#3498DB\`, \`#FFFFFF\``
+    ].join('\n'));
+  }
+
+  const { r, g, b } = hexToRgb(input);
+  const hsl = rgbToHsl(r, g, b);
+  const hsv = rgbToHsv(r, g, b);
+  const cmyk = rgbToCmyk(r, g, b);
+  const colorName = getColorName(r, g, b);
+  const colorEmoji = getColorEmoji(hsl.h, hsl.s, hsl.l);
+  const luminance = getLuminance(r, g, b);
+  const whiteLum = 1;
+  const blackLum = 0;
+  const contrastWhite = getContrastRatio(luminance, whiteLum);
+  const contrastBlack = getContrastRatio(luminance, blackLum);
+  const wcagWhite = getWcagLevel(parseFloat(contrastWhite));
+  const wcagBlack = getWcagLevel(parseFloat(contrastBlack));
+  const compHex = complementary(hsl.h);
+
+  // Shades bar visual
+  const shadeBar = ['░', '▒', '▓', '█', '▓', '▒', '░'].join('');
+
+  // Decimal value
+  const decVal = parseInt(input, 16);
+
+  return respond([
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+    `\u001b[2;34m║  \u001b[1;33m🎨  COLOR ANALYZER  🎨\u001b[0m  \u001b[2;34m║\u001b[0m`,
+    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `${EMOJI} ${colorEmoji} **#${input}** — ${colorName}`,
+    ``,
+    '```ansi',
+    '\u001b[1;33m━━━━━━━━━━ 🎨 COLOR FORMAT ━━━━━━━━━━━\u001b[0m',
+    `\u001b[1;36m 🔷  HEX         :\u001b[0m \u001b[1;37m#${input}\u001b[0m`,
+    `\u001b[1;36m 🔴  RGB         :\u001b[0m \u001b[0;37mrgb(${r}, ${g}, ${b})\u001b[0m`,
+    `\u001b[1;36m 🌈  HSL         :\u001b[0m \u001b[0;37mhsl(${hsl.h}°, ${hsl.s}%, ${hsl.l}%)\u001b[0m`,
+    `\u001b[1;36m 🎯  HSV         :\u001b[0m \u001b[0;37mhsv(${hsv.h}°, ${hsv.s}%, ${hsv.v}%)\u001b[0m`,
+    `\u001b[1;36m 🖨️  CMYK        :\u001b[0m \u001b[0;37mcmyk(${cmyk.c}%, ${cmyk.m}%, ${cmyk.y}%, ${cmyk.k}%)\u001b[0m`,
+    `\u001b[1;36m 🔢  Decimal     :\u001b[0m \u001b[0;37m${decVal}\u001b[0m`,
+    '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
+    '\u001b[1;32m━━━━━━━━━━ 💡 COLOR INFO ━━━━━━━━━━━━\u001b[0m',
+    `\u001b[1;35m 🏷️  Nama        :\u001b[0m \u001b[0;37m${colorName}\u001b[0m`,
+    `\u001b[1;35m ☀️  Luminance   :\u001b[0m \u001b[0;37m${(luminance * 100).toFixed(2)}%\u001b[0m`,
+    `\u001b[1;35m 🌗  Shade       :\u001b[0m \u001b[0;37m${hsl.l < 30 ? '🌑 Gelap' : hsl.l < 60 ? '🌓 Sedang' : '🌕 Terang'}\u001b[0m`,
+    `\u001b[1;35m 🎨  Saturasi    :\u001b[0m \u001b[0;37m${hsl.s < 20 ? '⬜ Netral/Abu' : hsl.s < 60 ? '🎨 Sedang' : '🌈 Vivid'}\u001b[0m`,
+    `\u001b[1;35m 🔄  Komplementer:\u001b[0m \u001b[0;37m${compHex}\u001b[0m`,
+    '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '\u001b[1;31m━━━━━━━━━━ ♿ WCAG CONTRAST ━━━━━━━━━\u001b[0m',
+    `\u001b[1;35m ⬜  vs Putih    :\u001b[0m \u001b[0;37m${contrastWhite}:1 — ${wcagWhite}\u001b[0m`,
+    `\u001b[1;35m ⬛  vs Hitam    :\u001b[0m \u001b[0;37m${contrastBlack}:1 — ${wcagBlack}\u001b[0m`,
+    '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '\u001b[1;36m━━━━━━━━━━ 🖥️ CSS USAGE ━━━━━━━━━━━━\u001b[0m',
+    `\u001b[0;37m color: #${input};\u001b[0m`,
+    `\u001b[0;37m background-color: #${input};\u001b[0m`,
+    `\u001b[0;37m border: 1px solid #${input};\u001b[0m`,
+    `\u001b[0;37m box-shadow: 0 0 10px #${input};\u001b[0m`,
+    '\u001b[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '```',
+    `> 🤖 *Powered by OwoBim Color Engine* ${EMOJI}`
+  ].join('\n'));
+}
+
     
     
 
