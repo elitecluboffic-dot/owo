@@ -1728,7 +1728,7 @@ if (cmd === 'servers') {
 
 
 if (cmd === 'translate') {
-  const EMOJI = '<:Owo1:1492563819464102078>';
+  const EMOJI = '<:GifOwoBim:1492597822275457114>';
   const teks = getOption(options, 'teks');
   const bahasa = getOption(options, 'bahasa').toLowerCase();
 
