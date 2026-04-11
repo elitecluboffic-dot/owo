@@ -74,6 +74,7 @@ for (const opt of mentionedUsers) {
       let msg;
       if (win) {
         user.balance += bet * 2;
+        user.totalEarned = (user.totalEarned || 0) + (bet * 2);
         msg = `**${username}** taruh 🪙 ${bet.toLocaleString()} → **MENANG** 🪙 ${(bet*2).toLocaleString()}!!\nSisa: 🪙 **${user.balance.toLocaleString()}**`;
       } else {
         msg = `**${username}** taruh 🪙 ${bet.toLocaleString()} → **KALAH** :c\nSisa: 🪙 **${user.balance.toLocaleString()}**`;
@@ -110,6 +111,7 @@ for (const opt of mentionedUsers) {
         return respond(`❌ Daily sudah diambil! Coba lagi dalam **${jam}j ${menit}m**`);
       }
       user.balance += 15000;
+      user.totalEarned = (user.totalEarned || 0) + 15000;
       user.lastDaily = now;
       await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
       return respond(`✅ Daily berhasil! +🪙 **15.000**\nSaldo: 🪙 **${user.balance.toLocaleString()}**`);
@@ -126,6 +128,7 @@ for (const opt of mentionedUsers) {
         return respond(`❌ Kamu masih lelah! Istirahat dulu **${menit}m ${detik}d**`);
       }
       user.balance += 25000;
+      user.totalEarned = (user.totalEarned || 0) + 25000;
       user.lastKerja = now;
       await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
       return respond(`✅ Kamu sudah bekerja keras! +🪙 **25.000**\nSaldo: 🪙 **${user.balance.toLocaleString()}**`);
@@ -1391,6 +1394,49 @@ if (cmd === 'avatar') {
     avatar
   ].join('\n'));
 }
+
+    if (cmd === 'level') {
+  const list = await env.USERS_KV.list({ prefix: 'user:' });
+  const players = [];
+
+  for (const key of list.keys) {
+    const u = await env.USERS_KV.get(key.name);
+    if (u) {
+      const parsed = JSON.parse(u);
+      const totalEarned = parsed.totalEarned || 0;
+      const { level, name } = getLevel(totalEarned);
+      players.push({
+        discordId: parsed.discordId,
+        username: parsed.discordUsername,
+        level,
+        name,
+        totalEarned
+      });
+    }
+  }
+
+  players.sort((a, b) => b.totalEarned - a.totalEarned);
+
+  const rows = players.slice(0, 15).map((p, i) =>
+    `${i + 1}. <@${p.discordId}> — ${p.name} *(Lv.${p.level})* | 🪙 ${p.totalEarned.toLocaleString()} earned`
+  ).join('\n');
+
+  // Cari posisi user sendiri
+  const myPos = players.findIndex(p => p.discordId === discordId) + 1;
+  const me = players.find(p => p.discordId === discordId);
+  const myLevel = me ? `${me.name} *(Lv.${me.level})*` : 'Belum ada data';
+
+  return respond([
+    `\`\`\`ansi`,
+    `\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m`,
+    `\u001b[2;34m║  \u001b[1;33m🏅  LEVEL LEADERBOARD  🏅\u001b[0m  \u001b[2;34m║\u001b[0m`,
+    `\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m`,
+    `\`\`\``,
+    rows || 'Belum ada data.',
+    ``,
+    `> 👤 **Level kamu:** ${myLevel} | Ranking **#${myPos}**`
+  ].join('\n'));
+}
     
 
     return respond('❓ Command tidak dikenal.');
@@ -1428,4 +1474,18 @@ function respond(content) {
   return new Response(JSON.stringify({ type: 4, data: { content } }), {
     headers: { 'Content-Type': 'application/json' }
   });
+}
+
+// LEVEL
+function getLevel(totalEarned) {
+  if (totalEarned >= 1000000) return { level: 10, name: '👑 Legenda' };
+  if (totalEarned >= 500000)  return { level: 9,  name: '💎 Diamond' };
+  if (totalEarned >= 250000)  return { level: 8,  name: '🏆 Platinum' };
+  if (totalEarned >= 100000)  return { level: 7,  name: '🥇 Gold' };
+  if (totalEarned >= 50000)   return { level: 6,  name: '🥈 Silver' };
+  if (totalEarned >= 25000)   return { level: 5,  name: '🥉 Bronze' };
+  if (totalEarned >= 10000)   return { level: 4,  name: '⚔️ Warrior' };
+  if (totalEarned >= 5000)    return { level: 3,  name: '🌱 Apprentice' };
+  if (totalEarned >= 2000)    return { level: 2,  name: '🐣 Newbie+' };
+  return { level: 1, name: '🐥 Newbie' };
 }
