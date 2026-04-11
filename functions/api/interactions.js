@@ -1735,15 +1735,10 @@ if (cmd === 'translate') {
   const langNames = {
     id: '🇮🇩 Indonesia', en: '🇬🇧 Inggris', ja: '🇯🇵 Jepang',
     ko: '🇰🇷 Korea', zh: '🇨🇳 Mandarin', th: '🇹🇭 Thailand',
-    vi: '🇻🇳 Vietnam', ms: '🇲🇾 Melayu', tl: '🇵🇭 Filipina',
-    hi: '🇮🇳 Hindi', ar: '🇸🇦 Arab', tr: '🇹🇷 Turki',
-    fr: '🇫🇷 Prancis', de: '🇩🇪 Jerman', es: '🇪🇸 Spanyol',
-    it: '🇮🇹 Italia', pt: '🇵🇹 Portugis', ru: '🇷🇺 Rusia',
-    nl: '🇳🇱 Belanda', pl: '🇵🇱 Polandia', sv: '🇸🇪 Swedia',
-    da: '🇩🇰 Denmark', fi: '🇫🇮 Finlandia', no: '🇳🇴 Norwegia',
-    uk: '🇺🇦 Ukraina', el: '🇬🇷 Yunani', he: '🇮🇱 Ibrani',
-    fa: '🇮🇷 Persia', bn: '🇧🇩 Bengali', ur: '🇵🇰 Urdu',
-    sw: '🇰🇪 Swahili', af: '🇿🇦 Afrikaans'
+    vi: '🇻🇳 Vietnam', ms: '🇲🇾 Melayu', ar: '🇸🇦 Arab',
+    tr: '🇹🇷 Turki', fr: '🇫🇷 Prancis', de: '🇩🇪 Jerman',
+    es: '🇪🇸 Spanyol', it: '🇮🇹 Italia', pt: '🇵🇹 Portugis',
+    ru: '🇷🇺 Rusia', pl: '🇵🇱 Polandia', uk: '🇺🇦 Ukraina'
   };
 
   const namaLang = langNames[bahasa] || `🌐 \`${bahasa.toUpperCase()}\``;
@@ -1761,13 +1756,21 @@ if (cmd === 'translate') {
   }
 
   try {
-    const res = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(teks)}&langpair=auto|${bahasa}`
-    );
+    const res = await fetch('https://libretranslate.com/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        q: teks,
+        source: 'auto',
+        target: bahasa,
+        format: 'text',
+        api_key: ''
+      })
+    });
 
     const data = await res.json();
 
-    if (!res.ok || (data.responseStatus !== 200 && data.responseStatus !== '200')) {
+    if (!res.ok || data.error) {
       return respond([
         '```ansi',
         '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
@@ -1775,16 +1778,11 @@ if (cmd === 'translate') {
         '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
         '```',
         `> ${EMOJI} ❌ Kode bahasa **\`${bahasa}\`** tidak valid!`,
-        `> 💡 Contoh: \`en\`, \`ja\`, \`ko\`, \`id\`, \`ar\`, \`fr\`, \`de\``,
-        `> 📊 Status: \`${data.responseStatus}\``
+        `> 💡 Contoh: \`en\`, \`ja\`, \`ko\`, \`id\`, \`ar\`, \`fr\`, \`de\``
       ].join('\n'));
     }
 
-    const hasil = data.responseData.translatedText;
-    const match = data.responseData.match
-      ? `${Math.round(parseFloat(data.responseData.match) * 100)}%`
-      : 'N/A';
-    const detectedLang = data.matches?.[0]?.source?.toUpperCase() || 'AUTO';
+    const hasil = data.translatedText;
 
     return respond([
       '```ansi',
@@ -1800,9 +1798,7 @@ if (cmd === 'translate') {
       ``,
       '```ansi',
       '\u001b[1;32m━━━━━━━━━━━━ DETAIL INFO ━━━━━━━━━━━━\u001b[0m',
-      `\u001b[1;33m ${EMOJI} Bahasa Asal  :\u001b[0m \u001b[0;37m${detectedLang}\u001b[0m`,
       `\u001b[1;33m 🌐 Diterjemahkan:\u001b[0m \u001b[0;37m${namaLang}\u001b[0m`,
-      `\u001b[1;33m 🎯 Akurasi      :\u001b[0m \u001b[0;37m${match}\u001b[0m`,
       `\u001b[1;33m 📏 Panjang Teks :\u001b[0m \u001b[0;37m${teks.length} karakter\u001b[0m`,
       '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
       '```',
