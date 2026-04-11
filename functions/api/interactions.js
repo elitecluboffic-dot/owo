@@ -19,6 +19,180 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     return new Response(JSON.stringify({ type: 1 }), { headers });
   }
 
+
+  // ==================== COMPONENT INTERACTION (Button) ====================
+if (interaction.type === 3) {
+  const customId  = interaction.data.custom_id;
+  const clickerId = interaction.member?.user?.id || interaction.user?.id;
+
+  if (clickerId !== '1442230317455900823') {
+    return new Response(JSON.stringify({
+      type: 4, data: { content: '❌ Bukan pemilik bot!', flags: 64 }
+    }), { headers });
+  }
+
+  // ── Tombol: Beri Peringatan → buka modal ──
+  if (customId.startsWith('warn_open:')) {
+    const targetId = customId.split(':')[1];
+    return new Response(JSON.stringify({
+      type: 9,
+      data: {
+        custom_id: `warn_modal:${targetId}`,
+        title: '📢 Beri Peringatan ke User',
+        components: [{
+          type: 1,
+          components: [{
+            type: 4,
+            custom_id: 'warn_message',
+            label: 'Pesan Peringatan',
+            style: 2,
+            placeholder: 'Tulis pesan peringatan untuk user ini...',
+            required: true,
+            max_length: 500
+          }]
+        }]
+      }
+    }), { headers });
+  }
+
+  // ── Tombol: Ban → buka modal alasan ban ──
+  if (customId.startsWith('ban_open:')) {
+    const [, targetId, guildId] = customId.split(':');
+    return new Response(JSON.stringify({
+      type: 9,
+      data: {
+        custom_id: `ban_modal:${targetId}:${guildId}`,
+        title: '🔨 Ban User',
+        components: [{
+          type: 1,
+          components: [{
+            type: 4,
+            custom_id: 'ban_reason',
+            label: 'Alasan Ban',
+            style: 1,
+            placeholder: 'Spam berlebihan / melanggar aturan...',
+            required: true,
+            max_length: 200
+          }]
+        }]
+      }
+    }), { headers });
+  }
+
+  // ── Tombol: Abaikan ──
+  if (customId.startsWith('ignore_spam:')) {
+    return new Response(JSON.stringify({
+      type: 7,
+      data: {
+        content: '✅ **Laporan diabaikan** oleh owner.',
+        components: [],
+        embeds: []
+      }
+    }), { headers });
+  }
+
+  return new Response(JSON.stringify({ type: 1 }), { headers });
+}
+
+// ==================== MODAL SUBMIT ====================
+if (interaction.type === 5) {
+  const customId  = interaction.data.custom_id;
+  const clickerId = interaction.member?.user?.id || interaction.user?.id;
+
+  if (clickerId !== '1442230317455900823') {
+    return new Response(JSON.stringify({
+      type: 4, data: { content: '❌ Bukan pemilik bot!', flags: 64 }
+    }), { headers });
+  }
+
+  // ── Modal: Simpan peringatan ──
+  if (customId.startsWith('warn_modal:')) {
+    const targetId = customId.split(':')[1];
+    const message  = interaction.data.components[0].components[0].value;
+
+    await env.USERS_KV.put(`warning:${targetId}`, JSON.stringify({
+      message,
+      createdAt: Date.now()
+    }), { expirationTtl: 86400 * 7 });
+
+    return new Response(JSON.stringify({
+      type: 4,
+      data: {
+        content: [
+          '```ansi',
+          '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[2;34m║  \u001b[1;32m✓  PERINGATAN TERSIMPAN  ✓\u001b[0m  \u001b[2;34m║\u001b[0m',
+          '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          `> ⚠️ Peringatan untuk <@${targetId}> sudah disimpan!`,
+          `> 📝 Pesan: **${message}**`,
+          `> ⏳ User akan melihatnya saat menjalankan command berikutnya.`
+        ].join('\n'),
+        flags: 64
+      }
+    }), { headers });
+  }
+
+  // ── Modal: Eksekusi ban ──
+  if (customId.startsWith('ban_modal:')) {
+    const parts    = customId.split(':');
+    const targetId = parts[1];
+    const guildId  = parts[2];
+    const reason   = interaction.data.components[0].components[0].value;
+
+    if (!guildId || guildId === 'dm') {
+      return new Response(JSON.stringify({
+        type: 4,
+        data: { content: '❌ Tidak bisa ban di DM!', flags: 64 }
+      }), { headers });
+    }
+
+    const banRes = await fetch(
+      `https://discord.com/api/v10/guilds/${guildId}/bans/${targetId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bot ${env.BOT_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: `[OwoBim] ${reason}` })
+      }
+    );
+
+    if (banRes.ok || banRes.status === 204) {
+      return new Response(JSON.stringify({
+        type: 7,
+        data: {
+          content: [
+            '```ansi',
+            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[2;34m║  \u001b[1;31m🔨  USER DIBANNED  🔨\u001b[0m  \u001b[2;34m║\u001b[0m',
+            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `> 🔨 <@${targetId}> berhasil dibanned dari \`${guildId}\``,
+            `> 📝 Alasan: **${reason}**`
+          ].join('\n'),
+          components: [],
+          embeds: []
+        }
+      }), { headers });
+    } else {
+      const errData = await banRes.json().catch(() => ({}));
+      return new Response(JSON.stringify({
+        type: 4,
+        data: {
+          content: `❌ Gagal ban! Status: \`${banRes.status}\`\nPastikan bot punya permission **BAN_MEMBERS** di server tersebut.\n\`${JSON.stringify(errData)}\``,
+          flags: 64
+        }
+      }), { headers });
+    }
+  }
+
+  return new Response(JSON.stringify({ type: 1 }), { headers });
+}
+
+
+  
   if (interaction.type === 2) {
 
     const cmd       = interaction.data.name;
@@ -59,6 +233,14 @@ for (const opt of mentionedUsers) {
 }
     // KEY DISCORD
     const userKey   = await env.USERS_KV.get(`discord:${discordId}`);
+
+
+
+    // ==================== SPAM CHECK ====================
+const isSpamming = await checkSpam(env, discordId, username, guildId, channelId, cmd, waitUntil);
+if (isSpamming) {
+  return respond(`⚠️ **${username}**, kamu terlalu cepat! Slow down dulu ya. 🐢`);
+}
 
 
     if (cmd === 'register') {
@@ -125,6 +307,27 @@ Butuh bantuan lebih lanjut? Hubungi <@1442230317455900823> 💬`;
 
       return respond(helpText);
     }
+
+
+
+
+    // ── Cek peringatan dari owner ──
+const warningStr = await env.USERS_KV.get(`warning:${discordId}`);
+if (warningStr) {
+  const warn = JSON.parse(warningStr);
+  await env.USERS_KV.delete(`warning:${discordId}`);
+  return respond([
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[2;34m║  \u001b[1;31m⚠  PERINGATAN DARI OWNER  ⚠\u001b[0m  \u001b[2;34m║\u001b[0m',
+    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `> 🚫 Kamu mendapat peringatan dari **Owner Bot**:`,
+    `> 💬 *"${warn.message}"*`,
+    ``,
+    `> ⚠️ Harap patuhi aturan agar tidak terkena ban permanen.`
+  ].join('\n'));
+}
 
 
     
@@ -2576,4 +2779,92 @@ function getLevel(totalEarned) {
   if (totalEarned >= 5000)    return { level: 3,  name: '🌱 Apprentice' };
   if (totalEarned >= 2000)    return { level: 2,  name: '🐣 Newbie+' };
   return { level: 1, name: '🐥 Newbie' };
+}
+
+
+// CHECK SPAM
+async function checkSpam(env, discordId, username, guildId, channelId, cmdName, waitUntil) {
+  const spamKey   = `spam:${discordId}`;
+  const now       = Date.now();
+  const WINDOW_MS = 15000;
+  const MAX_CMDS  = 8;
+
+  const raw  = await env.USERS_KV.get(spamKey);
+  const data = raw ? JSON.parse(raw) : { count: 0, firstCmd: now, notified: false };
+
+  if (now - data.firstCmd > WINDOW_MS) {
+    data.count    = 1;
+    data.firstCmd = now;
+    data.notified = false;
+    await env.USERS_KV.put(spamKey, JSON.stringify(data), { expirationTtl: 60 });
+    return false;
+  }
+
+  data.count++;
+  const isSpam = data.count >= MAX_CMDS;
+
+  if (isSpam && !data.notified) {
+    data.notified = true;
+    await env.USERS_KV.put(spamKey, JSON.stringify(data), { expirationTtl: 60 });
+
+    waitUntil((async () => {
+      const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
+      if (!WEBHOOK) return;
+
+      const waktu = new Date().toLocaleString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        day: '2-digit', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+
+      await fetch(WEBHOOK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `<@1442230317455900823> 🚨 **SPAM TERDETEKSI!**`,
+          embeds: [{
+            title: '🚨 User Spamming Command',
+            color: 15158332,
+            fields: [
+              { name: '👤 User',    value: `<@${discordId}> (\`${username}\` | \`${discordId}\`)`, inline: false },
+              { name: '📟 Command', value: `\`/${cmdName}\``, inline: true },
+              { name: '💥 Count',   value: `**${data.count}x** dalam 15 detik`, inline: true },
+              { name: '🏠 Server',  value: guildId  ? `\`${guildId}\``       : '`DM`', inline: true },
+              { name: '📢 Channel', value: channelId ? `<#${channelId}>`     : '`DM`', inline: true },
+              { name: '🕐 Waktu',   value: `${waktu} WIB`, inline: false }
+            ],
+            footer: { text: 'OwoBim Anti-Spam System' },
+            timestamp: new Date().toISOString()
+          }],
+          components: [{
+            type: 1,
+            components: [
+              {
+                type: 2,
+                style: 4,
+                label: '🔨 Ban User',
+                custom_id: `ban_open:${discordId}:${guildId || 'dm'}`
+              },
+              {
+                type: 2,
+                style: 2,
+                label: '📢 Beri Peringatan',
+                custom_id: `warn_open:${discordId}`
+              },
+              {
+                type: 2,
+                style: 3,
+                label: '✅ Abaikan',
+                custom_id: `ignore_spam:${discordId}`
+              }
+            ]
+          }]
+        })
+      });
+    })());
+  } else {
+    await env.USERS_KV.put(spamKey, JSON.stringify(data), { expirationTtl: 60 });
+  }
+
+  return isSpam;
 }
