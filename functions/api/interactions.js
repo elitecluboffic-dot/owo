@@ -1545,32 +1545,53 @@ if (cmd === 'pat') {
 
     
 
-    if (cmd === 'servers') {
+if (cmd === 'servers') {
   if (discordId !== '1442230317455900823') return respond('❌ Bukan Pemilik Bot!');
-  
+
   const { keys } = await env.USERS_KV.list({ prefix: 'guild:' });
-  
   if (keys.length === 0) return respond('❌ Belum ada server yang terdaftar!');
 
-  const serverList = [];
+  // Ambil data semua server
+  const servers = [];
   for (const key of keys) {
     const raw = await env.USERS_KV.get(key.name);
     if (raw) {
       const data = JSON.parse(raw);
-      const waktu = new Date(data.updatedAt).toLocaleDateString('id-ID');
-      serverList.push(`• \`${data.guildId}\` — <#${data.channelId}> — 📅 ${waktu}`);
+      servers.push(data);
     }
   }
 
+  // Sort by updatedAt terbaru
+  servers.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+  const medals = ['🥇','🥈','🥉'];
+  const serverList = servers.map((data, i) => {
+    const waktu = new Date(data.updatedAt).toLocaleDateString('id-ID', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    });
+    const rank = medals[i] || `${i + 1}.`;
+    return `${rank} \`${data.guildId}\`\n┗ 📢 <#${data.channelId}> • 🕐 ${waktu}`;
+  });
+
+  // Stats
+  const newest = new Date(servers[0]?.updatedAt).toLocaleDateString('id-ID');
+  const oldest = new Date(servers[servers.length - 1]?.updatedAt).toLocaleDateString('id-ID');
+
   return respond([
     '```ansi',
-    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-    '\u001b[2;34m║  \u001b[1;33m🌐  SERVER LIST  🌐\u001b[0m  \u001b[2;34m║\u001b[0m',
-    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '\u001b[2;34m╔══════════════════════════════════════════╗\u001b[0m',
+    '\u001b[2;34m║  \u001b[1;33m🌐  OWO BIM — SERVER LIST  🌐\u001b[0m  \u001b[2;34m║\u001b[0m',
+    '\u001b[2;34m╚══════════════════════════════════════════╝\u001b[0m',
     '```',
-    `👥 **Total Server:** \`${keys.length}\``,
+    `> 🌍 **Total Server:** \`${servers.length}\``,
+    `> 🆕 **Terbaru:** ${newest} • 🕰️ **Terlama:** ${oldest}`,
     '',
-    serverList.join('\n')
+    '```ansi',
+    '\u001b[1;32m━━━━━━━━━━ DAFTAR SERVER ━━━━━━━━━━\u001b[0m',
+    '```',
+    serverList.join('\n\n'),
+    '',
+    `> 👑 *Hanya kamu yang bisa melihat ini* <@${discordId}>`
   ].join('\n'));
 }
 
