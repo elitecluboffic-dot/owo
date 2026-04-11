@@ -257,6 +257,46 @@ const commands = [
       required: true
     }
   ]
+},
+
+
+
+  {
+  name: 'feedback',
+  description: '📬 Kirim feedback, saran, atau laporan ke owner bot!',
+  options: [
+    {
+      name: 'tipe',
+      description: '📋 Pilih tipe pesan',
+      type: 3,
+      required: true,
+      choices: [
+        { name: '💡 Saran / Ide Fitur', value: 'saran' },
+        { name: '🐛 Bug Report', value: 'bug' },
+        { name: '😡 Complaint / Keluhan', value: 'complaint' },
+        { name: '🙏 Feedback Umum', value: 'feedback' },
+        { name: '🚨 Report User', value: 'report' }
+      ]
+    },
+    {
+      name: 'pesan',
+      description: '✏️ Isi pesan kamu (maks. 1000 karakter)',
+      type: 3,
+      required: true
+    },
+    {
+      name: 'target',
+      description: '👤 User yang mau direport (khusus tipe Report User)',
+      type: 6,
+      required: false
+    },
+    {
+      name: 'bukti',
+      description: '🔗 Link bukti/screenshot (opsional)',
+      type: 3,
+      required: false
+    }
+  ]
 }
   
   
