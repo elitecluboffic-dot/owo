@@ -229,6 +229,20 @@ const commands = [
       required: false
     }
   ]
+},
+
+
+  {
+  name: 'ip',
+  description: '🌐 Lacak lokasi, jaringan & keamanan IP address secara real-time!',
+  options: [
+    {
+      name: 'ip',
+      description: '🔍 Masukkan IP address target — kosongkan untuk cek IP kamu sendiri',
+      type: 3,
+      required: false
+    }
+  ]
 }
   
   
