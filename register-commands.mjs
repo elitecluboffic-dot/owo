@@ -122,18 +122,6 @@ const commands = [
       }
     ]
   },
-  {
-    name: 'userinfo',
-    description: 'Lihat info detail user 👤',
-    options: [
-      {
-        name: 'user',
-        description: 'User yang mau dilihat infonya',
-        type: 6,
-        required: false
-      }
-    ]
-  },
 
   {
   name: 'level',
@@ -160,8 +148,14 @@ const commands = [
   name: 'pat',
   description: 'Pat seseorang ✋',
   options: [{ name: 'target', description: 'User yang mau di-pat', type: 6, required: true }]
-}
+},
 
+{
+    name: 'help',
+    description: 'Menampilkan daftar semua command yang tersedia 📖'
+  },
+
+  
   
 ];
 console.log('⏳ Mendaftarkan slash commands...\n');
