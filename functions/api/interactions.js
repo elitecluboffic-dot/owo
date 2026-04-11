@@ -1954,7 +1954,7 @@ if (cmd === 'weather') {
 
 
     if (cmd === 'kurs') {
-  const EMOJI = '<a:Owo3:1492611511087140985>';
+  const EMOJI = '<:Owo3:1492611511087140985>';
   const dari = getOption(options, 'dari')?.toUpperCase() || 'USD';
   const ke = getOption(options, 'ke')?.toUpperCase() || 'IDR';
   const jumlah = parseFloat(getOption(options, 'jumlah') || '1');
