@@ -29,44 +29,46 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
     // ✅ Handle userinfo DULUAN sebelum await apapun
 if (cmd === 'userinfo') {
-  // Defer langsung dengan response sederhana
-  const defer = new Response(
-    JSON.stringify({ type: 5 }),
+  // ✅ Langsung return defer secepat mungkin
+  ctx.waitUntil(handleUserInfo(interaction, options));
+  
+  return new Response(
+    JSON.stringify({ type: 5 }), 
     { headers: { 'Content-Type': 'application/json' } }
   );
+}
 
-  ctx.waitUntil((async () => {
-    try {
-      const targetOption = options.find(o => o.name === 'user');
-      const targetId = targetOption?.value ? String(targetOption.value) : discordId;
+// Pisahkan jadi function terpisah
+async function handleUserInfo(interaction, options) {
+  try {
+    const targetOption = options.find(o => o.name === 'user');
+    const targetId = targetOption?.value ? String(targetOption.value) : interaction.member?.user?.id || interaction.user?.id;
 
-      const targetUser = targetOption?.value
-        ? interaction.data.resolved?.users?.[targetId]
-        : (interaction.member?.user || interaction.user);
+    // Ambil user data
+    let targetUser = targetOption?.value 
+      ? interaction.data.resolved?.users?.[targetId]
+      : (interaction.member?.user || interaction.user);
 
-      if (!targetUser) {
-        await editResponse(interaction.application_id, interaction.token, '❌ User tidak ditemukan!');
-        return;
-      }
-
-      const createdAt = Math.floor((BigInt(targetUser.id) >> 22n) / 1000n + 1420070400n);
-
-      const msg = `**✦ USER INFORMATION ✦**\n` +
-                  `══════════════════════\n` +
-                  `👤 **${targetUser.username}**\n` +
-                  `🆔 \`${targetUser.id}\`\n` +
-                  `📅 Created: <t:${createdAt}:R>\n\n` +
-                  `🖼️ Avatar: [View](https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar || '0'}.png?size=1024)`;
-
-      await editResponse(interaction.application_id, interaction.token, msg);
-
-    } catch (e) {
-      console.error(e);
-      await editResponse(interaction.application_id, interaction.token, "❌ Error saat memproses userinfo.");
+    if (!targetUser) {
+      await editResponse(interaction.application_id, interaction.token, '❌ User tidak ditemukan!');
+      return;
     }
-  })());
 
-  return defer;
+    const createdAt = Math.floor((BigInt(targetUser.id) >> 22n) / 1000n + 1420070400n);
+
+    const msg = `**✦ USER INFORMATION ✦**\n` +
+                `══════════════════════\n` +
+                `👤 **${targetUser.username}**\n` +
+                `🆔 \`${targetUser.id}\`\n` +
+                `📅 Created: <t:${createdAt}:R>\n\n` +
+                `🖼️ Avatar: [View](https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar || '0'}.png?size=1024)`;
+
+    await editResponse(interaction.application_id, interaction.token, msg);
+    
+  } catch (e) {
+    console.error(e);
+    await editResponse(interaction.application_id, interaction.token, "❌ Error saat memproses userinfo.");
+  }
 }
     
     
@@ -1564,14 +1566,25 @@ function respond(content) {
 
 // USER INFO
 async function editResponse(applicationId, interactionToken, content) {
-  await fetch(
-    `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}/messages/@original`,
-    {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content })
+  try {
+    const response = await fetch(
+      `https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}/messages/@original`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: content })
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Discord API Error: ${response.status} - ${errorText}`);
     }
-  );
+  } catch (error) {
+    console.error('Error saat editResponse:', error);
+  }
 }
 
 // LEVEL
