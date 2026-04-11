@@ -2464,9 +2464,11 @@ if (cmd === 'feedback') {
     `> 🤖 *Powered by OwoBim Feedback Engine* ${EMOJI}`
   ].join('\n'));
 
-  // FIX: pakai waitUntil supaya Worker tidak mati sebelum webhook selesai
   waitUntil((async () => {
     try {
+      console.log('[FEEDBACK] Mulai background task...');
+      console.log('[FEEDBACK] WEBHOOK_URL ada:', !!WEBHOOK_URL);
+
       const totalRaw = await env.USERS_KV.get(`feedback_total:${discordId}`);
       const totalFeedback = totalRaw ? parseInt(totalRaw) + 1 : 1;
       await env.USERS_KV.put(`feedback_total:${discordId}`, String(totalFeedback));
@@ -2476,6 +2478,7 @@ if (cmd === 'feedback') {
         guildId: guildId || null, createdAt: Date.now(), status: 'pending'
       }));
       await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 30 });
+      console.log('[FEEDBACK] KV berhasil disimpan');
 
       if (WEBHOOK_URL) {
         const targetInfo = targetId ? interaction.data.resolved?.users?.[targetId] : null;
@@ -2492,7 +2495,7 @@ if (cmd === 'feedback') {
         if (bukti) embedFields.push({ name: '🔗 Bukti', value: bukti, inline: false });
         if (guildId) embedFields.push({ name: '🏠 Server', value: `\`${guildId}\``, inline: true });
 
-        await fetch(WEBHOOK_URL, {
+        const webhookRes = await fetch(WEBHOOK_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2506,9 +2509,15 @@ if (cmd === 'feedback') {
             }]
           })
         });
+
+        const webhookBody = await webhookRes.text();
+        console.log('[FEEDBACK] Webhook status:', webhookRes.status);
+        console.log('[FEEDBACK] Webhook response:', webhookBody);
+      } else {
+        console.log('[FEEDBACK] WEBHOOK_URL kosong, skip kirim webhook');
       }
     } catch (e) {
-      console.error('Background task error:', e.message);
+      console.error('[FEEDBACK] Error:', e.message);
     }
   })());
 
