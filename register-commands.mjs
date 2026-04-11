@@ -243,6 +243,20 @@ const commands = [
       required: false
     }
   ]
+},
+
+
+  {
+  name: 'color',
+  description: '🎨 Analisis warna dari kode HEX secara lengkap & detail!',
+  options: [
+    {
+      name: 'hex',
+      description: '🔷 Kode warna HEX — contoh: FF5733 atau #3498DB',
+      type: 3,
+      required: true
+    }
+  ]
 }
   
   
