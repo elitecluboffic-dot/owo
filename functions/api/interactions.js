@@ -2477,7 +2477,7 @@ if (cmd === 'feedback') {
         targetId: targetId || null, bukti: bukti || null,
         guildId: guildId || null, createdAt: Date.now(), status: 'pending'
       }));
-      await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 30 });
+      await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 60 });
       console.log('[FEEDBACK] KV berhasil disimpan');
 
       if (WEBHOOK_URL) {
