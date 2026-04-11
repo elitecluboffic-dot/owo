@@ -138,6 +138,11 @@ const commands = [
   {
   name: 'level',
   description: 'Lihat leaderboard level semua user 🏅'
+},
+
+  {
+  name: 'fix-level',
+  description: 'Fix total earned semua user (admin only)'
 }
 
   
