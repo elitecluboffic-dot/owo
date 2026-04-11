@@ -2395,7 +2395,7 @@ if (cmd === 'ip') {
 
 
 
-    if (cmd === 'feedback') {
+if (cmd === 'feedback') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const WEBHOOK_URL = env.FEEDBACK_WEBHOOK_URL;
 
@@ -2404,46 +2404,22 @@ if (cmd === 'ip') {
   const targetId = options.find(o => o.name === 'target')?.value || null;
   const bukti = getOption(options, 'bukti') || null;
 
+  // Validasi dulu (ringan, tidak ada KV)
   if (pesan.length > 1000) {
-    return respond([
-      '```ansi',
-      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-      '\u001b[2;34m║  \u001b[1;31m✗  PESAN TERLALU PANJANG  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
-      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-      '```',
-      `> ${EMOJI} ❌ Maksimal **1000 karakter**!`,
-      `> 📏 Pesan kamu **${pesan.length} karakter** — kelebihan **${pesan.length - 1000} karakter**.`
-    ].join('\n'));
+    return respond(`> ${EMOJI} ❌ Maksimal **1000 karakter**! Pesan kamu **${pesan.length}** karakter.`);
   }
 
   if (tipe === 'report' && !targetId) {
-    return respond([
-      '```ansi',
-      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-      '\u001b[2;34m║  \u001b[1;31m✗  TARGET TIDAK ADA  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
-      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-      '```',
-      `> ${EMOJI} ❌ Untuk **Report User**, kamu harus mention user yang mau direport!`,
-      `> 💡 Gunakan opsi \`target\` dan pilih usernya.`
-    ].join('\n'));
+    return respond(`> ${EMOJI} ❌ Untuk **Report User**, kamu harus mention usernya!`);
   }
 
-  // Cooldown 30 detik
+  // Cek cooldown
   const cooldownKey = `feedback_cooldown:${discordId}`;
   const lastFeedback = await env.USERS_KV.get(cooldownKey);
   if (lastFeedback) {
     const sisaMs = 30 * 1000 - (Date.now() - parseInt(lastFeedback));
     if (sisaMs > 0) {
-      const sisaDetik = Math.ceil(sisaMs / 1000);
-      return respond([
-        '```ansi',
-        '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-        '\u001b[2;34m║  \u001b[1;31m✗  COOLDOWN AKTIF  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
-        '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-        '```',
-        `> ${EMOJI} ⏳ Tunggu **${sisaDetik} detik** lagi sebelum kirim feedback!`,
-        `> 💡 Cooldown ini mencegah spam ke owner.`
-      ].join('\n'));
+      return respond(`> ${EMOJI} ⏳ Tunggu **${Math.ceil(sisaMs / 1000)} detik** lagi!`);
     }
   }
 
@@ -2456,67 +2432,12 @@ if (cmd === 'ip') {
   };
 
   const cfg = tipeConfig[tipe] || tipeConfig.feedback;
+  const feedbackId = `FB-${Date.now()}-${discordId.slice(-4)}`;
   const waktu = new Date().toLocaleString('id-ID', {
     timeZone: 'Asia/Jakarta',
     day: '2-digit', month: 'long', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   });
-
-  const totalKey = `feedback_total:${discordId}`;
-  const totalRaw = await env.USERS_KV.get(totalKey);
-  const totalFeedback = totalRaw ? parseInt(totalRaw) + 1 : 1;
-  await env.USERS_KV.put(totalKey, String(totalFeedback));
-
-  const feedbackId = `FB-${Date.now()}-${discordId.slice(-4)}`;
-  await env.USERS_KV.put(`feedback:${feedbackId}`, JSON.stringify({
-    id: feedbackId, tipe, pesan, discordId, username,
-    targetId: targetId || null, bukti: bukti || null,
-    guildId: guildId || null, createdAt: Date.now(), status: 'pending'
-  }));
-
-  await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 30 });
-
-  // Kirim webhook TANPA await (fire and forget)
-  if (WEBHOOK_URL) {
-    const targetInfo = targetId ? interaction.data.resolved?.users?.[targetId] : null;
-
-    const embedFields = [
-      { name: '👤 Pengirim', value: `<@${discordId}> (\`${username}\` | \`${discordId}\`)`, inline: false },
-      { name: '📋 Tipe', value: cfg.label, inline: true },
-      { name: '🆔 Feedback ID', value: `\`${feedbackId}\``, inline: true },
-      { name: '🕐 Waktu', value: `${waktu} WIB`, inline: true },
-      { name: '💬 Pesan', value: `\`\`\`${pesan}\`\`\``, inline: false },
-    ];
-
-    if (tipe === 'report' && targetInfo) {
-      embedFields.push({
-        name: '🎯 User yang Direport',
-        value: `<@${targetId}> (\`${targetInfo.username}\` | \`${targetId}\`)`,
-        inline: false
-      });
-    }
-    if (bukti) embedFields.push({ name: '🔗 Bukti', value: bukti, inline: false });
-    if (guildId) embedFields.push({ name: '🏠 Server', value: `\`${guildId}\``, inline: true });
-    embedFields.push({ name: '📊 Total Feedback User Ini', value: `**${totalFeedback}x** feedback`, inline: true });
-
-    const webhookBody = {
-      content: cfg.ping ? `<@1442230317455900823> 🚨 **Ada ${cfg.label} masuk!**` : null,
-      embeds: [{
-        title: `${cfg.emoji} ${cfg.label}`,
-        color: cfg.color,
-        fields: embedFields,
-        footer: { text: `OwoBim Feedback System • ${feedbackId}` },
-        timestamp: new Date().toISOString()
-      }]
-    };
-
-    // Fire and forget — tidak nunggu, langsung balas Discord
-    fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(webhookBody)
-    }).catch(err => console.error('Webhook error:', err.message));
-  }
 
   const responseByTipe = {
     saran:     `💡 Ide kamu sudah dikirim! Siapa tau masuk ke update berikutnya 🚀`,
@@ -2526,7 +2447,8 @@ if (cmd === 'ip') {
     report:    `🚨 Report diterima! Owner akan menindaklanjuti dalam waktu dekat.`
   };
 
-  return respond([
+  // Buat response dulu
+  const responseMsg = respond([
     '```ansi',
     '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
     `\u001b[2;34m║  \u001b[1;32m✓  TERKIRIM!  ✓\u001b[0m  \u001b[2;34m║\u001b[0m`,
@@ -2539,12 +2461,61 @@ if (cmd === 'ip') {
     `\u001b[1;36m 🆔  Feedback ID :\u001b[0m \u001b[0;37m${feedbackId}\u001b[0m`,
     `\u001b[1;36m 📋  Tipe        :\u001b[0m \u001b[0;37m${cfg.label}\u001b[0m`,
     `\u001b[1;36m 🕐  Waktu       :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
-    `\u001b[1;36m 📊  Total Kamu  :\u001b[0m \u001b[0;37m${totalFeedback}x feedback\u001b[0m`,
     '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
     '```',
     `> 🔒 *Pesanmu bersifat rahasia & hanya dilihat owner*`,
     `> 🤖 *Powered by OwoBim Feedback Engine* ${EMOJI}`
   ].join('\n'));
+
+  // Jalankan KV & webhook TANPA nunggu
+  (async () => {
+    try {
+      const totalRaw = await env.USERS_KV.get(`feedback_total:${discordId}`);
+      const totalFeedback = totalRaw ? parseInt(totalRaw) + 1 : 1;
+      await env.USERS_KV.put(`feedback_total:${discordId}`, String(totalFeedback));
+      await env.USERS_KV.put(`feedback:${feedbackId}`, JSON.stringify({
+        id: feedbackId, tipe, pesan, discordId, username,
+        targetId: targetId || null, bukti: bukti || null,
+        guildId: guildId || null, createdAt: Date.now(), status: 'pending'
+      }));
+      await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 30 });
+
+      if (WEBHOOK_URL) {
+        const targetInfo = targetId ? interaction.data.resolved?.users?.[targetId] : null;
+        const embedFields = [
+          { name: '👤 Pengirim', value: `<@${discordId}> (\`${username}\` | \`${discordId}\`)`, inline: false },
+          { name: '📋 Tipe', value: cfg.label, inline: true },
+          { name: '🆔 Feedback ID', value: `\`${feedbackId}\``, inline: true },
+          { name: '🕐 Waktu', value: `${waktu} WIB`, inline: true },
+          { name: '💬 Pesan', value: `\`\`\`${pesan}\`\`\``, inline: false },
+        ];
+        if (tipe === 'report' && targetInfo) {
+          embedFields.push({ name: '🎯 Direport', value: `<@${targetId}> (\`${targetInfo.username}\`)`, inline: false });
+        }
+        if (bukti) embedFields.push({ name: '🔗 Bukti', value: bukti, inline: false });
+        if (guildId) embedFields.push({ name: '🏠 Server', value: `\`${guildId}\``, inline: true });
+
+        await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: cfg.ping ? `<@1442230317455900823> 🚨 **Ada ${cfg.label} masuk!**` : null,
+            embeds: [{
+              title: `${cfg.emoji} ${cfg.label}`,
+              color: cfg.color,
+              fields: embedFields,
+              footer: { text: `OwoBim Feedback System • ${feedbackId}` },
+              timestamp: new Date().toISOString()
+            }]
+          })
+        });
+      }
+    } catch (e) {
+      console.error('Background task error:', e.message);
+    }
+  })();
+
+  return responseMsg;
 }
     
     
