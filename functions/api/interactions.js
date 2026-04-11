@@ -1439,7 +1439,7 @@ if (cmd === 'avatar') {
 }
 
     if (cmd === 'fix-level') {
-  if (discordId !== '1442230317455900823') return respond('❌ Bukan admin!');
+  if (discordId !== '1442230317455900823') return respond('❌ Bukan Pemilik Bot!');
   const list = await env.USERS_KV.list({ prefix: 'user:' });
   let count = 0;
   for (const key of list.keys) {
