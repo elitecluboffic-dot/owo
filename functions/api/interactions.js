@@ -1455,6 +1455,28 @@ if (cmd === 'avatar') {
 }
     
 
+    if (cmd === 'hug') {
+  const targetId = getOption(options, 'target');
+  if (!targetId) return respond('❌ Pilih user yang mau dipeluk!');
+  if (targetId === discordId) return respond('❌ Masa peluk diri sendiri! 😂');
+  return respond(`🤗 **${username}** memeluk <@${targetId}>!\nSemoga harimu menyenangkan~ 💕`);
+}
+
+if (cmd === 'slap') {
+  const targetId = getOption(options, 'target');
+  if (!targetId) return respond('❌ Pilih user yang mau ditampar!');
+  if (targetId === discordId) return respond('❌ Masa tampar diri sendiri! 😂');
+  return respond(`👋 **${username}** menampar <@${targetId}>! PLAK! 💢`);
+}
+
+if (cmd === 'pat') {
+  const targetId = getOption(options, 'target');
+  if (!targetId) return respond('❌ Pilih user yang mau di-pat!');
+  if (targetId === discordId) return respond('❌ Masa pat diri sendiri! 😂');
+  return respond(`✋ **${username}** mengusap kepala <@${targetId}>! *pat pat* 🥰`);
+}
+    
+
     return respond('❓ Command tidak dikenal.');
   }
 
