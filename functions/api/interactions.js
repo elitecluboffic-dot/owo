@@ -29,7 +29,14 @@ export const onRequestPost = async ({ request, env, ctx }) => {
 
     // ✅ Handle userinfo DULUAN sebelum await apapun
 if (cmd === 'userinfo') {
-  // ✅ Langsung return type 5 ke Discord (tanpa extra fetch)
+  // ✅ Await defer DULU biar Discord tau bot lagi "thinking"
+  await fetch(`https://discord.com/api/v10/interactions/${interaction.id}/${interaction.token}/callback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 5 })
+  });
+
+  // ✅ Baru background task
   ctx.waitUntil((async () => {
     try {
       const BOT_TOKEN = env.TOKEN;
@@ -189,10 +196,8 @@ if (cmd === 'userinfo') {
     }
   })());
 
-  // ✅ Return type 5 langsung — tidak perlu extra fetch ke callback URL
-  return new Response(JSON.stringify({ type: 5 }), {
-    headers: { 'Content-Type': 'application/json' }
-  });
+  // ✅ Return 202 setelah defer berhasil
+  return new Response(null, { status: 202 });
 }
     
     
