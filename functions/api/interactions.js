@@ -2395,7 +2395,7 @@ if (cmd === 'ip') {
 
 
 
-    if (cmd === 'feedback') {
+if (cmd === 'feedback') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const WEBHOOK_URL = env.FEEDBACK_WEBHOOK_URL;
 
@@ -2430,32 +2430,20 @@ if (cmd === 'ip') {
     ].join('\n'));
   }
 
-  // Tidak bisa report diri sendiri
-  if (tipe === 'report' && String(targetId) === discordId) {
-    return respond([
-      '```ansi',
-      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-      '\u001b[2;34m║  \u001b[1;31m✗  TIDAK BISA REPORT DIRI SENDIRI  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
-      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-      '```',
-      `> ${EMOJI} ❌ Kamu tidak bisa report diri sendiri! 😂`
-    ].join('\n'));
-  }
-
-  // Cooldown 10 menit per user
+  // Cooldown 30 detik per user
   const cooldownKey = `feedback_cooldown:${discordId}`;
   const lastFeedback = await env.USERS_KV.get(cooldownKey);
   if (lastFeedback) {
-    const sisaMs = 10 * 60 * 1000 - (Date.now() - parseInt(lastFeedback));
+    const sisaMs = 30 * 1000 - (Date.now() - parseInt(lastFeedback));
     if (sisaMs > 0) {
-      const sisaMenit = Math.ceil(sisaMs / 60000);
+      const sisaDetik = Math.ceil(sisaMs / 1000);
       return respond([
         '```ansi',
         '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
         '\u001b[2;34m║  \u001b[1;31m✗  COOLDOWN AKTIF  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
         '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
         '```',
-        `> ${EMOJI} ⏳ Tunggu **${sisaMenit} menit** lagi sebelum kirim feedback!`,
+        `> ${EMOJI} ⏳ Tunggu **${sisaDetik} detik** lagi sebelum kirim feedback!`,
         `> 💡 Cooldown ini mencegah spam ke owner.`
       ].join('\n'));
     }
@@ -2497,8 +2485,8 @@ if (cmd === 'ip') {
     status: 'pending'
   }));
 
-  // Set cooldown
-  await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 600 });
+  // Set cooldown 30 detik
+  await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 30 });
 
   // Kirim ke webhook Discord
   if (WEBHOOK_URL) {
@@ -2545,19 +2533,19 @@ if (cmd === 'ip') {
       }]
     };
 
-try {
-  const webhookRes = await fetch(WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(webhookBody)
-  });
-  if (!webhookRes.ok) {
-    const errText = await webhookRes.text();
-    console.error('Webhook gagal:', webhookRes.status, errText);
-  }
-} catch (webhookErr) {
-  console.error('Webhook error:', webhookErr.message);
-}
+    try {
+      const webhookRes = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(webhookBody)
+      });
+      if (!webhookRes.ok) {
+        const errText = await webhookRes.text();
+        console.error('Webhook gagal:', webhookRes.status, errText);
+      }
+    } catch (webhookErr) {
+      console.error('Webhook error:', webhookErr.message);
+    }
   }
 
   // Response ke user
@@ -2589,7 +2577,6 @@ try {
     `> 🤖 *Powered by OwoBim Feedback Engine* ${EMOJI}`
   ].join('\n'));
 }
-
     
     
 
