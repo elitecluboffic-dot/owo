@@ -386,6 +386,20 @@ const commands = [
       ]
     }
   ]
+},
+
+
+  {
+  "name": "quotesweb",
+  "description": "Kirim quote ke website owo.kraxx.my.id",
+  "options": [
+    {
+      "name": "teks",
+      "description": "Isi quote yang mau dikirim",
+      "type": 3,
+      "required": true
+    }
+  ]
 }
   
   
