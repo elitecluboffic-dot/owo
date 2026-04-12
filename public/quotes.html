@@ -24,15 +24,21 @@
       text-align: center;
       margin-bottom: 40px;
     }
-    .logo {
-      font-size: 3rem;
-      background: linear-gradient(90deg, var(--purple), var(--pink));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 10px;
+    .logo { 
+      font-size: 3rem; 
+      background: linear-gradient(90deg, var(--purple), var(--pink)); 
+      -webkit-background-clip: text; 
+      -webkit-text-fill-color: transparent; 
     }
-    h1 { font-size: 2.5rem; margin-bottom: 8px; }
+    h1 { font-size: 2.5rem; margin: 10px 0 8px; }
     .subtitle { color: #b4b4ff; font-style: italic; }
+
+    .admin-login {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
 
     .quote-grid {
       display: grid;
@@ -120,9 +126,14 @@
     <p class="subtitle">where your server comes alive • Earn • Love • Chaos 💜</p>
   </header>
 
-  <div class="quote-grid" id="quoteGrid">
-    <!-- Quotes akan dimuat oleh JS -->
+  <!-- Tombol Admin Login -->
+  <div class="admin-login">
+    <button onclick="showAdminLogin()" style="padding:10px 16px; background:#9b4dff; color:white; border:none; border-radius:8px; cursor:pointer;">
+      <i class="fas fa-shield-alt"></i> Admin Login
+    </button>
   </div>
+
+  <div class="quote-grid" id="quoteGrid"></div>
 
   <div class="toast" id="toast">
     <i class="fas fa-check-circle"></i>
@@ -130,12 +141,13 @@
   </div>
 
   <script>
-    const API_URL = "https://owo.yourdomain.com/quotes"; // ganti dengan domain kamu nanti
+    const API_URL = "https://owo.kraxx.my.id/quotes";   // GANTI dengan domain kamu
+
+    let isAdmin = false;
 
     async function loadQuotes() {
       const res = await fetch(API_URL);
       const quotes = await res.json();
-
       const grid = document.getElementById("quoteGrid");
       grid.innerHTML = "";
 
@@ -143,7 +155,7 @@
         const card = document.createElement("div");
         card.className = "quote-card";
         card.innerHTML = `
-          <button class="admin-delete" onclick="deleteQuote('${q.id}')">🗑️ Hapus</button>
+          ${isAdmin ? `<button class="admin-delete" onclick="deleteQuote('${q.id}')">🗑️ Hapus</button>` : ''}
           <div class="quote-text">"${q.teks}"</div>
           <div class="quote-author">
             <img src="${q.avatar}" alt="${q.username}">
@@ -157,15 +169,37 @@
       });
     }
 
-    // Delete quote (hanya owner)
+    // Hapus quote
     async function deleteQuote(id) {
       if (!confirm("Yakin mau hapus quote ini?")) return;
-      const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+
+      const secret = prompt("Masukkan Admin Secret untuk menghapus quote:");
+      if (!secret) return;
+
+      const res = await fetch(`${API_URL}/${id}`, {
+        method: "DELETE",
+        headers: {
+          'Authorization': `Bearer ${secret}`
+        }
+      });
+
       if (res.ok) {
         showToast("✅ Quote berhasil dihapus");
         loadQuotes();
       } else {
-        showToast("❌ Gagal menghapus quote");
+        showToast("❌ Gagal menghapus. Secret salah atau tidak berhak.");
+      }
+    }
+
+    // Login Admin (hanya untuk menampilkan tombol hapus)
+    function showAdminLogin() {
+      const password = prompt("Masukkan Admin Password:");
+      if (password && password.length >= 8) {
+        isAdmin = true;
+        showToast("✅ Login Admin Berhasil");
+        loadQuotes();   // reload supaya tombol hapus muncul
+      } else {
+        showToast("❌ Password salah atau terlalu pendek");
       }
     }
 
