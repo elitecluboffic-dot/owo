@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /functions/
+
+Sitemap: https://owo.kraxx.my.id/sitemap.xml
