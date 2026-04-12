@@ -2726,6 +2726,65 @@ if (cmd === 'feedback') {
 
   return responseMsg;
 }
+
+
+
+
+    if (cmd === 'explode') {
+  const targetOption = options.find(o => o.name === 'target');
+  const targetId = targetOption ? String(targetOption.value) : null;
+  if (!targetId) return respond('❌ Pilih user yang mau diledakkan!');
+  if (targetId === discordId) return respond('❌ Masa ledakkin diri sendiri! 💀');
+
+  const targetUser = interaction.data.resolved?.users?.[targetId];
+  if (!targetUser) return respond('❌ User tidak ditemukan!');
+
+  const avatarUrl = targetUser.avatar
+    ? `https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar}.${targetUser.avatar.startsWith('a_') ? 'gif' : 'png'}?size=256`
+    : `https://cdn.discordapp.com/embed/avatars/${parseInt(targetUser.discriminator || 0) % 5}.png`;
+
+  const explosionUrl = `https://some-random-api.com/canvas/misc/fire?avatar=${encodeURIComponent(avatarUrl)}`;
+
+  const messages = [
+    `💣 **${username}** melempar granat ke <@${targetId}>!`,
+    `🧨 **${username}** menyalakan sumbu... 3... 2... 1...`,
+    `☢️ **${username}** menekan tombol detonator untuk <@${targetId}>!`,
+    `🚀 **${username}** meluncurkan rudal langsung ke muka <@${targetId}>!`,
+    `💥 **${username}** BOOM! <@${targetId}> gak ada wujudnya lagi!`,
+    `🔥 **${username}** membakar <@${targetId}> hidup-hidup!`,
+    `⚡ **${username}** memanggil petir buat <@${targetId}>!`
+  ];
+
+  const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+
+  const waktu = new Date().toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: randomMsg,
+      embeds: [{
+        color: 0xFF4500,
+        title: '💥 BOOOOM! KA-BOOM! 💥',
+        description: [
+          `\`\`\`ansi`,
+          `\u001b[1;31m━━━━━━━━━━ 💣 EXPLOSION ━━━━━━━━━━\u001b[0m`,
+          `\u001b[1;33m 🎯 Target   :\u001b[0m \u001b[0;37m${targetUser.username}\u001b[0m`,
+          `\u001b[1;33m 💣 Bomber   :\u001b[0m \u001b[0;37m${username}\u001b[0m`,
+          `\u001b[1;33m 🕐 Waktu    :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+          `\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
+          `\`\`\``
+        ].join('\n'),
+        image: { url: explosionUrl },
+        footer: { text: '💀 RIP • OwoBim Explosion System' },
+        timestamp: new Date().toISOString()
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
     
     
 
