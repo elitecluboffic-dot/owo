@@ -3,9 +3,19 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
   const headers = { 'Content-Type': 'application/json' };
 
 
-// ====================== ROUTING UNTUK WEBSITE ======================
+// ====================== TAMBAHAN CORS ======================
+  headers['Access-Control-Allow-Origin'] = '*';
+  headers['Access-Control-Allow-Methods'] = 'GET, POST, DELETE, OPTIONS';
+  headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
 
-if (request.method === "POST" && url.pathname === "/quotes") {
+  // Handle preflight request
+  if (request.method === "OPTIONS") {
+    return new Response(null, { headers });
+  }
+  // ========================================================
+
+  // ====================== POST /quotes ======================
+  if (request.method === "POST" && url.pathname === "/quotes") {
     try {
       const quoteData = await request.json();
 
@@ -66,14 +76,14 @@ if (request.method === "POST" && url.pathname === "/quotes") {
   if (request.method === "DELETE" && url.pathname.startsWith("/quotes/")) {
     const id = url.pathname.split("/").pop();
     const quoteData = await env.USERS_KV.get(`quote:${id}`);
-    if (!quoteData) return new Response("Not found", { status: 404 });
+    if (!quoteData) return new Response("Not found", { status: 404, headers });
 
     if (request.headers.get('Authorization') !== `Bearer ${env.ADMIN_SECRET}`) {
-      return new Response("Unauthorized", { status: 401 });
+      return new Response("Unauthorized", { status: 401, headers });
     }
 
     await env.USERS_KV.delete(`quote:${id}`);
-    return new Response("Deleted", { status: 200 });
+    return new Response("Deleted", { status: 200, headers });
   }
 
   // Route tidak ditemukan
