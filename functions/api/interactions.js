@@ -2869,7 +2869,7 @@ if (cmd === 'makequote') {
         guildId: guildId || null,
         createdAt: Date.now()
       }), { expirationTtl: 86400 * 30 });
-      await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 10 });
+      await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 60 });
 
       const waktu = new Date().toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
