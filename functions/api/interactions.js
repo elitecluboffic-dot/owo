@@ -3459,7 +3459,6 @@ if (cmd === 'quotesweb') {
   if (teks.length > 300) {
     return respond('❌ Quote maksimal 300 karakter!');
   }
-
   const quoteId = `QUOTE-${Date.now()}-${discordId.slice(-6)}`;
   const quoteData = {
     id: quoteId,
@@ -3471,17 +3470,22 @@ if (cmd === 'quotesweb') {
     guildId: guildId || 'DM'
   };
 
-  // Simpan dulu ke KV
   await env.USERS_KV.put(`quote:${quoteId}`, JSON.stringify(quoteData), { expirationTtl: 86400 * 7 });
 
-  // Kirim ke channel pakai Bot Token (bukan webhook, karena webhook tidak support tombol)
-  const CHANNEL_ID = '1492626962567659684'; // ← ganti ini
+  const CHANNEL_ID = '1492626962567659684';
+
+  // Cek dulu token ada atau tidak
+  console.log('=== DEBUG QUOTE ===');
+  console.log('Channel ID:', CHANNEL_ID);
+  console.log('Bot Token ada?', !!env.DISCORD_BOT_TOKEN);
+  console.log('Bot Token 10 char pertama:', env.DISCORD_BOT_TOKEN?.slice(0, 10));
+
   try {
     const res = await fetch(`https://discord.com/api/v10/channels/${CHANNEL_ID}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` // ← tambahkan env ini di Cloudflare
+        'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}`
       },
       body: JSON.stringify({
         content: `<@1442230317455900823> 📨 **Quote Baru Masuk!**`,
@@ -3504,9 +3508,13 @@ if (cmd === 'quotesweb') {
         }]
       })
     });
-    if (!res.ok) console.error('Gagal kirim ke channel:', await res.text());
+
+    const responseText = await res.text();
+    console.log('Status HTTP:', res.status);
+    console.log('Response Discord:', responseText);
+
   } catch (e) {
-    console.error('Error kirim pesan:', e);
+    console.error('Error kirim pesan:', e.message);
   }
 
   return respond([
