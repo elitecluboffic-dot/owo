@@ -349,6 +349,37 @@ const commands = [
       ]
     }
   ]
+},
+
+
+
+  {
+  name: 'rps',
+  description: '✂️ Main Rock Paper Scissors lawan bot!',
+  options: [
+    {
+      name: 'pilihan',
+      description: '🎯 Pilih senjatamu!',
+      type: 3,
+      required: true,
+      choices: [
+        { name: '🪨 Batu',    value: 'batu'    },
+        { name: '📄 Kertas',  value: 'kertas'  },
+        { name: '✂️ Gunting', value: 'gunting' }
+      ]
+    },
+    {
+      name: 'mode',
+      description: '⚙️ Pilih tingkat kesulitan bot',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '😊 Easy   — Bot agak bego (70% kalah)',     value: 'easy'   },
+        { name: '⚔️ Medium — Pure random (50/50)',           value: 'medium' },
+        { name: '🧠 Hard   — Bot baca pola kamu!',           value: 'hard'   }
+      ]
+    }
+  ]
 }
   
   
