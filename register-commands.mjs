@@ -297,6 +297,20 @@ const commands = [
       required: false
     }
   ]
+},
+
+
+  {
+  name: 'explode',
+  description: '💥 Ledakkan seseorang dengan efek api & ledakan dahsyat!',
+  options: [
+    {
+      name: 'target',
+      description: '🎯 User yang mau diledakkan — pilih korbanmu!',
+      type: 6,
+      required: true
+    }
+  ]
 }
   
   
