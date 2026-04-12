@@ -28,6 +28,175 @@ if (interaction.type === 3) {
   const customId  = interaction.data.custom_id;
   const clickerId = interaction.member?.user?.id || interaction.user?.id;
 
+
+  // 💬 Reply Anonim → buka modal
+if (customId.startsWith('confess_reply:')) {
+  const confessId = customId.split(':')[1];
+  return new Response(JSON.stringify({
+    type: 9,
+    data: {
+      custom_id: `confess_reply_modal:${confessId}`,
+      title: '💬 Reply Anonim',
+      components: [{
+        type: 1,
+        components: [{
+          type: 4,
+          custom_id: 'reply_pesan',
+          label: 'Balasan kamu',
+          style: 2,
+          placeholder: 'Tulis balasan anon kamu di sini...',
+          required: true,
+          max_length: 500
+        }]
+      }]
+    }
+  }), { headers });
+}
+
+// 🚫 Block sender
+if (customId.startsWith('confess_block:')) {
+  const confessId  = customId.split(':')[1];
+  const confessRaw = await env.USERS_KV.get(`confess:${confessId}`);
+  if (!confessRaw) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Confess tidak ditemukan atau sudah expired.', flags: 64 }
+    }), { headers });
+  }
+
+  const confessData = JSON.parse(confessRaw);
+  const senderId    = confessData.senderId;
+  const targetId    = clickerId; // yang klik block = target confess
+
+  // Simpan block: key = confess_block:{targetId}:{senderId}
+  await env.USERS_KV.put(`confess_block:${targetId}:${senderId}`, '1', { expirationTtl: 86400 * 365 });
+
+  // Edit pesan DM — hapus tombol
+  const messageId = interaction.message.id;
+  const channelId = interaction.message.channel_id;
+  await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}`
+    },
+    body: JSON.stringify({
+      embeds: interaction.message.embeds,
+      components: [{
+        type: 1,
+        components: [{
+          type: 2, style: 2,
+          label: '🔒 User ini diblokir',
+          custom_id: 'blocked_placeholder',
+          disabled: true
+        }]
+      }]
+    })
+  });
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: [
+        '```ansi',
+        '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[2;34m║  \u001b[1;31m🔒  USER DIBLOKIR  🔒\u001b[0m  \u001b[2;34m║\u001b[0m',
+        '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> 🚫 User tersebut **tidak bisa** confess ke kamu lagi.`,
+        `> 🆔 Confess ID: \`${confessId}\``
+      ].join('\n'),
+      flags: 64
+    }
+  }), { headers });
+}
+
+// 🚨 Report confess ke owner
+if (customId.startsWith('confess_report:')) {
+  const confessId  = customId.split(':')[1];
+  const confessRaw = await env.USERS_KV.get(`confess:${confessId}`);
+  if (!confessRaw) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Confess tidak ditemukan atau sudah expired.', flags: 64 }
+    }), { headers });
+  }
+
+  const confessData = JSON.parse(confessRaw);
+  const WEBHOOK     = env.FEEDBACK_WEBHOOK_URL;
+
+  if (WEBHOOK) {
+    const waktu = new Date().toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+
+    await fetch(WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: `<@1442230317455900823> 🚨 **CONFESS DILAPORKAN!**`,
+        embeds: [{
+          title: '🚨 Confess Report',
+          color: 0xFF4500,
+          fields: [
+            { name: '🆔 Confess ID',  value: `\`${confessId}\``,              inline: true  },
+            { name: '📋 Kategori',    value: confessData.kategori,             inline: true  },
+            { name: '🎭 Mood',        value: confessData.mood,                 inline: true  },
+            { name: '💬 Isi Pesan',   value: `\`\`\`${confessData.pesan}\`\`\``, inline: false },
+            { name: '🎯 Dilaporkan oleh', value: `<@${clickerId}>`,           inline: true  },
+            { name: '🏠 Guild',       value: `\`${confessData.guildId}\``,    inline: true  },
+            { name: '🕐 Waktu',       value: `${waktu} WIB`,                  inline: false }
+          ],
+          footer: { text: 'OwoBim Confess Report System' },
+          timestamp: new Date().toISOString()
+        }]
+      })
+    });
+  }
+
+  // Edit pesan DM — disable tombol report setelah diklik
+  const messageId = interaction.message.id;
+  const channelId = interaction.message.channel_id;
+  await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}`
+    },
+    body: JSON.stringify({
+      embeds: interaction.message.embeds,
+      components: [{
+        type: 1,
+        components: [
+          { type: 2, style: 1, label: '💬 Reply Anonim', custom_id: `confess_reply:${confessId}` },
+          { type: 2, style: 4, label: '🚫 Block',        custom_id: `confess_block:${confessId}`  },
+          { type: 2, style: 2, label: '✅ Sudah Dilaporkan', custom_id: 'reported_placeholder', disabled: true }
+        ]
+      }]
+    })
+  });
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: [
+        '```ansi',
+        '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[2;34m║  \u001b[1;31m🚨  LAPORAN TERKIRIM  🚨\u001b[0m  \u001b[2;34m║\u001b[0m',
+        '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> ✅ Report berhasil dikirim ke **Owner Bot**.`,
+        `> 🆔 Confess ID: \`${confessId}\``,
+        `> ⏳ Owner akan meninjau dalam waktu dekat.`
+      ].join('\n'),
+      flags: 64
+    }
+  }), { headers });
+}
+  
+
   if (clickerId !== '1442230317455900823') {
     return new Response(JSON.stringify({
       type: 4, data: { content: '❌ Bukan pemilik bot!', flags: 64 }
@@ -210,6 +379,95 @@ if (interaction.type === 3) {
 if (interaction.type === 5) {
   const customId  = interaction.data.custom_id;
   const clickerId = interaction.member?.user?.id || interaction.user?.id;
+
+
+  // ── Modal: Reply Anonim dari DM ──
+if (customId.startsWith('confess_reply_modal:')) {
+  const confessId   = customId.split(':')[1];
+  const replyPesan  = interaction.data.components[0].components[0].value;
+  const confessRaw  = await env.USERS_KV.get(`confess:${confessId}`);
+
+  if (!confessRaw) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Confess tidak ditemukan atau sudah expired.', flags: 64 }
+    }), { headers });
+  }
+
+  const confessData = JSON.parse(confessRaw);
+  const senderId    = confessData.senderId;
+
+  // Kirim DM balik ke pengirim confess asli
+  try {
+    const dmCh = await (await fetch('https://discord.com/api/v10/users/@me/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({ recipient_id: senderId })
+    })).json();
+
+    if (!dmCh.id) throw new Error('DM channel gagal dibuka');
+
+    const waktu = new Date().toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+
+    await fetch(`https://discord.com/api/v10/channels/${dmCh.id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({
+        content: `📩 Confess **#${confessId}** kamu dibalas!`,
+        embeds: [{
+          color: 0x5865F2,
+          author: { name: '💬 Balasan Anonymous' },
+          description: [
+            '```ansi',
+            '\u001b[1;35m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;35m║  💬  BALASAN CONFESS KAMU  💬  ║\u001b[0m',
+            '\u001b[1;35m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `> 💌 *"${replyPesan}"*`,
+            '',
+            '```ansi',
+            '\u001b[1;37m━━━━━━━━━━━━ 📋 DETAIL ━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 🆔  Confess ID :\u001b[0m \u001b[0;37m${confessId}\u001b[0m`,
+            `\u001b[1;36m 💬  Confess mu :\u001b[0m \u001b[0;37m${confessData.pesan.slice(0, 80)}${confessData.pesan.length > 80 ? '...' : ''}\u001b[0m`,
+            `\u001b[1;36m 🕐  Waktu      :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+            '\u001b[1;37m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```'
+          ].join('\n'),
+          footer: { text: `OwoBim Confess System • ${confessId}` },
+          timestamp: new Date().toISOString()
+        }]
+      })
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: `❌ Gagal kirim reply: \`${err.message}\``, flags: 64 }
+    }), { headers });
+  }
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: [
+        '```ansi',
+        '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[2;34m║  \u001b[1;32m✓  REPLY TERKIRIM!  ✓\u001b[0m  \u001b[2;34m║\u001b[0m',
+        '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> 📩 Balasan kamu sudah dikirim secara **anonim**!`,
+        `> 🔒 Identitasmu tetap **tersembunyi**.`
+      ].join('\n'),
+      flags: 64
+    }
+  }), { headers });
+}
+
+  
+  
 
   if (clickerId !== '1442230317455900823') {
     return new Response(JSON.stringify({
@@ -3694,6 +3952,158 @@ if (type === 3) {
         flags: 64
       }
     }), { headers: { 'Content-Type': 'application/json' } });
+  }
+}
+
+
+
+// ══════════════════════════════════════════════
+if (cmd === 'confess') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+
+  const targetOpt = options.find(o => o.name === 'target');
+  const pesan     = getOption(options, 'pesan');
+  const kategori  = getOption(options, 'kategori') || 'random';
+  const mood      = getOption(options, 'mood') || 'shy';
+  const targetId  = targetOpt ? String(targetOpt.value) : null;
+
+  if (!targetId) return respond('❌ Pilih user tujuan!');
+  if (targetId === discordId) return respond('❌ Ga bisa confess ke diri sendiri 😂');
+  if (pesan.length > 500) return respond(`❌ Maks 500 karakter! Kamu: ${pesan.length}`);
+
+  // Cek di-block
+  const isBlocked = await env.USERS_KV.get(`confess_block:${targetId}:${discordId}`);
+  if (isBlocked) return respond('❌ Kamu tidak bisa confess ke user ini! 🔒');
+
+  // Cooldown 3 menit
+  const cdKey      = `confess_cd:${discordId}`;
+  const lastSent   = await env.USERS_KV.get(cdKey);
+  if (lastSent) {
+    const sisa = 180000 - (Date.now() - parseInt(lastSent));
+    if (sisa > 0) {
+      const m = Math.floor(sisa / 60000), s = Math.ceil((sisa % 60000) / 1000);
+      return respond(`⏳ Cooldown! Tunggu **${m > 0 ? m+'m ' : ''}${s}d** lagi.`);
+    }
+  }
+
+  // Config kategori
+  const katCfg = {
+    perasaan: { label: '💕 Perasaan', color: 0xFF69B4, ansi: '\u001b[1;35m' },
+    sahabat:  { label: '🤝 Persahabatan', color: 0x3498DB, ansi: '\u001b[1;34m' },
+    maaf:     { label: '🙏 Permintaan Maaf', color: 0x2ECC71, ansi: '\u001b[1;32m' },
+    gosip:    { label: '🔥 Gosip / Tea', color: 0xFF4500, ansi: '\u001b[1;31m' },
+    random:   { label: '😂 Random', color: 0xF1C40F, ansi: '\u001b[1;33m' },
+    serius:   { label: '🎯 Serius', color: 0x9B59B6, ansi: '\u001b[1;36m' }
+  };
+  const moodCfg = {
+    happy:   { emoji: '😊', label: 'Happy',   bar: '🟩🟩🟩🟩🟩' },
+    sad:     { emoji: '😢', label: 'Sad',     bar: '🟦🟦🟦🟦🟦' },
+    lovey:   { emoji: '🥰', label: 'Lovey',   bar: '🩷🩷🩷🩷🩷' },
+    shy:     { emoji: '😳', label: 'Shy',     bar: '🟧🟧🟧🟧🟧' },
+    nervous: { emoji: '😰', label: 'Nervous', bar: '🟨🟨🟨🟨🟨' },
+    angry:   { emoji: '😡', label: 'Angry',   bar: '🟥🟥🟥🟥🟥' }
+  };
+  const cfg  = katCfg[kategori]  ?? katCfg.random;
+  const mcfg = moodCfg[mood] ?? moodCfg.shy;
+
+  // Generate ID & counter
+  const confessId  = `CF-${Date.now()}-${discordId.slice(-4)}`;
+  const totalRaw   = await env.USERS_KV.get(`confess_total:${targetId}`);
+  const totalCount = totalRaw ? parseInt(totalRaw) + 1 : 1;
+  const waktu = new Date().toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta', day: '2-digit', month: 'long',
+    year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+
+  // Simpan ke KV
+  await Promise.all([
+    env.USERS_KV.put(`confess:${confessId}`, JSON.stringify({
+      id: confessId, senderId: discordId, senderUsername: username,
+      targetId, pesan, kategori, mood,
+      guildId: guildId || 'DM', createdAt: Date.now(),
+      status: 'sent', replyCount: 0
+    }), { expirationTtl: 86400 * 30 }),
+    env.USERS_KV.put(`confess_total:${targetId}`, String(totalCount)),
+    env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 180 })
+  ]);
+
+  const tUser    = interaction.data.resolved?.users?.[targetId];
+  const tName    = tUser?.username || 'User';
+  const tAvatar  = tUser?.avatar
+    ? `https://cdn.discordapp.com/avatars/${targetId}/${tUser.avatar}.png?size=256`
+    : 'https://cdn.discordapp.com/embed/avatars/5.png';
+
+  // Kirim DM ke target
+  try {
+    const dmCh = await (await fetch('https://discord.com/api/v10/users/@me/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({ recipient_id: targetId })
+    })).json();
+    if (!dmCh.id) throw new Error('DM channel gagal dibuka');
+
+    await fetch(`https://discord.com/api/v10/channels/${dmCh.id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({
+        content: `📬 Kamu dapat **anonymous confession** #${totalCount}!`,
+        embeds: [{
+          color: cfg.color,
+          author: { name: `💌 Anonymous Confession #${totalCount}`, icon_url: tAvatar },
+          description: [
+            '```ansi',
+            `${cfg.ansi}╔══════════════════════════════════════╗\u001b[0m`,
+            `${cfg.ansi}║  💌  ANONYMOUS CONFESSION  💌  ║\u001b[0m`,
+            `${cfg.ansi}╚══════════════════════════════════════╝\u001b[0m`,
+            '```',
+            `> ${mcfg.emoji} *"${pesan}"*`,
+            '',
+            '```ansi',
+            '\u001b[1;37m━━━━━━━━━━━━ 📋 DETAIL ━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 🆔  ID      :\u001b[0m \u001b[0;37m${confessId}\u001b[0m`,
+            `\u001b[1;36m 🏷️  Kategori:\u001b[0m \u001b[0;37m${cfg.label}\u001b[0m`,
+            `\u001b[1;36m ${mcfg.emoji}  Mood    :\u001b[0m \u001b[0;37m${mcfg.label}  ${mcfg.bar}\u001b[0m`,
+            `\u001b[1;36m 🕐  Waktu   :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+            '\u001b[1;36m 👤  Dari    :\u001b[0m \u001b[1;31m[ANONIM 🔒]\u001b[0m',
+            '\u001b[1;37m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```'
+          ].join('\n'),
+          footer: { text: `OwoBim Confess System • ${confessId}` },
+          timestamp: new Date().toISOString()
+        }],
+        components: [{ type: 1, components: [
+          { type: 2, style: 1, label: '💬 Reply Anonim', custom_id: `confess_reply:${confessId}` },
+          { type: 2, style: 4, label: '🚫 Block',       custom_id: `confess_block:${confessId}`  },
+          { type: 2, style: 2, label: '🚨 Report',      custom_id: `confess_report:${confessId}` }
+        ]}]
+      })
+    });
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;32m✓  CONFESS TERKIRIM!  ✓\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} 📬 Confess berhasil dikirim ke **${tName}**!`,
+      '> 🔒 Identitasmu **sepenuhnya anonim**.',
+      '',
+      '```ansi',
+      '\u001b[1;32m━━━━━━━━━━━━ 📋 RINGKASAN ━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m 🆔  Confess ID :\u001b[0m \u001b[0;37m${confessId}\u001b[0m`,
+      `\u001b[1;36m 🏷️  Kategori   :\u001b[0m \u001b[0;37m${cfg.label}\u001b[0m`,
+      `\u001b[1;36m ${mcfg.emoji}  Mood       :\u001b[0m \u001b[0;37m${mcfg.label}\u001b[0m`,
+      `\u001b[1;36m 🕐  Waktu      :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```'
+    ].join('\n'));
+
+  } catch (err) {
+    await Promise.all([
+      env.USERS_KV.delete(`confess:${confessId}`),
+      env.USERS_KV.put(`confess_total:${targetId}`, String(Math.max(0, totalCount - 1)))
+    ]);
+    return respond(`❌ Gagal kirim DM ke **${tName}**!\n> 💡 Pastikan mereka mengizinkan DM dari server ini.\n> 🔧 \`${err.message}\``);
   }
 }
     
