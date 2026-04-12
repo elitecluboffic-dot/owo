@@ -96,42 +96,111 @@ if (interaction.type === 3) {
 
 
   
-  // Quote Approval System
-if (customId.startsWith('quote_approve:') || customId.startsWith('quote_reject:')) {
-  const [action, quoteId] = customId.split(':');
-  const clickerId = interaction.member?.user?.id || interaction.user?.id;
+  
+// ✅ Handler tombol Approve & Reject Quote
+if (interaction.type === 3) {
+  const customId = interaction.data?.custom_id || '';
 
-  if (clickerId !== '1442230317455900823') {
-    return respond({ content: '❌ Hanya owner yang bisa approve/reject!', flags: 64 });
-  }
+  if (customId.startsWith('quote_approve:') || customId.startsWith('quote_reject:')) {
+    const colonIndex = customId.indexOf(':');
+    const action = customId.slice(0, colonIndex);
+    const quoteId = customId.slice(colonIndex + 1);
+    const isApprove = action === 'quote_approve';
 
-  const raw = await env.USERS_KV.get(`quote:${quoteId}`);
-  if (!raw) return respond({ content: '❌ Quote tidak ditemukan!', flags: 64 });
+    const quoteRaw = await env.USERS_KV.get(`quote:${quoteId}`);
+    if (!quoteRaw) {
+      return new Response(JSON.stringify({
+        type: 4,
+        data: { content: '❌ Quote tidak ditemukan atau sudah expired.', flags: 64 }
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
 
-  const quote = JSON.parse(raw);
+    const quoteData = JSON.parse(quoteRaw);
+    quoteData.status = isApprove ? 'approved' : 'rejected';
+    quoteData.reviewedAt = Date.now();
+    quoteData.reviewedBy = interaction.member?.user?.id || interaction.user?.id || 'unknown';
+    await env.USERS_KV.put(`quote:${quoteId}`, JSON.stringify(quoteData), { expirationTtl: 86400 * 7 });
 
-  if (action === 'quote_approve') {
-    quote.status = 'approved';
-    quote.approvedAt = Date.now();
-    await env.USERS_KV.put(`quote:${quoteId}`, JSON.stringify(quote));
+    if (isApprove) {
+      const allQuotesRaw = await env.USERS_KV.get('quotes:approved');
+      const allQuotes = allQuotesRaw ? JSON.parse(allQuotesRaw) : [];
+      allQuotes.push({
+        id: quoteId,
+        teks: quoteData.teks,
+        discordId: quoteData.discordId,
+        username: quoteData.username
+      });
+      await env.USERS_KV.put('quotes:approved', JSON.stringify(allQuotes));
+    }
 
-    return new Response(JSON.stringify({
-      type: 7,
-      data: {
-        content: `✅ **Quote Approved!**\n> "${quote.teks}"\n**Oleh:** ${quote.username}`,
+    // Edit pesan di channel (hapus tombol)
+    const messageId = interaction.message.id;
+    const channelId = interaction.message.channel_id;
+    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}`
+      },
+      body: JSON.stringify({
+        embeds: [{
+          color: isApprove ? 0x2ECC71 : 0xE74C3C,
+          title: isApprove ? '✅ Quote Disetujui' : '❌ Quote Ditolak',
+          description: `> "${quoteData.teks}"`,
+          fields: [
+            { name: '👤 Pengirim', value: `<@${quoteData.discordId}> (${quoteData.username})`, inline: true },
+            { name: '🆔 Quote ID', value: `\`${quoteId}\``, inline: true },
+            { name: '👮 Di-review oleh', value: `<@${quoteData.reviewedBy}>`, inline: true }
+          ]
+        }],
         components: []
-      }
-    }), { headers: { 'Content-Type': 'application/json' } });
+      })
+    });
 
-  } else {
-    await env.USERS_KV.delete(`quote:${quoteId}`);
+    // Kirim DM ke user
+    try {
+      const dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}`
+        },
+        body: JSON.stringify({ recipient_id: quoteData.discordId })
+      });
+      const dmData = await dmRes.json();
+
+      await fetch(`https://discord.com/api/v10/channels/${dmData.id}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}`
+        },
+        body: JSON.stringify({
+          embeds: [{
+            color: isApprove ? 0x2ECC71 : 0xE74C3C,
+            title: isApprove ? '🎉 Quote kamu DISETUJUI!' : '😔 Quote kamu DITOLAK',
+            description: `> "${quoteData.teks}"`,
+            fields: [
+              { name: '🆔 Quote ID', value: `\`${quoteId}\``, inline: true },
+              { name: '📍 Status', value: isApprove ? '**Approved** ✅' : '**Rejected** ❌', inline: true }
+            ],
+            footer: { text: isApprove ? 'Quote kamu sudah masuk ke database!' : 'Kamu bisa submit quote baru kapan saja.' }
+          }]
+        })
+      });
+    } catch (e) {
+      console.error('Gagal kirim DM:', e.message);
+    }
+
     return new Response(JSON.stringify({
-      type: 7,
-      data: { content: `❌ Quote ditolak: **${quote.teks}**`, components: [] }
+      type: 4,
+      data: {
+        content: isApprove ? '✅ Quote berhasil di-approve!' : '❌ Quote berhasil di-reject!',
+        flags: 64
+      }
     }), { headers: { 'Content-Type': 'application/json' } });
   }
 }
-
 
   
   return new Response(JSON.stringify({ type: 1 }), { headers });
