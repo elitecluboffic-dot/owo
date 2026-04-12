@@ -311,6 +311,44 @@ const commands = [
       required: true
     }
   ]
+},
+
+  
+
+  {
+  name: 'makequote',
+  description: '💬 Buat quote aesthetic dari ucapan seseorang!',
+  options: [
+    {
+      name: 'teks',
+      description: '✍️ Isi quote yang mau dibuat (maks. 200 karakter)',
+      type: 3,
+      required: true
+    },
+    {
+      name: 'user',
+      description: '👤 User yang jadi pengujar quote (default: diri sendiri)',
+      type: 6,
+      required: false
+    },
+    {
+      name: 'warna',
+      description: '🎨 Warna tema embed',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '⬛ Default', value: 'default' },
+        { name: '🔴 Merah',   value: 'merah'   },
+        { name: '🔵 Biru',    value: 'biru'     },
+        { name: '🟢 Hijau',   value: 'hijau'    },
+        { name: '🟡 Kuning',  value: 'kuning'   },
+        { name: '🟣 Ungu',    value: 'ungu'     },
+        { name: '🩷 Pink',    value: 'pink'     },
+        { name: '🟠 Orange',  value: 'orange'   },
+        { name: '⚫ Hitam',   value: 'hitam'    }
+      ]
+    }
+  ]
 }
   
   
