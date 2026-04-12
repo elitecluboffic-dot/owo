@@ -184,7 +184,7 @@ if (interaction.type === 3) {
               { name: '🆔 Quote ID', value: `\`${quoteId}\``, inline: true },
               { name: '📍 Status', value: isApprove ? '**Approved** ✅' : '**Rejected** ❌', inline: true }
             ],
-            footer: { text: isApprove ? 'Quote kamu sudah masuk ke database!' : 'Kamu bisa submit quote baru kapan saja.' }
+            footer: { text: isApprove ? 'Quote kamu sudah masuk ke database! Lihat di: https://owo.kraxx.my.id/quotes' : 'Kamu bisa submit quote baru kapan saja.' }
           }]
         })
       });
