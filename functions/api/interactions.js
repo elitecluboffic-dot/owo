@@ -2940,6 +2940,194 @@ if (cmd === 'makequote') {
 
   return deferredResponse;
 }
+
+
+
+
+    if (cmd === 'rps') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const pilihanUser = getOption(options, 'pilihan');
+  const mode = getOption(options, 'mode') || 'medium';
+
+  const items = {
+    batu:    { emoji: '🪨', nama: 'Batu',    menang: 'gunting', kalah: 'kertas'  },
+    kertas:  { emoji: '📄', nama: 'Kertas',  menang: 'batu',    kalah: 'gunting' },
+    gunting: { emoji: '✂️', nama: 'Gunting', menang: 'kertas',  kalah: 'batu'    }
+  };
+
+  const keys = Object.keys(items);
+
+  // ── Ambil stats + history user ──
+  const statsRaw = await env.USERS_KV.get(`rps:${discordId}`);
+  const stats = statsRaw ? JSON.parse(statsRaw) : {
+    menang: 0, kalah: 0, seri: 0, total: 0,
+    streak: 0, bestStreak: 0,
+    history: []   // array pilihan user sebelumnya (max 10)
+  };
+  if (!stats.history) stats.history = [];
+
+  // ── Logika pilihan bot per mode ──
+  let pilihanBot;
+
+  if (mode === 'easy') {
+    // 70% bot pilih yang kalah dari user, 30% random
+    const roll = Math.random();
+    if (roll < 0.70) {
+      pilihanBot = items[pilihanUser].menang; // bot sengaja kalah
+    } else {
+      pilihanBot = keys[Math.floor(Math.random() * keys.length)];
+    }
+
+  } else if (mode === 'medium') {
+    // Pure random
+    pilihanBot = keys[Math.floor(Math.random() * keys.length)];
+
+  } else if (mode === 'hard') {
+    // Bot analisa pola history user → counter pilihan terbanyak
+    if (stats.history.length < 3) {
+      // Belum cukup data → random
+      pilihanBot = keys[Math.floor(Math.random() * keys.length)];
+    } else {
+      // Hitung frekuensi pilihan user dari history terakhir
+      const recent = stats.history.slice(-8); // ambil 8 terakhir
+      const freq = { batu: 0, kertas: 0, gunting: 0 };
+      for (const h of recent) freq[h]++;
+
+      // Prediksi user akan pilih yang paling sering
+      const predicted = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
+
+      // 80% counter prediksi, 20% random (biar ga terlalu obvious)
+      if (Math.random() < 0.80) {
+        pilihanBot = items[predicted].kalah; // bot pilih yang ngalahin prediksi
+      } else {
+        pilihanBot = keys[Math.floor(Math.random() * keys.length)];
+      }
+    }
+  }
+
+  // ── Update history ──
+  stats.history.push(pilihanUser);
+  if (stats.history.length > 10) stats.history.shift(); // keep max 10
+
+  const user = items[pilihanUser];
+  const bot  = items[pilihanBot];
+
+  // ── Tentukan hasil ──
+  let hasil, hasilEmoji, hasilColor, hasilAnsi;
+  if (pilihanUser === pilihanBot) {
+    hasil = 'SERI'; hasilEmoji = '🤝'; hasilColor = 0xF1C40F; hasilAnsi = '\u001b[1;33m';
+  } else if (user.menang === pilihanBot) {
+    hasil = 'MENANG'; hasilEmoji = '🏆'; hasilColor = 0x2ECC71; hasilAnsi = '\u001b[1;32m';
+  } else {
+    hasil = 'KALAH'; hasilEmoji = '💀'; hasilColor = 0xFF4444; hasilAnsi = '\u001b[1;31m';
+  }
+
+  // ── Update stats ──
+  stats.total++;
+  if (hasil === 'MENANG') {
+    stats.menang++;
+    stats.streak = (stats.streak > 0 ? stats.streak : 0) + 1;
+    if (stats.streak > stats.bestStreak) stats.bestStreak = stats.streak;
+  } else if (hasil === 'KALAH') {
+    stats.kalah++;
+    stats.streak = (stats.streak < 0 ? stats.streak : 0) - 1;
+  } else {
+    stats.seri++;
+    stats.streak = 0;
+  }
+
+  await env.USERS_KV.put(`rps:${discordId}`, JSON.stringify(stats), { expirationTtl: 86400 * 365 });
+
+  const winRate = stats.total > 0 ? ((stats.menang / stats.total) * 100).toFixed(1) : '0.0';
+
+  // ── Pesan random per hasil ──
+  const pesanMenang = [
+    `${hasilEmoji} **${username}** menang! ${user.emoji} ${user.nama} ngalahin ${bot.emoji} ${bot.nama}!`,
+    `🔥 GG! **${username}** jago banget! ${user.emoji} > ${bot.emoji}`,
+    `💪 **${username}** gaskeun! ${user.emoji} ${user.nama} KO ${bot.emoji} ${bot.nama}!`,
+    `👑 **${username}** is UNSTOPPABLE! ${user.emoji} menghancurkan ${bot.emoji}!`
+  ];
+  const pesanKalah = [
+    `${hasilEmoji} **${username}** kalah! ${bot.emoji} ${bot.nama} ngalahin ${user.emoji} ${user.nama}!`,
+    `😭 Sial! Bot pake ${bot.emoji} ${bot.nama}, **${username}** pake ${user.emoji} ${user.nama}...`,
+    `💀 **${username}** dihajar bot! ${user.emoji} < ${bot.emoji}`,
+    `🤖 Bot menang lagi! **${username}** harus latihan dulu nih!`
+  ];
+  const pesanSeri = [
+    `🤝 Seri! Dua-duanya pake ${user.emoji} ${user.nama}!`,
+    `😅 Draw! Sama-sama pake ${user.emoji} ${user.nama}!`,
+    `⚡ Seimbang! **${username}** dan bot sama-sama ${user.emoji}!`
+  ];
+
+  // ── Pesan khusus Hard mode ──
+  const pesanHardKalah = [
+    `🧠 Bot udah baca gerak lo **${username}**! Prediksi tepat!`,
+    `🤖 Hard mode gak ada ampun! Bot udah tau lo mau milih apa!`,
+    `📊 Bot analisa pattern lo dan counter! GG no re!`
+  ];
+
+  let pesanList;
+  if (hasil === 'MENANG') pesanList = pesanMenang;
+  else if (hasil === 'KALAH') pesanList = (mode === 'hard' && Math.random() < 0.6) ? pesanHardKalah : pesanKalah;
+  else pesanList = pesanSeri;
+
+  const pesan = pesanList[Math.floor(Math.random() * pesanList.length)];
+
+  const streakStr = stats.streak > 0
+    ? `🔥 ${stats.streak}x Winstreak`
+    : stats.streak < 0
+    ? `❄️ ${Math.abs(stats.streak)}x Losestreak`
+    : `➡️ Streak reset`;
+
+  const modeLabel = {
+    easy:   '😊 Easy   (Bot agak bego)',
+    medium: '⚔️ Medium (Pure RNG)',
+    hard:   '🧠 Hard   (Bot baca pola lo)'
+  };
+
+  // ── Indikator kesulitan visual ──
+  const modeDiff = {
+    easy:   '🟢🔘🔘',
+    medium: '🟡🟡🔘',
+    hard:   '🔴🔴🔴'
+  };
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: pesan,
+      embeds: [{
+        color: hasilColor,
+        title: `${hasilEmoji} ROCK PAPER SCISSORS — ${hasil}!`,
+        description: [
+          '```ansi',
+          '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+          `\u001b[2;34m║  ${hasilAnsi}${hasilEmoji}  ${hasil.padEnd(6)}  ${hasilEmoji}\u001b[0m  \u001b[2;34m║\u001b[0m`,
+          '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '',
+          `${user.emoji} **${username}** \`${user.nama.toUpperCase()}\` **VS** \`${bot.nama.toUpperCase()}\` ${bot.emoji} **Bot**`,
+          '',
+          '```ansi',
+          '\u001b[1;33m━━━━━━━━━━━━ 📊 STATISTIK ━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;32m 🏆  Menang   :\u001b[0m \u001b[0;37m${stats.menang}x\u001b[0m`,
+          `\u001b[1;31m 💀  Kalah    :\u001b[0m \u001b[0;37m${stats.kalah}x\u001b[0m`,
+          `\u001b[1;33m 🤝  Seri     :\u001b[0m \u001b[0;37m${stats.seri}x\u001b[0m`,
+          `\u001b[1;36m 🎮  Total    :\u001b[0m \u001b[0;37m${stats.total}x main\u001b[0m`,
+          `\u001b[1;36m 📈  Win Rate :\u001b[0m \u001b[0;37m${winRate}%\u001b[0m`,
+          `\u001b[1;36m ⚡  Streak   :\u001b[0m \u001b[0;37m${streakStr}\u001b[0m`,
+          `\u001b[1;36m 🏅  Best     :\u001b[0m \u001b[0;37m${stats.bestStreak}x winstreak\u001b[0m`,
+          `\u001b[1;36m 🎯  Mode     :\u001b[0m \u001b[0;37m${modeLabel[mode]}\u001b[0m`,
+          `\u001b[1;36m 🎚️  Diff     :\u001b[0m \u001b[0;37m${modeDiff[mode]}\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```'
+        ].join('\n'),
+        footer: { text: `🎮 OwoBim RPS System • ${username}` },
+        timestamp: new Date().toISOString()
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
     
     
     
