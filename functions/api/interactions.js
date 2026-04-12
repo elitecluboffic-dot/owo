@@ -3473,45 +3473,42 @@ if (cmd === 'quotesweb') {
     guildId: guildId || 'DM'
   };
 
+  // Simpan dulu ke KV
   await env.USERS_KV.put(`quote:${quoteId}`, JSON.stringify(quoteData), { expirationTtl: 86400 * 7 });
 
-  // Kirim ke Webhook dengan tombol
+  // Kirim Webhook dengan tombol
   const webhook = env.FEEDBACK_WEBHOOK_URL;
   if (webhook) {
-    await fetch(webhook, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content: `<@1442230317455900823> 📨 **Quote Baru Masuk!**`,
-        embeds: [{
-          color: 0xF1C40F,
-          title: '📬 Pending Quote',
-          description: `> "${teks}"`,
-          fields: [
-            { name: '👤 Pengirim', value: `<@${discordId}> (${username})`, inline: true },
-            { name: '🆔 Quote ID', value: `\`${quoteId}\``, inline: true },
-            { name: '⏰ Waktu', value: new Date().toLocaleString('id-ID'), inline: true }
-          ]
-        }],
-        components: [{
-          type: 1,
-          components: [
-            {
-              type: 2,
-              style: 3,
-              label: '✅ Approve',
-              custom_id: `quote_approve:${quoteId}`
-            },
-            {
-              type: 2,
-              style: 4,
-              label: '❌ Reject',
-              custom_id: `quote_reject:${quoteId}`
-            }
-          ]
-        }]
-      })
-    });
+    try {
+      const res = await fetch(webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `<@1442230317455900823> 📨 **Quote Baru Masuk!**`,
+          embeds: [{
+            color: 0xF1C40F,
+            title: '📬 Pending Quote',
+            description: `> "${teks}"`,
+            fields: [
+              { name: '👤 Pengirim', value: `<@${discordId}> (${username})`, inline: true },
+              { name: '🆔 Quote ID', value: `\`${quoteId}\``, inline: true },
+              { name: '⏰ Waktu', value: new Date().toLocaleString('id-ID'), inline: true }
+            ]
+          }],
+          components: [{
+            type: 1,
+            components: [
+              { type: 2, style: 3, label: '✅ Approve', custom_id: `quote_approve:${quoteId}` },
+              { type: 2, style: 4, label: '❌ Reject',  custom_id: `quote_reject:${quoteId}` }
+            ]
+          }]
+        })
+      });
+
+      if (!res.ok) console.error('Webhook gagal:', await res.text());
+    } catch (e) {
+      console.error('Error kirim webhook:', e);
+    }
   }
 
   return respond([
@@ -3520,10 +3517,9 @@ if (cmd === 'quotesweb') {
     '\u001b[2;34m║ \u001b[1;33m📨 QUOTE TERKIRIM! 📨\u001b[0m \u001b[2;34m║\u001b[0m',
     '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
     '```',
-    `> **Quote kamu sudah dikirim ke owner untuk di-review.**`,
+    `> Quote kamu sudah dikirim ke owner.`,
     `> 🆔 **ID:** \`${quoteId}\``,
-    ``,
-    `📍 **Status:** Menunggu persetujuan`
+    `> 📍 Status: **Menunggu persetujuan**`
   ].join('\n'));
 }
     
