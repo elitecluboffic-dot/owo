@@ -2,85 +2,6 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
   const url = new URL(request.url);
   const headers = { 'Content-Type': 'application/json' };
 
-
-// ====================== TAMBAHAN CORS ======================
-  headers['Access-Control-Allow-Origin'] = '*';
-  headers['Access-Control-Allow-Methods'] = 'GET, POST, DELETE, OPTIONS';
-  headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
-
-  // Handle preflight request
-  if (request.method === "OPTIONS") {
-    return new Response(null, { headers });
-  }
-
-  // ====================== POST /quotes ======================
-  if (request.method === "POST" && url.pathname === "/quotes") {
-    try {
-      const quoteData = await request.json();
-      if (!quoteData.id || !quoteData.teks || !quoteData.username) {
-        return new Response(JSON.stringify({ error: "Data tidak lengkap" }), {
-          status: 400,
-          headers
-        });
-      }
-      await env.USERS_KV.put(
-        `quote:${quoteData.id}`,
-        JSON.stringify({
-          id: quoteData.id,
-          teks: quoteData.teks,
-          username: quoteData.username,
-          avatar: quoteData.avatar,
-          createdAt: quoteData.createdAt || Date.now(),
-          createdBy: quoteData.createdBy,
-          createdByUsername: quoteData.createdByUsername || "Unknown"
-        }),
-        { expirationTtl: 86400 * 30 }
-      );
-      console.log(`[WEBSITE] ✅ Quote berhasil disimpan → ${quoteData.id}`);
-      return new Response(JSON.stringify({
-        success: true,
-        message: "Quote saved successfully",
-        id: quoteData.id
-      }), {
-        status: 201,
-        headers
-      });
-    } catch (err) {
-      console.error("[WEBSITE] Error POST /quotes:", err.message);
-      return new Response(JSON.stringify({ error: "Internal Server Error" }), {
-        status: 500,
-        headers
-      });
-    }
-  }
-
-  // ====================== GET semua quotes ======================
-  if (request.method === "GET" && url.pathname === "/quotes") {
-    const list = await env.USERS_KV.list({ prefix: "quote:" });
-    const quotes = [];
-    for (const key of list.keys) {
-      const data = await env.USERS_KV.get(key.name);
-      if (data) quotes.push(JSON.parse(data));
-    }
-    quotes.sort((a, b) => b.createdAt - a.createdAt);
-    return new Response(JSON.stringify(quotes), { headers });
-  }
-
-  // ====================== DELETE quote ======================
-  if (request.method === "DELETE" && url.pathname.startsWith("/quotes/")) {
-    const id = url.pathname.split("/").pop();
-    const quoteData = await env.USERS_KV.get(`quote:${id}`);
-    if (!quoteData) return new Response("Not found", { status: 404, headers });
-    if (request.headers.get('Authorization') !== `Bearer ${env.ADMIN_SECRET}`) {
-      return new Response("Unauthorized", { status: 401, headers });
-    }
-    await env.USERS_KV.delete(`quote:${id}`);
-    return new Response("Deleted", { status: 200, headers });
-  }
-  // ====================== DISCORD INTERACTION ======================
-
-
-
   
   const signature = request.headers.get('x-signature-ed25519');
   const timestamp = request.headers.get('x-signature-timestamp');
@@ -2952,30 +2873,6 @@ if (cmd === 'makequote') {
         createdAt: Date.now()
       }), { expirationTtl: 86400 * 30 });
       await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 60 });
-
-            // ==================== KIRIM KE WEBSITE ====================
-      try {
-        const quoteData = {
-          id: quoteId,
-          teks: teks,
-          username: targetUser.username,
-          avatar: avatarUrl,
-          createdAt: Date.now(),
-          createdBy: discordId
-        };
-
-        await fetch('https://owo.kraxx.my.id/quotes', {   // GANTI dengan domain website kamu
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(quoteData)
-        });
-
-        console.log(`[QUOTE] Berhasil dikirim ke website → ${quoteId}`);
-      } catch (webErr) {
-        console.error('[QUOTE] Gagal kirim ke website:', webErr.message);
-        // Jangan crash bot, cukup log error
-      }
-      // =========================================================
 
       const waktu = new Date().toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
