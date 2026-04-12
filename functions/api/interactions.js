@@ -12,20 +12,17 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
   if (request.method === "OPTIONS") {
     return new Response(null, { headers });
   }
-  // ========================================================
 
   // ====================== POST /quotes ======================
   if (request.method === "POST" && url.pathname === "/quotes") {
     try {
       const quoteData = await request.json();
-
       if (!quoteData.id || !quoteData.teks || !quoteData.username) {
         return new Response(JSON.stringify({ error: "Data tidak lengkap" }), {
           status: 400,
           headers
         });
       }
-
       await env.USERS_KV.put(
         `quote:${quoteData.id}`,
         JSON.stringify({
@@ -39,9 +36,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         }),
         { expirationTtl: 86400 * 30 }
       );
-
       console.log(`[WEBSITE] ✅ Quote berhasil disimpan → ${quoteData.id}`);
-
       return new Response(JSON.stringify({
         success: true,
         message: "Quote saved successfully",
@@ -50,7 +45,6 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
         status: 201,
         headers
       });
-
     } catch (err) {
       console.error("[WEBSITE] Error POST /quotes:", err.message);
       return new Response(JSON.stringify({ error: "Internal Server Error" }), {
@@ -77,20 +71,12 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     const id = url.pathname.split("/").pop();
     const quoteData = await env.USERS_KV.get(`quote:${id}`);
     if (!quoteData) return new Response("Not found", { status: 404, headers });
-
     if (request.headers.get('Authorization') !== `Bearer ${env.ADMIN_SECRET}`) {
       return new Response("Unauthorized", { status: 401, headers });
     }
-
     await env.USERS_KV.delete(`quote:${id}`);
     return new Response("Deleted", { status: 200, headers });
   }
-
-  // Route tidak ditemukan
-  return new Response(JSON.stringify({ error: "Route not found" }), {
-    status: 404,
-    headers
-  });
   // ====================== DISCORD INTERACTION ======================
 
 
