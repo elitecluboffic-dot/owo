@@ -91,7 +91,6 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     status: 404,
     headers
   });
-};
   // ====================== DISCORD INTERACTION ======================
 
 
