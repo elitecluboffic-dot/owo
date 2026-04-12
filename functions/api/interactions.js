@@ -1,5 +1,44 @@
 export const onRequestPost = async ({ request, env, waitUntil }) => {
+  const url = new URL(request.url);
   const headers = { 'Content-Type': 'application/json' };
+
+
+// ====================== ROUTING UNTUK WEBSITE ======================
+
+  // GET semua quotes
+  if (request.method === "GET" && url.pathname === "/quotes") {
+    const list = await env.USERS_KV.list({ prefix: "quote:" });
+    const quotes = [];
+    for (const key of list.keys) {
+      const data = await env.USERS_KV.get(key.name);
+      if (data) quotes.push(JSON.parse(data));
+    }
+    quotes.sort((a, b) => b.createdAt - a.createdAt);
+    return new Response(JSON.stringify(quotes), {
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+// DELETE quote (hanya owner)
+  if (request.method === "DELETE" && url.pathname.startsWith("/quotes/")) {
+    const id = url.pathname.split("/").pop();
+    const quoteData = await env.USERS_KV.get(`quote:${id}`);
+    if (!quoteData) return new Response("Not found", { status: 404 });
+
+    // Proteksi sederhana (ganti dengan secret key kamu di Cloudflare Variables)
+    if (request.headers.get('Authorization') !== `Bearer ${env.ADMIN_SECRET}`) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    await env.USERS_KV.delete(`quote:${id}`);
+    return new Response("Deleted", { status: 200 });
+  }
+
+  // ====================== DISCORD INTERACTION ======================
+
+
+
+  
   const signature = request.headers.get('x-signature-ed25519');
   const timestamp = request.headers.get('x-signature-timestamp');
   const body = await request.text();
@@ -2870,6 +2909,30 @@ if (cmd === 'makequote') {
         createdAt: Date.now()
       }), { expirationTtl: 86400 * 30 });
       await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 60 });
+
+            // ==================== KIRIM KE WEBSITE ====================
+      try {
+        const quoteData = {
+          id: quoteId,
+          teks: teks,
+          username: targetUser.username,
+          avatar: avatarUrl,
+          createdAt: Date.now(),
+          createdBy: discordId
+        };
+
+        await fetch('https://owo.kraxx.my.id/quotes', {   // GANTI dengan domain website kamu
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(quoteData)
+        });
+
+        console.log(`[QUOTE] Berhasil dikirim ke website → ${quoteId}`);
+      } catch (webErr) {
+        console.error('[QUOTE] Gagal kirim ke website:', webErr.message);
+        // Jangan crash bot, cukup log error
+      }
+      // =========================================================
 
       const waktu = new Date().toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
