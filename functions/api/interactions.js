@@ -2944,85 +2944,138 @@ if (cmd === 'makequote') {
 
 
 
-    if (cmd === 'rps') {
-  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+    
+
+// ═══════════════════════════════════════════════════════
+// CMD: rps
+// ═══════════════════════════════════════════════════════
+if (cmd === 'rps') {
   const pilihanUser = getOption(options, 'pilihan');
-  const mode = getOption(options, 'mode') || 'medium';
+  const lawanId     = getOption(options, 'lawan');
+  const mode        = getOption(options, 'mode') || 'medium';
 
   const items = {
     batu:    { emoji: '🪨', nama: 'Batu',    menang: 'gunting', kalah: 'kertas'  },
     kertas:  { emoji: '📄', nama: 'Kertas',  menang: 'batu',    kalah: 'gunting' },
     gunting: { emoji: '✂️', nama: 'Gunting', menang: 'kertas',  kalah: 'batu'    }
   };
-
   const keys = Object.keys(items);
 
-  // ── Ambil stats + history user ──
+  // ═══════════════════════════════════════
+  // MODE PvP — lawan user lain
+  // ═══════════════════════════════════════
+  if (lawanId) {
+
+    // Cegah challenge diri sendiri
+    if (lawanId === discordId) {
+      return new Response(JSON.stringify({
+        type: 4,
+        data: { content: '❌ Ga bisa lawan diri sendiri bro!', flags: 64 }
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // Cek apakah user sudah punya challenge aktif
+    const existingChallenge = await env.USERS_KV.get(`rps_active:${discordId}`);
+    if (existingChallenge) {
+      return new Response(JSON.stringify({
+        type: 4,
+        data: { content: '❌ Kamu masih punya challenge yang belum selesai! Tunggu dulu atau challenge-nya expire.', flags: 64 }
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // Simpan challenge ke KV (expire 5 menit)
+    const challengeId   = `${discordId}-${Date.now()}`;
+    const challengeData = {
+      challengerId:      discordId,
+      challengerName:    username,
+      challengerPilihan: pilihanUser,
+      lawanId,
+      createdAt:         Date.now()
+    };
+
+    await Promise.all([
+      env.USERS_KV.put(`rps_challenge:${challengeId}`, JSON.stringify(challengeData), { expirationTtl: 300 }),
+      env.USERS_KV.put(`rps_active:${discordId}`, challengeId, { expirationTtl: 300 })
+    ]);
+
+    return new Response(JSON.stringify({
+      type: 4,
+      data: {
+        content: `⚔️ <@${lawanId}> kamu ditantang **${username}** main RPS!\n> Pilihan ${username} sudah dikunci 🔒 — pilih senjatamu dalam **5 menit**!`,
+        embeds: [{
+          color: 0x5865F2,
+          title: '⚔️ RPS CHALLENGE!',
+          description: [
+            '```ansi',
+            '\u001b[1;35m━━━━━━━━━━ CHALLENGE MASUK! ━━━━━━━━━━\u001b[0m',
+            `\u001b[1;37m  👤 Challenger : \u001b[1;33m${username}\u001b[0m`,
+            `\u001b[1;37m  🎯 Pilihan    : \u001b[1;32m[DIKUNCI 🔒]\u001b[0m`,
+            `\u001b[1;37m  ⏰ Expire     : \u001b[1;31m5 menit\u001b[0m`,
+            '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `\n<@${lawanId}> pilih senjatamu! 👇`
+          ].join('\n'),
+          footer: { text: `Challenge ID: ${challengeId}` },
+          timestamp: new Date().toISOString()
+        }],
+        components: [{
+          type: 1,
+          components: [
+            { type: 2, style: 1, label: 'Batu 🪨',    custom_id: `rps_pvp:${challengeId}:batu`    },
+            { type: 2, style: 1, label: 'Kertas 📄',  custom_id: `rps_pvp:${challengeId}:kertas`  },
+            { type: 2, style: 4, label: 'Gunting ✂️', custom_id: `rps_pvp:${challengeId}:gunting` }
+          ]
+        }]
+      }
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ═══════════════════════════════════════
+  // MODE vs BOT
+  // ═══════════════════════════════════════
   const statsRaw = await env.USERS_KV.get(`rps:${discordId}`);
   const stats = statsRaw ? JSON.parse(statsRaw) : {
     menang: 0, kalah: 0, seri: 0, total: 0,
-    streak: 0, bestStreak: 0,
-    history: []   // array pilihan user sebelumnya (max 10)
+    streak: 0, bestStreak: 0, history: []
   };
   if (!stats.history) stats.history = [];
 
-  // ── Logika pilihan bot per mode ──
   let pilihanBot;
-
   if (mode === 'easy') {
-    // 70% bot pilih yang kalah dari user, 30% random
-    const roll = Math.random();
-    if (roll < 0.70) {
-      pilihanBot = items[pilihanUser].menang; // bot sengaja kalah
-    } else {
-      pilihanBot = keys[Math.floor(Math.random() * keys.length)];
-    }
-
+    pilihanBot = Math.random() < 0.70
+      ? items[pilihanUser].menang
+      : keys[Math.floor(Math.random() * keys.length)];
   } else if (mode === 'medium') {
-    // Pure random
     pilihanBot = keys[Math.floor(Math.random() * keys.length)];
-
   } else if (mode === 'hard') {
-    // Bot analisa pola history user → counter pilihan terbanyak
     if (stats.history.length < 3) {
-      // Belum cukup data → random
       pilihanBot = keys[Math.floor(Math.random() * keys.length)];
     } else {
-      // Hitung frekuensi pilihan user dari history terakhir
-      const recent = stats.history.slice(-8); // ambil 8 terakhir
-      const freq = { batu: 0, kertas: 0, gunting: 0 };
+      const recent = stats.history.slice(-8);
+      const freq   = { batu: 0, kertas: 0, gunting: 0 };
       for (const h of recent) freq[h]++;
-
-      // Prediksi user akan pilih yang paling sering
       const predicted = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
-
-      // 80% counter prediksi, 20% random (biar ga terlalu obvious)
-      if (Math.random() < 0.80) {
-        pilihanBot = items[predicted].kalah; // bot pilih yang ngalahin prediksi
-      } else {
-        pilihanBot = keys[Math.floor(Math.random() * keys.length)];
-      }
+      pilihanBot = Math.random() < 0.80
+        ? items[predicted].kalah
+        : keys[Math.floor(Math.random() * keys.length)];
     }
   }
 
-  // ── Update history ──
   stats.history.push(pilihanUser);
-  if (stats.history.length > 10) stats.history.shift(); // keep max 10
+  if (stats.history.length > 10) stats.history.shift();
 
   const user = items[pilihanUser];
   const bot  = items[pilihanBot];
 
-  // ── Tentukan hasil ──
   let hasil, hasilEmoji, hasilColor, hasilAnsi;
   if (pilihanUser === pilihanBot) {
-    hasil = 'SERI'; hasilEmoji = '🤝'; hasilColor = 0xF1C40F; hasilAnsi = '\u001b[1;33m';
+    hasil = 'SERI';   hasilEmoji = '🤝'; hasilColor = 0xF1C40F; hasilAnsi = '\u001b[1;33m';
   } else if (user.menang === pilihanBot) {
     hasil = 'MENANG'; hasilEmoji = '🏆'; hasilColor = 0x2ECC71; hasilAnsi = '\u001b[1;32m';
   } else {
-    hasil = 'KALAH'; hasilEmoji = '💀'; hasilColor = 0xFF4444; hasilAnsi = '\u001b[1;31m';
+    hasil = 'KALAH';  hasilEmoji = '💀'; hasilColor = 0xFF4444; hasilAnsi = '\u001b[1;31m';
   }
 
-  // ── Update stats ──
   stats.total++;
   if (hasil === 'MENANG') {
     stats.menang++;
@@ -3040,26 +3093,23 @@ if (cmd === 'makequote') {
 
   const winRate = stats.total > 0 ? ((stats.menang / stats.total) * 100).toFixed(1) : '0.0';
 
-  // ── Pesan random per hasil ──
   const pesanMenang = [
-    `${hasilEmoji} **${username}** menang! ${user.emoji} ${user.nama} ngalahin ${bot.emoji} ${bot.nama}!`,
+    `🏆 **${username}** menang! ${user.emoji} ${user.nama} ngalahin ${bot.emoji} ${bot.nama}!`,
     `🔥 GG! **${username}** jago banget! ${user.emoji} > ${bot.emoji}`,
-    `💪 **${username}** gaskeun! ${user.emoji} ${user.nama} KO ${bot.emoji} ${bot.nama}!`,
+    `💪 **${username}** gaskeun! ${user.emoji} KO ${bot.emoji}!`,
     `👑 **${username}** is UNSTOPPABLE! ${user.emoji} menghancurkan ${bot.emoji}!`
   ];
   const pesanKalah = [
-    `${hasilEmoji} **${username}** kalah! ${bot.emoji} ${bot.nama} ngalahin ${user.emoji} ${user.nama}!`,
-    `😭 Sial! Bot pake ${bot.emoji} ${bot.nama}, **${username}** pake ${user.emoji} ${user.nama}...`,
+    `💀 **${username}** kalah! ${bot.emoji} ${bot.nama} ngalahin ${user.emoji} ${user.nama}!`,
+    `😭 Sial! Bot pake ${bot.emoji}, **${username}** pake ${user.emoji}...`,
     `💀 **${username}** dihajar bot! ${user.emoji} < ${bot.emoji}`,
     `🤖 Bot menang lagi! **${username}** harus latihan dulu nih!`
   ];
   const pesanSeri = [
     `🤝 Seri! Dua-duanya pake ${user.emoji} ${user.nama}!`,
-    `😅 Draw! Sama-sama pake ${user.emoji} ${user.nama}!`,
+    `😅 Draw! Sama-sama pake ${user.emoji}!`,
     `⚡ Seimbang! **${username}** dan bot sama-sama ${user.emoji}!`
   ];
-
-  // ── Pesan khusus Hard mode ──
   const pesanHardKalah = [
     `🧠 Bot udah baca gerak lo **${username}**! Prediksi tepat!`,
     `🤖 Hard mode gak ada ampun! Bot udah tau lo mau milih apa!`,
@@ -3071,8 +3121,7 @@ if (cmd === 'makequote') {
   else if (hasil === 'KALAH') pesanList = (mode === 'hard' && Math.random() < 0.6) ? pesanHardKalah : pesanKalah;
   else pesanList = pesanSeri;
 
-  const pesan = pesanList[Math.floor(Math.random() * pesanList.length)];
-
+  const pesan     = pesanList[Math.floor(Math.random() * pesanList.length)];
   const streakStr = stats.streak > 0
     ? `🔥 ${stats.streak}x Winstreak`
     : stats.streak < 0
@@ -3084,12 +3133,8 @@ if (cmd === 'makequote') {
     medium: '⚔️ Medium (Pure RNG)',
     hard:   '🧠 Hard   (Bot baca pola lo)'
   };
-
-  // ── Indikator kesulitan visual ──
   const modeDiff = {
-    easy:   '🟢🔘🔘',
-    medium: '🟡🟡🔘',
-    hard:   '🔴🔴🔴'
+    easy: '🟢🔘🔘', medium: '🟡🟡🔘', hard: '🔴🔴🔴'
   };
 
   return new Response(JSON.stringify({
@@ -3127,6 +3172,236 @@ if (cmd === 'makequote') {
       }]
     }
   }), { headers: { 'Content-Type': 'application/json' } });
+}
+
+// ═══════════════════════════════════════════════════════
+// HANDLER BUTTON PvP (interaction.type === 3)
+// ═══════════════════════════════════════════════════════
+if (interaction.type === 3) {
+  const customId = interaction.data.custom_id;
+
+  if (customId.startsWith('rps_pvp:')) {
+    const [, challengeId, pilihanLawan] = customId.split(':');
+    const clickerId   = interaction.member.user.id;
+    const clickerName = interaction.member.user.username;
+
+    const items = {
+      batu:    { emoji: '🪨', nama: 'Batu',    menang: 'gunting', kalah: 'kertas'  },
+      kertas:  { emoji: '📄', nama: 'Kertas',  menang: 'batu',    kalah: 'gunting' },
+      gunting: { emoji: '✂️', nama: 'Gunting', menang: 'kertas',  kalah: 'batu'    }
+    };
+
+    // ── Ambil data challenge ──
+    const challengeRaw = await env.USERS_KV.get(`rps_challenge:${challengeId}`);
+    if (!challengeRaw) {
+      return new Response(JSON.stringify({
+        type: 4,
+        data: {
+          flags: 64,
+          embeds: [{
+            color: 0xFF4444,
+            title: '⏰ Challenge Expired!',
+            description: [
+              '```ansi',
+              '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+              '\u001b[1;37m  Challenge ini sudah tidak valid!\u001b[0m',
+              '\u001b[0;37m  Mungkin sudah expire atau selesai.\u001b[0m',
+              '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+              '```'
+            ].join('\n'),
+            footer: { text: '🎮 OwoBim RPS PvP System' }
+          }]
+        }
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    const challenge = JSON.parse(challengeRaw);
+
+    // ── Challenger klik tombol sendiri ──
+    if (clickerId === challenge.challengerId) {
+      const elapsed   = Math.floor((Date.now() - challenge.createdAt) / 1000);
+      const sisaDetik = Math.max(0, 300 - elapsed);
+
+      // Waktu sudah habis
+      if (sisaDetik === 0) {
+        await Promise.all([
+          env.USERS_KV.delete(`rps_challenge:${challengeId}`),
+          env.USERS_KV.delete(`rps_active:${challenge.challengerId}`)
+        ]);
+
+        return new Response(JSON.stringify({
+          type: 4,
+          data: {
+            flags: 64,
+            embeds: [{
+              color: 0xFF4444,
+              title: '⏰ Challenge Expired!',
+              description: [
+                '```ansi',
+                '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+                `\u001b[1;37m  ❌ Lawan kamu \u001b[1;33m<@${challenge.lawanId}>\u001b[0m`,
+                `\u001b[1;37m     tidak memilih sampai batas waktu!\u001b[0m`,
+                '',
+                `\u001b[0;37m  Challenge hangus, stats tidak berubah.\u001b[0m`,
+                `\u001b[0;37m  Coba tantang lagi kalau mau! ⚔️\u001b[0m`,
+                '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+                '```'
+              ].join('\n'),
+              footer: { text: '🎮 OwoBim RPS PvP System' }
+            }]
+          }
+        }), { headers: { 'Content-Type': 'application/json' } });
+      }
+
+      // Masih ada waktu → kasih tau sisa waktu
+      const menit = Math.floor(sisaDetik / 60);
+      const detik = String(sisaDetik % 60).padStart(2, '0');
+
+      return new Response(JSON.stringify({
+        type: 4,
+        data: {
+          flags: 64,
+          embeds: [{
+            color: 0x5865F2,
+            title: '⏳ Menunggu Lawan...',
+            description: [
+              '```ansi',
+              '\u001b[1;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+              `\u001b[1;37m  👤 Lawan    : \u001b[1;33m<@${challenge.lawanId}>\u001b[0m`,
+              `\u001b[1;37m  🔒 Pilihan  : \u001b[1;32mSudah dikunci!\u001b[0m`,
+              `\u001b[1;37m  ⏰ Sisa     : \u001b[1;31m${menit}m ${detik}s\u001b[0m`,
+              '\u001b[1;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+              '\u001b[0;37m  Lawan kamu belum memilih senjata!\u001b[0m',
+              '\u001b[0;37m  Klik lagi nanti untuk cek statusnya.\u001b[0m',
+              '```'
+            ].join('\n'),
+            footer: { text: '🎮 OwoBim RPS PvP System' }
+          }]
+        }
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ── Orang random klik → tolak ──
+    if (clickerId !== challenge.lawanId) {
+      return new Response(JSON.stringify({
+        type: 4,
+        data: {
+          flags: 64,
+          embeds: [{
+            color: 0xFF4444,
+            title: '❌ Bukan Challenge Kamu!',
+            description: [
+              '```ansi',
+              '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+              `\u001b[1;37m  Ini duel antara:\u001b[0m`,
+              `\u001b[1;33m  ⚔️  ${challenge.challengerName} vs <@${challenge.lawanId}>\u001b[0m`,
+              '',
+              `\u001b[0;37m  Kamu tidak bisa ikut campur!\u001b[0m`,
+              '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+              '```'
+            ].join('\n'),
+            footer: { text: '🎮 OwoBim RPS PvP System' }
+          }]
+        }
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ── Lawan valid → proses hasil ──
+    await Promise.all([
+      env.USERS_KV.delete(`rps_challenge:${challengeId}`),
+      env.USERS_KV.delete(`rps_active:${challenge.challengerId}`)
+    ]);
+
+    const pC    = challenge.challengerPilihan;
+    const pL    = pilihanLawan;
+    const itemC = items[pC];
+    const itemL = items[pL];
+
+    let hasilC, hasilL, hasilEmoji, hasilColor;
+    if (pC === pL) {
+      hasilC = 'SERI';   hasilL = 'SERI';
+      hasilEmoji = '🤝'; hasilColor = 0xF1C40F;
+    } else if (itemC.menang === pL) {
+      hasilC = 'MENANG'; hasilL = 'KALAH';
+      hasilEmoji = '🏆'; hasilColor = 0x2ECC71;
+    } else {
+      hasilC = 'KALAH';  hasilL = 'MENANG';
+      hasilEmoji = '🏆'; hasilColor = 0x2ECC71;
+    }
+
+    // ── Update stats kedua user ──
+    const updateStats = async (userId, hasil) => {
+      const raw = await env.USERS_KV.get(`rps:${userId}`);
+      const s   = raw ? JSON.parse(raw) : {
+        menang: 0, kalah: 0, seri: 0, total: 0,
+        streak: 0, bestStreak: 0, history: []
+      };
+      if (!s.history) s.history = [];
+      s.total++;
+      if (hasil === 'MENANG') {
+        s.menang++;
+        s.streak = (s.streak > 0 ? s.streak : 0) + 1;
+        if (s.streak > s.bestStreak) s.bestStreak = s.streak;
+      } else if (hasil === 'KALAH') {
+        s.kalah++;
+        s.streak = (s.streak < 0 ? s.streak : 0) - 1;
+      } else {
+        s.seri++;
+        s.streak = 0;
+      }
+      await env.USERS_KV.put(`rps:${userId}`, JSON.stringify(s), { expirationTtl: 86400 * 365 });
+      return s;
+    };
+
+    const [statsC, statsL] = await Promise.all([
+      updateStats(challenge.challengerId, hasilC),
+      updateStats(challenge.lawanId, hasilL)
+    ]);
+
+    const wrC    = ((statsC.menang / statsC.total) * 100).toFixed(1);
+    const wrL    = ((statsL.menang / statsL.total) * 100).toFixed(1);
+    const streakC = statsC.streak > 0 ? `🔥 ${statsC.streak}x WS` : statsC.streak < 0 ? `❄️ ${Math.abs(statsC.streak)}x LS` : `➡️ Reset`;
+    const streakL = statsL.streak > 0 ? `🔥 ${statsL.streak}x WS` : statsL.streak < 0 ? `❄️ ${Math.abs(statsL.streak)}x LS` : `➡️ Reset`;
+
+    const winnerText = hasilC === 'MENANG'
+      ? `👑 **${challenge.challengerName}** MENANG atas **${clickerName}**!`
+      : hasilL === 'MENANG'
+      ? `👑 **${clickerName}** MENANG atas **${challenge.challengerName}**!`
+      : `🤝 SERI! Dua-duanya pilih ${itemC.emoji} ${itemC.nama}!`;
+
+    return new Response(JSON.stringify({
+      type: 7,
+      data: {
+        content: winnerText,
+        embeds: [{
+          color: hasilColor,
+          title: `${hasilEmoji} RPS PvP — HASIL!`,
+          description: [
+            '```ansi',
+            '\u001b[1;35m━━━━━━━━━━━ ⚔️  PvP RESULT ━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;33m  ${itemC.emoji} ${challenge.challengerName.padEnd(12)} VS  ${clickerName} ${itemL.emoji}\u001b[0m`,
+            '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;37m  Pilihan :\u001b[0m \u001b[1;32m${itemC.nama.padEnd(10)}\u001b[0m \u001b[1;32m${itemL.nama}\u001b[0m`,
+            `\u001b[1;37m  Hasil   :\u001b[0m \u001b[1;33m${hasilC.padEnd(10)}\u001b[0m \u001b[1;33m${hasilL}\u001b[0m`,
+            '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '',
+            `\u001b[1;36m  📊 ${challenge.challengerName}\u001b[0m`,
+            `\u001b[0;37m     🏆 ${statsC.menang}W  💀 ${statsC.kalah}L  🤝 ${statsC.seri}D\u001b[0m`,
+            `\u001b[0;37m     📈 WR: ${wrC}%  ⚡ ${streakC}\u001b[0m`,
+            '',
+            `\u001b[1;36m  📊 ${clickerName}\u001b[0m`,
+            `\u001b[0;37m     🏆 ${statsL.menang}W  💀 ${statsL.kalah}L  🤝 ${statsL.seri}D\u001b[0m`,
+            `\u001b[0;37m     📈 WR: ${wrL}%  ⚡ ${streakL}\u001b[0m`,
+            '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```'
+          ].join('\n'),
+          footer: { text: '🎮 OwoBim RPS PvP System' },
+          timestamp: new Date().toISOString()
+        }],
+        components: []
+      }
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
 }
     
     
