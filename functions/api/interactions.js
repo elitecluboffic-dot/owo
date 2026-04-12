@@ -3453,7 +3453,6 @@ if (interaction.type === 3) {
 
 if (cmd === 'quotesweb') {
   const teks = getOption(options, 'teks');
-
   if (!teks || teks.trim() === '') {
     return respond('❌ Teks quote tidak boleh kosong!');
   }
@@ -3462,7 +3461,6 @@ if (cmd === 'quotesweb') {
   }
 
   const quoteId = `QUOTE-${Date.now()}-${discordId.slice(-6)}`;
-
   const quoteData = {
     id: quoteId,
     discordId: discordId,
@@ -3476,39 +3474,39 @@ if (cmd === 'quotesweb') {
   // Simpan dulu ke KV
   await env.USERS_KV.put(`quote:${quoteId}`, JSON.stringify(quoteData), { expirationTtl: 86400 * 7 });
 
-  // Kirim Webhook dengan tombol
-  const webhook = env.FEEDBACK_WEBHOOK_URL;
-  if (webhook) {
-    try {
-      const res = await fetch(webhook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: `<@1442230317455900823> 📨 **Quote Baru Masuk!**`,
-          embeds: [{
-            color: 0xF1C40F,
-            title: '📬 Pending Quote',
-            description: `> "${teks}"`,
-            fields: [
-              { name: '👤 Pengirim', value: `<@${discordId}> (${username})`, inline: true },
-              { name: '🆔 Quote ID', value: `\`${quoteId}\``, inline: true },
-              { name: '⏰ Waktu', value: new Date().toLocaleString('id-ID'), inline: true }
-            ]
-          }],
-          components: [{
-            type: 1,
-            components: [
-              { type: 2, style: 3, label: '✅ Approve', custom_id: `quote_approve:${quoteId}` },
-              { type: 2, style: 4, label: '❌ Reject',  custom_id: `quote_reject:${quoteId}` }
-            ]
-          }]
-        })
-      });
-
-      if (!res.ok) console.error('Webhook gagal:', await res.text());
-    } catch (e) {
-      console.error('Error kirim webhook:', e);
-    }
+  // Kirim ke channel pakai Bot Token (bukan webhook, karena webhook tidak support tombol)
+  const CHANNEL_ID = '1464976840257962065'; // ← ganti ini
+  try {
+    const res = await fetch(`https://discord.com/api/v10/channels/${CHANNEL_ID}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` // ← tambahkan env ini di Cloudflare
+      },
+      body: JSON.stringify({
+        content: `<@1442230317455900823> 📨 **Quote Baru Masuk!**`,
+        embeds: [{
+          color: 0xF1C40F,
+          title: '📬 Pending Quote',
+          description: `> "${teks}"`,
+          fields: [
+            { name: '👤 Pengirim', value: `<@${discordId}> (${username})`, inline: true },
+            { name: '🆔 Quote ID', value: `\`${quoteId}\``, inline: true },
+            { name: '⏰ Waktu', value: new Date().toLocaleString('id-ID'), inline: true }
+          ]
+        }],
+        components: [{
+          type: 1,
+          components: [
+            { type: 2, style: 3, label: '✅ Approve', custom_id: `quote_approve:${quoteId}` },
+            { type: 2, style: 4, label: '❌ Reject',  custom_id: `quote_reject:${quoteId}` }
+          ]
+        }]
+      })
+    });
+    if (!res.ok) console.error('Gagal kirim ke channel:', await res.text());
+  } catch (e) {
+    console.error('Error kirim pesan:', e);
   }
 
   return respond([
