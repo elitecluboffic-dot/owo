@@ -2785,6 +2785,148 @@ if (cmd === 'feedback') {
     }
   }), { headers: { 'Content-Type': 'application/json' } });
 }
+
+
+
+
+    if (cmd === 'makequote') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const teks = getOption(options, 'teks');
+  const targetOption = options.find(o => o.name === 'user');
+  const warna = getOption(options, 'warna') || 'default';
+  const targetId = targetOption ? String(targetOption.value) : discordId;
+  const targetUser = targetOption
+    ? interaction.data.resolved?.users?.[targetId]
+    : (interaction.member?.user || interaction.user);
+
+  if (!targetUser) return respond('❌ User tidak ditemukan!');
+  if (!teks || teks.trim().length === 0) return respond('❌ Teks tidak boleh kosong!');
+  if (teks.length > 200) return respond([
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[2;34m║  \u001b[1;31m✗  TEKS TERLALU PANJANG  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `> ${EMOJI} ❌ Maksimal **200 karakter**!`,
+    `> 📏 Teks kamu **${teks.length} karakter** — kelebihan **${teks.length - 200} karakter**.`
+  ].join('\n'));
+
+  // ── Cooldown 10 detik ──
+  const cooldownKey = `quote_cd:${discordId}`;
+  const lastQuote = await env.USERS_KV.get(cooldownKey);
+  if (lastQuote) {
+    const sisa = 10000 - (Date.now() - parseInt(lastQuote));
+    if (sisa > 0) return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
+  }
+
+  const avatarUrl = targetUser.avatar
+    ? `https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar}.${targetUser.avatar.startsWith('a_') ? 'gif' : 'png'}?size=256`
+    : `https://cdn.discordapp.com/embed/avatars/${parseInt(targetUser.discriminator || 0) % 5}.png`;
+
+  // ── Multi API fallback ──
+  const apis = [
+    `https://some-random-api.com/canvas/misc/quote?avatar=${encodeURIComponent(avatarUrl)}&username=${encodeURIComponent(targetUser.username)}&quote=${encodeURIComponent(teks)}`,
+    `https://api.popcat.xyz/quote?image=${encodeURIComponent(avatarUrl)}&name=${encodeURIComponent(targetUser.username)}&text=${encodeURIComponent(teks)}`,
+  ];
+
+  let quoteUrl = apis[0];
+  try {
+    const test = await fetch(apis[0], { method: 'HEAD' });
+    if (!test.ok) quoteUrl = apis[1];
+  } catch {
+    quoteUrl = apis[1];
+  }
+
+  // ── Simpan quote ke KV ──
+  const quoteId = `QT-${Date.now()}-${discordId.slice(-4)}`;
+  const totalRaw = await env.USERS_KV.get(`quote_total:${targetId}`);
+  const totalQuote = totalRaw ? parseInt(totalRaw) + 1 : 1;
+  await env.USERS_KV.put(`quote_total:${targetId}`, String(totalQuote));
+  await env.USERS_KV.put(`quote:${quoteId}`, JSON.stringify({
+    id: quoteId,
+    teks,
+    targetId,
+    targetUsername: targetUser.username,
+    createdBy: discordId,
+    createdByUsername: username,
+    guildId: guildId || null,
+    createdAt: Date.now()
+  }), { expirationTtl: 86400 * 30 });
+  await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 10 });
+
+  // ── Warna tema ──
+  const colorMap = {
+    default: 0x2B2D31,
+    merah:   0xFF4444,
+    biru:    0x3498DB,
+    hijau:   0x2ECC71,
+    kuning:  0xF1C40F,
+    ungu:    0x9B59B6,
+    pink:    0xFF69B4,
+    orange:  0xFF6B2B,
+    hitam:   0x000000,
+  };
+  const embedColor = colorMap[warna.toLowerCase()] ?? 0x2B2D31;
+
+  const waktu = new Date().toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  // ── Kata pengantar random ──
+  const intros = [
+    `🌟 Kata-kata bijak dari **${targetUser.username}**:`,
+    `💭 Seseorang pernah berkata...`,
+    `📖 Mutiara kata dari **${targetUser.username}**:`,
+    `✨ Quote of the day by **${targetUser.username}**:`,
+    `🎯 Words of wisdom dari **${targetUser.username}**:`
+  ];
+  const intro = intros[Math.floor(Math.random() * intros.length)];
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: intro,
+      embeds: [{
+        color: embedColor,
+        author: {
+          name: `💬 Quote by ${targetUser.username} • Quote #${totalQuote}`,
+          icon_url: avatarUrl
+        },
+        description: [
+          '```ansi',
+          '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[2;34m║  \u001b[1;33m💬  MAKE IT A QUOTE  💬\u001b[0m  \u001b[2;34m║\u001b[0m',
+          '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          `> *"${teks}"*`,
+          `> — **${targetUser.username}**`,
+          '',
+          '```ansi',
+          '\u001b[1;32m━━━━━━━━━━━━ DETAIL INFO ━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m 🆔  Quote ID :\u001b[0m \u001b[0;37m${quoteId}\u001b[0m`,
+          `\u001b[1;36m 👤  User     :\u001b[0m \u001b[0;37m${targetUser.username}\u001b[0m`,
+          `\u001b[1;36m ✍️  Dibuat   :\u001b[0m \u001b[0;37m${username}\u001b[0m`,
+          `\u001b[1;36m 🕐  Waktu    :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+          `\u001b[1;36m 📏  Panjang  :\u001b[0m \u001b[0;37m${teks.length}/200 karakter\u001b[0m`,
+          `\u001b[1;36m 🎨  Warna    :\u001b[0m \u001b[0;37m${warna}\u001b[0m`,
+          `\u001b[1;36m 📊  Total    :\u001b[0m \u001b[0;37m${totalQuote}x quote dari user ini\u001b[0m`,
+          '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```'
+        ].join('\n'),
+        image: { url: quoteUrl },
+        thumbnail: { url: avatarUrl },
+        footer: {
+          text: `💬 OwoBim Quote Generator • ${quoteId}`,
+          icon_url: avatarUrl
+        },
+        timestamp: new Date().toISOString()
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+    
     
     
 
