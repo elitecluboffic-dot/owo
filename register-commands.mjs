@@ -353,9 +353,9 @@ const commands = [
 
 
 
-  {
+{
   name: 'rps',
-  description: '✂️ Main Rock Paper Scissors lawan bot!',
+  description: '✂️ Main Rock Paper Scissors lawan bot atau teman!',
   options: [
     {
       name: 'pilihan',
@@ -369,14 +369,20 @@ const commands = [
       ]
     },
     {
+      name: 'lawan',
+      description: '👤 Tag user untuk PvP — kosongkan untuk lawan bot',
+      type: 6,
+      required: false
+    },
+    {
       name: 'mode',
-      description: '⚙️ Pilih tingkat kesulitan bot',
+      description: '⚙️ Difficulty bot — hanya berlaku jika lawan bot',
       type: 3,
       required: false,
       choices: [
-        { name: '😊 Easy   — Bot agak bego (70% kalah)',     value: 'easy'   },
-        { name: '⚔️ Medium — Pure random (50/50)',           value: 'medium' },
-        { name: '🧠 Hard   — Bot baca pola kamu!',           value: 'hard'   }
+        { name: '😊 Easy   — Bot agak bego (70% kalah)',      value: 'easy'   },
+        { name: '⚔️ Medium — Pure random 50/50 (default)',    value: 'medium' },
+        { name: '🧠 Hard   — Bot analisa pola kamu!',         value: 'hard'   }
       ]
     }
   ]
