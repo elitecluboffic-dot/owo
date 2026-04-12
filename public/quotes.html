@@ -285,6 +285,48 @@
     .site-footer a { color: var(--gold); text-decoration: none; }
     .site-footer a:hover { opacity: 0.7; }
 
+    .how-to {
+  margin-bottom: 48px;
+}
+.how-to-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 24px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.how-icon { font-size: 1.8rem; flex-shrink: 0; }
+.how-text { flex: 1; }
+.how-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.how-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.how-btn {
+  display: inline-block;
+  background: var(--gold-dim);
+  border: 1px solid rgba(232,184,75,0.25);
+  color: var(--gold);
+  text-decoration: none;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  padding: 8px 16px;
+  border-radius: 10px;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.how-btn:hover { background: rgba(232,184,75,0.2); }
+
     @media (max-width: 600px) {
       .quote-card { padding: 26px 22px; }
       h1 { font-size: 2.2rem; }
@@ -304,6 +346,17 @@
     <span class="word2">Quotes</span>
   </h1>
   <p class="tagline">Quote terpilih dari komunitas — dikurasi dengan hati</p>
+
+<div class="how-to">
+  <div class="how-to-inner">
+    <span class="how-icon">🤖</span>
+    <div class="how-text">
+      <div class="how-title">Mau submit quote?</div>
+      <div class="how-sub">Gunakan bot Discord OWO BIM untuk submit quote</div>
+    </div>
+    <a href="https://discord.gg/jHv69FHd" target="_blank" class="how-btn">Join Server →</a>
+  </div>
+</div>
 
   <div id="quotes-container">
     <div class="loading">
