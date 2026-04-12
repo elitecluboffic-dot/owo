@@ -400,7 +400,58 @@ const commands = [
       "required": true
     }
   ]
+},
+
+
+
+  {
+  name: 'confess',
+  description: '💌 Kirim pesan anonim rahasia ke seseorang!',
+  options: [
+    {
+      name: 'target',
+      description: '👤 User yang mau dikirimi confess',
+      type: 6,
+      required: true
+    },
+    {
+      name: 'pesan',
+      description: '💬 Isi confess kamu (maks. 500 karakter)',
+      type: 3,
+      required: true
+    },
+    {
+      name: 'kategori',
+      description: '🏷️ Kategori confess',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '💕 Perasaan / Curhat', value: 'perasaan' },
+        { name: '🤝 Persahabatan',      value: 'sahabat'  },
+        { name: '🙏 Permintaan Maaf',   value: 'maaf'     },
+        { name: '🔥 Gosip / Tea',       value: 'gosip'    },
+        { name: '😂 Iseng / Random',    value: 'random'   },
+        { name: '🎯 Serius / Penting',  value: 'serius'   }
+      ]
+    },
+    {
+      name: 'mood',
+      description: '🎭 Mood kamu saat confess',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '😊 Happy',   value: 'happy'   },
+        { name: '😢 Sad',     value: 'sad'     },
+        { name: '🥰 Lovey',   value: 'lovey'   },
+        { name: '😳 Shy',     value: 'shy'     },
+        { name: '😰 Nervous', value: 'nervous' },
+        { name: '😡 Angry',   value: 'angry'   }
+      ]
+    }
+  ]
 }
+
+  
   
   
 ];
