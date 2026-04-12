@@ -2743,7 +2743,7 @@ if (cmd === 'feedback') {
     ? `https://cdn.discordapp.com/avatars/${targetUser.id}/${targetUser.avatar}.${targetUser.avatar.startsWith('a_') ? 'gif' : 'png'}?size=256`
     : `https://cdn.discordapp.com/embed/avatars/${parseInt(targetUser.discriminator || 0) % 5}.png`;
 
-  const explosionUrl = `https://some-random-api.com/canvas/misc/fire?avatar=${encodeURIComponent(avatarUrl)}`;
+  const explosionUrl = `https://api.popcat.xyz/burn?image=${encodeURIComponent(avatarUrl)}`;
 
   const messages = [
     `💣 **${username}** melempar granat ke <@${targetId}>!`,
