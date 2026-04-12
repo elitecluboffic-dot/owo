@@ -3459,6 +3459,7 @@ if (cmd === 'quotesweb') {
   if (teks.length > 300) {
     return respond('❌ Quote maksimal 300 karakter!');
   }
+
   const quoteId = `QUOTE-${Date.now()}-${discordId.slice(-6)}`;
   const quoteData = {
     id: quoteId,
@@ -3473,12 +3474,6 @@ if (cmd === 'quotesweb') {
   await env.USERS_KV.put(`quote:${quoteId}`, JSON.stringify(quoteData), { expirationTtl: 86400 * 7 });
 
   const CHANNEL_ID = '1492626962567659684';
-
-  // Cek dulu token ada atau tidak
-  console.log('=== DEBUG QUOTE ===');
-  console.log('Channel ID:', CHANNEL_ID);
-  console.log('Bot Token ada?', !!env.DISCORD_BOT_TOKEN);
-  console.log('Bot Token 10 char pertama:', env.DISCORD_BOT_TOKEN?.slice(0, 10));
 
   try {
     const res = await fetch(`https://discord.com/api/v10/channels/${CHANNEL_ID}/messages`, {
@@ -3508,11 +3503,7 @@ if (cmd === 'quotesweb') {
         }]
       })
     });
-
-    const responseText = await res.text();
-    console.log('Status HTTP:', res.status);
-    console.log('Response Discord:', responseText);
-
+    if (!res.ok) console.error('Gagal kirim ke channel:', await res.text());
   } catch (e) {
     console.error('Error kirim pesan:', e.message);
   }
@@ -3527,6 +3518,114 @@ if (cmd === 'quotesweb') {
     `> 🆔 **ID:** \`${quoteId}\``,
     `> 📍 Status: **Menunggu persetujuan**`
   ].join('\n'));
+}
+
+// ✅ Handler tombol Approve & Reject
+if (type === 3) {
+  const customId = body.data?.custom_id || '';
+
+  if (customId.startsWith('quote_approve:') || customId.startsWith('quote_reject:')) {
+    const colonIndex = customId.indexOf(':');
+    const action = customId.slice(0, colonIndex);
+    const quoteId = customId.slice(colonIndex + 1);
+    const isApprove = action === 'quote_approve';
+
+    // Ambil data quote dari KV
+    const quoteRaw = await env.USERS_KV.get(`quote:${quoteId}`);
+    if (!quoteRaw) {
+      return new Response(JSON.stringify({
+        type: 4,
+        data: { content: '❌ Quote tidak ditemukan atau sudah expired.', flags: 64 }
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    const quoteData = JSON.parse(quoteRaw);
+    quoteData.status = isApprove ? 'approved' : 'rejected';
+    quoteData.reviewedAt = Date.now();
+    quoteData.reviewedBy = body.member?.user?.id || body.user?.id || 'unknown';
+    await env.USERS_KV.put(`quote:${quoteId}`, JSON.stringify(quoteData), { expirationTtl: 86400 * 7 });
+
+    // Kalau approve, simpan ke list quotes approved
+    if (isApprove) {
+      const allQuotesRaw = await env.USERS_KV.get('quotes:approved');
+      const allQuotes = allQuotesRaw ? JSON.parse(allQuotesRaw) : [];
+      allQuotes.push({
+        id: quoteId,
+        teks: quoteData.teks,
+        discordId: quoteData.discordId,
+        username: quoteData.username
+      });
+      await env.USERS_KV.put('quotes:approved', JSON.stringify(allQuotes));
+    }
+
+    // Edit pesan di channel (hapus tombol, update warna & judul)
+    const messageId = body.message.id;
+    const channelId = body.message.channel_id;
+    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}`
+      },
+      body: JSON.stringify({
+        embeds: [{
+          color: isApprove ? 0x2ECC71 : 0xE74C3C,
+          title: isApprove ? '✅ Quote Disetujui' : '❌ Quote Ditolak',
+          description: `> "${quoteData.teks}"`,
+          fields: [
+            { name: '👤 Pengirim', value: `<@${quoteData.discordId}> (${quoteData.username})`, inline: true },
+            { name: '🆔 Quote ID', value: `\`${quoteId}\``, inline: true },
+            { name: '👮 Di-review oleh', value: `<@${quoteData.reviewedBy}>`, inline: true }
+          ]
+        }],
+        components: [] // hapus tombol
+      })
+    });
+
+    // Kirim DM ke user yang submit
+    try {
+      const dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}`
+        },
+        body: JSON.stringify({ recipient_id: quoteData.discordId })
+      });
+      const dmData = await dmRes.json();
+
+      await fetch(`https://discord.com/api/v10/channels/${dmData.id}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}`
+        },
+        body: JSON.stringify({
+          embeds: [{
+            color: isApprove ? 0x2ECC71 : 0xE74C3C,
+            title: isApprove ? '🎉 Quote kamu DISETUJUI!' : '😔 Quote kamu DITOLAK',
+            description: `> "${quoteData.teks}"`,
+            fields: [
+              { name: '🆔 Quote ID', value: `\`${quoteId}\``, inline: true },
+              { name: '📍 Status', value: isApprove ? '**Approved** ✅' : '**Rejected** ❌', inline: true }
+            ],
+            footer: { text: isApprove ? 'Quote kamu sudah masuk ke database!' : 'Kamu bisa submit quote baru kapan saja.' }
+          }]
+        })
+      });
+    } catch (e) {
+      console.error('Gagal kirim DM:', e.message);
+    }
+
+    // Response ephemeral ke yang klik tombol
+    return new Response(JSON.stringify({
+      type: 4,
+      data: {
+        content: isApprove ? '✅ Quote berhasil di-approve!' : '❌ Quote berhasil di-reject!',
+        flags: 64
+      }
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
 }
     
     
