@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Owo Quotes - Kraxx</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0f0f1e, #1a1a2e);
+      color: #eee;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 {
+      text-align: center;
+      color: #f1c40f;
+      margin: 20px 0 40px;
+      font-size: 2.5rem;
+    }
+    .quote-card {
+      background: #16213e;
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 25px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+      border-left: 6px solid #f1c40f;
+      transition: transform 0.2s;
+    }
+    .quote-card:hover { transform: translateY(-5px); }
+    .quote-text {
+      font-size: 1.25rem;
+      line-height: 1.6;
+      margin-bottom: 18px;
+      font-style: italic;
+    }
+    .quote-author {
+      text-align: right;
+      color: #a0c4ff;
+      font-weight: 600;
+    }
+    .empty {
+      text-align: center;
+      padding: 80px 20px;
+      color: #777;
+      font-size: 1.3rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💬 Owo Quotes</h1>
+    <div id="quotes-container"></div>
+  </div>
+
+  <script>
+    async function loadQuotes() {
+      try {
+        const res = await fetch('/api/quotes');
+        const quotes = await res.json();
+        const container = document.getElementById('quotes-container');
+
+        if (quotes.length === 0) {
+          container.innerHTML = `<div class="empty">Belum ada quote yang disetujui saat ini...</div>`;
+          return;
+        }
+
+        container.innerHTML = quotes.map(q => `
+          <div class="quote-card">
+            <div class="quote-text">"${q.teks}"</div>
+            <div class="quote-author">— ${q.username}</div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    loadQuotes();
+    setInterval(loadQuotes, 30000); // refresh tiap 30 detik
+  </script>
+</body>
+</html>
