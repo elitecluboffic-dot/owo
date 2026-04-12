@@ -3475,7 +3475,7 @@ if (cmd === 'quotesweb') {
   await env.USERS_KV.put(`quote:${quoteId}`, JSON.stringify(quoteData), { expirationTtl: 86400 * 7 });
 
   // Kirim ke channel pakai Bot Token (bukan webhook, karena webhook tidak support tombol)
-  const CHANNEL_ID = '1464976840257962065'; // ← ganti ini
+  const CHANNEL_ID = '1492626962567659684'; // ← ganti ini
   try {
     const res = await fetch(`https://discord.com/api/v10/channels/${CHANNEL_ID}/messages`, {
       method: 'POST',
