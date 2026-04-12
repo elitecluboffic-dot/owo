@@ -3451,7 +3451,7 @@ if (interaction.type === 3) {
 
 
 
-    if (cmd === 'quotesweb') {
+if (cmd === 'quotesweb') {
   const teks = getOption(options, 'teks');
 
   if (!teks || teks.trim() === '') {
@@ -3473,49 +3473,46 @@ if (interaction.type === 3) {
     guildId: guildId || 'DM'
   };
 
-  // Simpan ke KV
   await env.USERS_KV.put(`quote:${quoteId}`, JSON.stringify(quoteData), { expirationTtl: 86400 * 7 });
 
-  // Kirim notifikasi ke Owner
-  waitUntil((async () => {
-    const webhook = env.FEEDBACK_WEBHOOK_URL; // pakai webhook yang sama
-    if (webhook) {
-      await fetch(webhook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: `<@1442230317455900823> 📨 **Quote Baru Masuk!**`,
-          embeds: [{
-            color: 0xF1C40F,
-            title: '📬 Pending Quote',
-            description: `> "${teks}"`,
-            fields: [
-              { name: '👤 Pengirim', value: `<@${discordId}> (${username})`, inline: true },
-              { name: '🆔 Quote ID', value: `\`${quoteId}\``, inline: true },
-              { name: '⏰ Waktu', value: new Date().toLocaleString('id-ID'), inline: true }
-            ]
-          }],
-          components: [{
-            type: 1,
-            components: [
-              {
-                type: 2,
-                style: 3,
-                label: '✅ Approve',
-                custom_id: `quote_approve:${quoteId}`
-              },
-              {
-                type: 2,
-                style: 4,
-                label: '❌ Reject',
-                custom_id: `quote_reject:${quoteId}`
-              }
-            ]
-          }]
-        })
-      });
-    }
-  })());
+  // Kirim ke Webhook dengan tombol
+  const webhook = env.FEEDBACK_WEBHOOK_URL;
+  if (webhook) {
+    await fetch(webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: `<@1442230317455900823> 📨 **Quote Baru Masuk!**`,
+        embeds: [{
+          color: 0xF1C40F,
+          title: '📬 Pending Quote',
+          description: `> "${teks}"`,
+          fields: [
+            { name: '👤 Pengirim', value: `<@${discordId}> (${username})`, inline: true },
+            { name: '🆔 Quote ID', value: `\`${quoteId}\``, inline: true },
+            { name: '⏰ Waktu', value: new Date().toLocaleString('id-ID'), inline: true }
+          ]
+        }],
+        components: [{
+          type: 1,
+          components: [
+            {
+              type: 2,
+              style: 3,
+              label: '✅ Approve',
+              custom_id: `quote_approve:${quoteId}`
+            },
+            {
+              type: 2,
+              style: 4,
+              label: '❌ Reject',
+              custom_id: `quote_reject:${quoteId}`
+            }
+          ]
+        }]
+      })
+    });
+  }
 
   return respond([
     '```ansi',
