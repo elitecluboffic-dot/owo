@@ -453,15 +453,17 @@ const commands = [
 
 
 
-  {
+{
   name: 'ai',
-  description: 'Tanya Jarvis AI apapun yang kamu mau 🤖',
+  description: 'Tanya Jarvis apapun yang kamu mau 🤖',
   options: [
     {
       name: 'pertanyaan',
       description: 'Pertanyaan yang ingin kamu tanyakan ke Jarvis',
-      type: 3,        // STRING
-      required: true
+      type: 3,        // 3 = STRING
+      required: true,
+      min_length: 1,  // opsional tapi bagus
+      max_length: 500 // batasi biar tidak terlalu panjang
     }
   ]
 }
