@@ -4085,6 +4085,99 @@ if (cmd === 'confess') {
     return respond(`❌ Gagal kirim DM ke **${tName}**!\n> 💡 Pastikan mereka mengizinkan DM dari server ini.\n> 🔧 \`${err.message}\``);
   }
 }
+
+
+
+
+
+    if (cmd === 'ai') {
+  const pertanyaan = getOption(options, 'pertanyaan');
+  if (!pertanyaan) return respond('❌ Tulis pertanyaanmu dulu!');
+
+  // Validasi panjang input
+  if (pertanyaan.length > 1000) {
+    return respond('❌ Pertanyaan terlalu panjang! Maksimal 1000 karakter.');
+  }
+
+  // Cek API key tersedia
+  if (!env.GROQ_API_KEY) {
+    return respond('❌ GROQ_API_KEY belum dikonfigurasi di environment variables.');
+  }
+
+  let groqData;
+  try {
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${env.GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'llama3-8b-8192',
+        messages: [
+          {
+            role: 'system',
+            content: 'Kamu adalah Jarvis, asisten AI yang cerdas, ramah, dan sedikit humoris. Jawab singkat, padat, gunakan emoji secukupnya. Jawab dalam bahasa yang sama dengan pertanyaan user.'
+          },
+          { role: 'user', content: pertanyaan }
+        ],
+        max_tokens: 1024,
+        temperature: 0.7
+      })
+    });
+
+    // Handle HTTP error
+    if (!groqRes.ok) {
+      const errText = await groqRes.text();
+      console.error('Groq API error:', groqRes.status, errText);
+
+      if (groqRes.status === 401) {
+        return respond('❌ API Key Groq tidak valid atau sudah expired.');
+      } else if (groqRes.status === 429) {
+        return respond('⏳ Rate limit Groq tercapai, coba lagi beberapa detik.');
+      } else {
+        return respond(`❌ Groq API error: ${groqRes.status}`);
+      }
+    }
+
+    groqData = await groqRes.json();
+  } catch (err) {
+    console.error('Fetch Groq gagal:', err);
+    return respond('❌ Gagal menghubungi Groq API. Cek koneksi atau coba lagi.');
+  }
+
+  const jawaban = groqData.choices?.[0]?.message?.content?.trim();
+  if (!jawaban) {
+    return respond('❌ Groq tidak memberikan jawaban. Coba pertanyaan lain.');
+  }
+
+  // Potong kalau jawaban terlalu panjang
+  const jawabanDisplay = jawaban.length > 3800
+    ? jawaban.slice(0, 3800) + '\n\n_...jawaban dipotong karena terlalu panjang._'
+    : jawaban;
+
+  const embed = {
+    color: 0x5865F2,
+    author: {
+      name: '🤖 Jarvis AI',
+      icon_url: 'https://cdn-icons-png.flaticon.com/512/4712/4712139.png' // opsional, bisa dihapus
+    },
+    description: jawabanDisplay,
+    fields: [
+      {
+        name: '❓ Pertanyaan',
+        value: `\`\`\`${pertanyaan.slice(0, 200)}${pertanyaan.length > 200 ? '...' : ''}\`\`\``,
+        inline: false
+      }
+    ],
+    footer: {
+      text: `Ditanya oleh ${username} • Powered by Ai BIM (LLaMA3)`
+    },
+    timestamp: new Date().toISOString()
+  };
+
+  return respond({ embeds: [embed] });
+}
     
     
     
