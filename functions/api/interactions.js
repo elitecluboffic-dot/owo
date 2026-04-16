@@ -4092,13 +4092,15 @@ if (cmd === 'confess') {
 
 if (cmd === 'ai') {
   const pertanyaan = getOption(options, 'pertanyaan');
-  if (!pertanyaan) return respond('❌ Tulis pertanyaanmu dulu!');
+  if (!pertanyaan) {
+    return respond('❌ Tulis pertanyaanmu dulu!');
+  }
 
   const userId = discordId;
   const aiCooldownKey = `ai_cd:${userId}`;
   const lastUsed = await env.USERS_KV.get(aiCooldownKey);
 
-  // Cooldown 8 detik per user (bisa diubah)
+  // Cooldown 8 detik per user
   if (lastUsed) {
     const sisa = 8000 - (Date.now() - parseInt(lastUsed));
     if (sisa > 0) {
@@ -4107,14 +4109,14 @@ if (cmd === 'ai') {
     }
   }
 
-  // Simpan waktu terakhir pakai
+  // Simpan waktu terakhir pakai (cooldown)
   await env.USERS_KV.put(aiCooldownKey, String(Date.now()), { expirationTtl: 60 });
 
-  // Defer response
+  // Defer response agar Discord tidak timeout
   await fetch(`https://discord.com/api/v10/interactions/${interaction.id}/${interaction.token}/callback`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 5 })
+    body: JSON.stringify({ type: 5 }) // DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
   });
 
   try {
@@ -4122,14 +4124,14 @@ if (cmd === 'ai') {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.GROQ_API_KEY}`
+        'Authorization': `Bearer ${env.GROQ_API_KEY || env.GROQ_KEY || env.AI_API_KEY || env.API_KEY}`
       },
       body: JSON.stringify({
         model: 'llama3-8b-8192',
         messages: [
           {
             role: 'system',
-            content: 'Kamu adalah Jarvis, asisten AI yang cerdas, ramah, sedikit humoris. Jawab singkat, padat, gunakan emoji secukupnya. Jawab dalam bahasa yang sama dengan user.'
+            content: 'Kamu adalah Jarvis, asisten AI yang cerdas, ramah, dan sedikit humoris. Jawab singkat, padat, gunakan emoji secukupnya. Jawab dalam bahasa yang sama dengan pertanyaan user.'
           },
           { role: 'user', content: pertanyaan }
         ],
@@ -4138,14 +4140,16 @@ if (cmd === 'ai') {
       })
     });
 
-    if (!groqRes.ok) throw new Error(`Groq error ${groqRes.status}`);
+    if (!groqRes.ok) {
+      throw new Error(`Groq API Error: ${groqRes.status}`);
+    }
 
     const groqData = await groqRes.json();
     let jawaban = groqData.choices?.[0]?.message?.content?.trim() 
-      || '❌ Maaf, aku lagi bingung nih. Coba lagi ya!';
+      || '❌ Maaf, aku lagi bingung nih. Coba tanya lagi ya!';
 
-    const jawabanDisplay = jawaban.length > 3800 
-      ? jawaban.slice(0, 3800) + '\n\n_...dipotong._' 
+    const jawabanDisplay = jawaban.length > 3800
+      ? jawaban.slice(0, 3800) + '\n\n_...jawaban dipotong karena terlalu panjang._'
       : jawaban;
 
     const embed = {
@@ -4157,10 +4161,11 @@ if (cmd === 'ai') {
         value: `\`\`\`${pertanyaan.slice(0, 200)}${pertanyaan.length > 200 ? '...' : ''}\`\`\``,
         inline: false
       }],
-      footer: { text: `Ditanya oleh ${username} • Powered by AI OwoBim` },
+      footer: { text: `Ditanya oleh ${username} • Powered by Groq + OwoBim` },
       timestamp: new Date().toISOString()
     };
 
+    // Kirim hasil menggunakan webhook followup
     await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID || env.CLIENT_ID}/${interaction.token}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -4168,11 +4173,14 @@ if (cmd === 'ai') {
     });
 
   } catch (err) {
-    console.error('AI Error:', err);
+    console.error('AI Command Error:', err);
+
     await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID || env.CLIENT_ID}/${interaction.token}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: '❌ Jarvis lagi error atau API Groq sedang sibuk. Coba lagi nanti ya!' })
+      body: JSON.stringify({
+        content: '❌ Jarvis sedang mengalami masalah atau API Groq sibuk. Coba lagi dalam beberapa detik ya!'
+      })
     });
   }
 
