@@ -4161,7 +4161,7 @@ if (cmd === 'ai') {
         value: `\`\`\`${pertanyaan.slice(0, 200)}${pertanyaan.length > 200 ? '...' : ''}\`\`\``,
         inline: false
       }],
-      footer: { text: `Ditanya oleh ${username} • Powered by Groq + OwoBim` },
+      footer: { text: `Ditanya oleh ${username} • Powered by AI OwoBim` },
       timestamp: new Date().toISOString()
     };
 
