@@ -4090,78 +4090,48 @@ if (cmd === 'confess') {
 
 
 
-    if (cmd === 'ai') {
+if (cmd === 'ai') {
   const pertanyaan = getOption(options, 'pertanyaan');
   if (!pertanyaan) return respond('❌ Tulis pertanyaanmu dulu!');
 
-  // Validasi panjang input
-  if (pertanyaan.length > 1000) {
-    return respond('❌ Pertanyaan terlalu panjang! Maksimal 1000 karakter.');
-  }
+  // Defer dulu biar Discord ga timeout
+  await fetch(`https://discord.com/api/v10/interactions/${interaction.id}/${interaction.token}/callback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 5 }) // type 5 = DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+  });
 
-  // Cek API key tersedia
-  if (!env.GROQ_API_KEY) {
-    return respond('❌ GROQ_API_KEY belum dikonfigurasi di environment variables.');
-  }
+  // Sekarang fetch Groq (boleh lama)
+  const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${env.GROQ_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: 'llama3-8b-8192',
+      messages: [
+        {
+          role: 'system',
+          content: 'Kamu adalah Jarvis, asisten AI yang cerdas, ramah, dan sedikit humoris. Jawab singkat, padat, gunakan emoji secukupnya. Jawab dalam bahasa yang sama dengan pertanyaan user.'
+        },
+        { role: 'user', content: pertanyaan }
+      ],
+      max_tokens: 1024,
+      temperature: 0.7
+    })
+  });
 
-  let groqData;
-  try {
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.GROQ_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'llama3-8b-8192',
-        messages: [
-          {
-            role: 'system',
-            content: 'Kamu adalah Jarvis, asisten AI yang cerdas, ramah, dan sedikit humoris. Jawab singkat, padat, gunakan emoji secukupnya. Jawab dalam bahasa yang sama dengan pertanyaan user.'
-          },
-          { role: 'user', content: pertanyaan }
-        ],
-        max_tokens: 1024,
-        temperature: 0.7
-      })
-    });
+  const groqData = await groqRes.json();
+  const jawaban = groqData.choices?.[0]?.message?.content?.trim() || '❌ Gagal mendapat jawaban.';
 
-    // Handle HTTP error
-    if (!groqRes.ok) {
-      const errText = await groqRes.text();
-      console.error('Groq API error:', groqRes.status, errText);
-
-      if (groqRes.status === 401) {
-        return respond('❌ API Key Groq tidak valid atau sudah expired.');
-      } else if (groqRes.status === 429) {
-        return respond('⏳ Rate limit Groq tercapai, coba lagi beberapa detik.');
-      } else {
-        return respond(`❌ Groq API error: ${groqRes.status}`);
-      }
-    }
-
-    groqData = await groqRes.json();
-  } catch (err) {
-    console.error('Fetch Groq gagal:', err);
-    return respond('❌ Gagal menghubungi Groq API. Cek koneksi atau coba lagi.');
-  }
-
-  const jawaban = groqData.choices?.[0]?.message?.content?.trim();
-  if (!jawaban) {
-    return respond('❌ Groq tidak memberikan jawaban. Coba pertanyaan lain.');
-  }
-
-  // Potong kalau jawaban terlalu panjang
   const jawabanDisplay = jawaban.length > 3800
-    ? jawaban.slice(0, 3800) + '\n\n_...jawaban dipotong karena terlalu panjang._'
+    ? jawaban.slice(0, 3800) + '\n\n_...jawaban dipotong._'
     : jawaban;
 
   const embed = {
     color: 0x5865F2,
-    author: {
-      name: '🤖 Jarvis AI',
-      icon_url: 'https://cdn-icons-png.flaticon.com/512/4712/4712139.png' // opsional, bisa dihapus
-    },
+    author: { name: '🤖 Jarvis AI' },
     description: jawabanDisplay,
     fields: [
       {
@@ -4170,13 +4140,18 @@ if (cmd === 'confess') {
         inline: false
       }
     ],
-    footer: {
-      text: `Ditanya oleh ${username} • Powered by Ai BIM (LLaMA3)`
-    },
+    footer: { text: `Ditanya oleh ${username} • Powered by Ai BIM` },
     timestamp: new Date().toISOString()
   };
 
-  return respond({ embeds: [embed] });
+  // Kirim followup setelah defer
+  await fetch(`https://discord.com/api/v10/webhooks/${env.CLIENT_ID}/${interaction.token}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ embeds: [embed] })
+  });
+
+  return new Response(null, { status: 202 });
 }
     
     
