@@ -4099,10 +4099,11 @@ if (cmd === 'confess') {
 
         const userId = discordId;
         const usernameDisplay = username || 'User';
+
         const cooldownKey = `ai_cd:${userId}`;
         const historyKey = `ai_history:${userId}`;
 
-        // === COOLDOWN (3x per 60 detik) ===
+        // === COOLDOWN ===
         const lastUsed = await env.USERS_KV.get(cooldownKey);
         if (lastUsed) {
             const sisa = 60000 - (Date.now() - parseInt(lastUsed));
@@ -4113,7 +4114,7 @@ if (cmd === 'confess') {
         }
         await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 70 });
 
-        // === DEFER RESPONSE ===
+        // === DEFER ===
         await fetch(`https://discord.com/api/v10/interactions/${interaction.id}/${interaction.token}/callback`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -4124,18 +4125,12 @@ if (cmd === 'confess') {
             // Load history
             let history = [];
             const saved = await env.USERS_KV.get(historyKey);
-            if (saved) {
-                history = JSON.parse(saved);
-            }
+            if (saved) history = JSON.parse(saved);
 
             history.push({ role: "user", content: pertanyaan });
+            if (history.length > 12) history = history.slice(-12);
 
-            // Batasi maksimal 6 pasang (12 messages)
-            if (history.length > 12) {
-                history = history.slice(-12);
-            }
-
-            // === GROQ API CALL ===
+            // Groq API
             const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -4147,9 +4142,7 @@ if (cmd === 'confess') {
                     messages: [
                         {
                             role: 'system',
-                            content: AI_PERSONALITY || `Kamu adalah Jarvis, asisten AI yang cerdas, ramah, dan sedikit humoris.
-Kamu menjawab dalam bahasa yang sama dengan pengguna (Global).
-Jawaban kamu singkat, padat, dan mudah dipahami. Gunakan emoji secukupnya.`
+                            content: AI_PERSONALITY || `Kamu adalah Jarvis, asisten AI yang cerdas, ramah, dan sedikit humoris.\nKamu menjawab dalam bahasa yang sama dengan pengguna (Indonesia atau Inggris).\nJawaban kamu singkat, padat, dan mudah dipahami. Gunakan emoji secukupnya.`
                         },
                         ...history
                     ],
@@ -4158,22 +4151,17 @@ Jawaban kamu singkat, padat, dan mudah dipahami. Gunakan emoji secukupnya.`
                 })
             });
 
-            if (!groqRes.ok) {
-                const errorText = await groqRes.text().catch(() => '');
-                throw new Error(`Groq error ${groqRes.status}: ${errorText}`);
-            }
+            if (!groqRes.ok) throw new Error(`Groq error ${groqRes.status}`);
 
             const groqData = await groqRes.json();
-            let jawaban = groqData.choices?.[0]?.message?.content?.trim()
+            let jawaban = groqData.choices?.[0]?.message?.content?.trim() 
                 || '❌ Maaf, aku lagi bingung nih. Coba lagi ya!';
 
-            // Simpan jawaban ke history
             history.push({ role: "assistant", content: jawaban });
 
-            // Simpan ke KV (expire 1 jam)
             await env.USERS_KV.put(historyKey, JSON.stringify(history), { expirationTtl: 3600 });
 
-            // === EMBED ===
+            // Embed
             const embed = {
                 color: 0x5865F2,
                 author: { name: '🤖 Jarvis' },
@@ -4197,12 +4185,12 @@ Jawaban kamu singkat, padat, dan mudah dipahami. Gunakan emoji secukupnya.`
             });
 
         } catch (err) {
-            console.error('[AI Error]', err);
+            console.error('AI Error:', err);
             await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID || env.CLIENT_ID}/${interaction.token}/messages/@original`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    content: '❌ Jarvis lagi sibuk atau ada masalah teknis. Coba lagi sebentar ya!'
+                    content: '❌ Jarvis lagi sibuk atau ada masalah. Coba lagi sebentar ya!'
                 })
             });
         }
@@ -4211,11 +4199,10 @@ Jawaban kamu singkat, padat, dan mudah dipahami. Gunakan emoji secukupnya.`
     }
 
     // ============================================================
-    // RESET AI HISTORY COMMAND
+    // RESET COMMAND
     // ============================================================
     if (cmd === 'reset') {
-        const userId = discordId;
-        await env.USERS_KV.delete(`ai_history:${userId}`);
+        await env.USERS_KV.delete(`ai_history:${discordId}`);
 
         return respond([
             '```ansi',
@@ -4223,8 +4210,7 @@ Jawaban kamu singkat, padat, dan mudah dipahami. Gunakan emoji secukupnya.`
             '\u001b[2;34m║ \u001b[1;32m✅ RIWAYAT BERHASIL DIRESET! ✅\u001b[0m \u001b[2;34m║\u001b[0m',
             '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
             '```',
-            `> Riwayat percakapan dengan **Jarvis** sudah dihapus.`,
-            `> Kamu bisa mulai obrolan baru sekarang.`
+            '> Riwayat percakapan dengan **Jarvis** sudah dihapus.'
         ].join('\n'));
     }
     
