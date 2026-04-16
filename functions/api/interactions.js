@@ -4095,85 +4095,158 @@ if (cmd === 'ai') {
   if (!pertanyaan) return respond('❌ Tulis pertanyaanmu dulu!');
 
   const userId = discordId;
+
   const aiCooldownKey = `ai_cd:${userId}`;
 
-  // Cooldown mirip Python (3x per 60 detik)
+  // =========================
+  // 🔥 1. ANTI SPAM (GLOBAL)
+  // =========================
+  const now = Date.now();
   const lastUsed = await env.USERS_KV.get(aiCooldownKey);
+
   if (lastUsed) {
-    const sisa = 60000 - (Date.now() - parseInt(lastUsed));
-    if (sisa > 0) {
-      const detik = Math.ceil(sisa / 1000);
-      return respond(`⏳ Kamu terlalu cepat! Coba lagi dalam **${detik} detik**.`);
+    const diff = now - parseInt(lastUsed);
+    const cooldown = 60000;
+
+    if (diff < cooldown) {
+      const sisa = Math.ceil((cooldown - diff) / 1000);
+      return respond(`⏳ Tunggu **${sisa} detik** sebelum pakai AI lagi.`);
     }
   }
 
-  await env.USERS_KV.put(aiCooldownKey, String(Date.now()), { expirationTtl: 70 });
-
-  // Defer
-  await fetch(`https://discord.com/api/v10/interactions/${interaction.id}/${interaction.token}/callback`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 5 })
+  await env.USERS_KV.put(aiCooldownKey, String(now), {
+    expirationTtl: 70
   });
 
-  try {
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.GROQ_API_KEY || env.GROQ_KEY || env.AI_API_KEY || env.API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",   // ← disamakan dengan Python kamu
-        messages: [
+  // =========================
+  // 🔥 2. CACHE SYSTEM (IMPORTANT)
+  // =========================
+  const normalizeQuestion = pertanyaan
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+
+  const hashKey = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(normalizeQuestion)
+  );
+
+  const cacheKey = `ai_cache:${Buffer.from(hashKey).toString('hex')}`;
+
+  const cached = await env.USERS_KV.get(cacheKey);
+
+  // =========================
+  // 🔥 3. INSTANT ACK
+  // =========================
+  const ack = new Response(JSON.stringify({ type: 5 }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+  // =========================
+  // 🔥 4. BACKGROUND PROCESS
+  // =========================
+  waitUntil((async () => {
+    try {
+
+      // =========================
+      // ⚡ CACHE HIT (NO API CALL)
+      // =========================
+      if (cached) {
+        await fetch(
+          `https://discord.com/api/v10/webhooks/${env.CLIENT_ID}/${interaction.token}`,
           {
-            role: 'system',
-            content: `Kamu adalah Jarvis, asisten AI yang cerdas, ramah, dan sedikit humoris.
-Kamu menjawab dalam bahasa yang sama dengan pengguna (Indonesia atau Inggris).
-Jawaban kamu singkat, padat, dan mudah dipahami. Gunakan emoji secukupnya.`
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: `💾 (cached)\n\n${cached}`
+            })
+          }
+        );
+        return;
+      }
+
+      // =========================
+      // 🔥 CALL GROQ (CACHE MISS)
+      // =========================
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+
+      const groqRes = await fetch(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${env.GROQ_API_KEY || env.GROQ_KEY || env.AI_API_KEY}`
           },
-          { role: 'user', content: pertanyaan }
-        ],
-        max_tokens: 1024,
-        temperature: 0.7
-      })
-    });
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              {
+                role: 'system',
+                content: `Kamu adalah Jarvis AI. Jawab singkat, jelas, dan ramah.`
+              },
+              {
+                role: 'user',
+                content: pertanyaan
+              }
+            ],
+            max_tokens: 800,
+            temperature: 0.7
+          })
+        }
+      );
 
-    if (!groqRes.ok) throw new Error(`Groq error ${groqRes.status}`);
+      clearTimeout(timeout);
 
-    const groqData = await groqRes.json();
-    let jawaban = groqData.choices?.[0]?.message?.content?.trim() 
-      || '❌ Maaf, aku lagi bingung nih. Coba lagi ya!';
+      const data = await groqRes.json();
 
-    const embed = {
-      color: 0x5865F2,
-      author: { name: '🤖 Jarvis' },
-      description: jawaban.length > 4000 ? jawaban.slice(0, 4000) + '\n...' : jawaban,
-      fields: [{
-        name: '❓ Pertanyaan',
-        value: `\`\`\`${pertanyaan.slice(0, 200)}${pertanyaan.length > 200 ? '...' : ''}\`\`\``,
-        inline: false
-      }],
-      footer: { text: `Ditanya oleh ${username} • Powered by AI OwoBim` },
-      timestamp: new Date().toISOString()
-    };
+      const jawaban =
+        data?.choices?.[0]?.message?.content?.trim() ||
+        '❌ AI OwoBim tidak bisa menjawab sekarang.';
 
-    await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID || env.CLIENT_ID}/${interaction.token}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ embeds: [embed] })
-    });
+      // =========================
+      // 🔥 SAVE CACHE (IMPORTANT)
+      // =========================
+      await env.USERS_KV.put(cacheKey, jawaban, {
+        expirationTtl: 3600 // 1 JAM CACHE
+      });
 
-  } catch (err) {
-    console.error('AI Error:', err);
-    await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID || env.CLIENT_ID}/${interaction.token}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: '❌ Jarvis lagi sibuk atau ada masalah. Coba lagi sebentar ya!' })
-    });
-  }
+      // =========================
+      // 🔥 SEND RESPONSE
+      // =========================
+      await fetch(
+        `https://discord.com/api/v10/webhooks/${env.CLIENT_ID}/${interaction.token}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content:
+              jawaban.length > 2000
+                ? jawaban.slice(0, 2000)
+                : jawaban
+          })
+        }
+      );
 
-  return new Response(null, { status: 202 });
+    } catch (err) {
+      console.log('AI ERROR:', err);
+
+      await fetch(
+        `https://discord.com/api/v10/webhooks/${env.CLIENT_ID}/${interaction.token}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: '❌ AI OwoBim error / timeout. Coba lagi sebentar.'
+          })
+        }
+      );
+    }
+  })());
+
+  return ack;
 }
     
     
