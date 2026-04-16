@@ -4089,8 +4089,249 @@ if (cmd === 'confess') {
 
 
 
-if (cmd === 'ai' || cmd === 'reset') {
-    return await handleAI(interaction, env, respond);
+// ══════════════════════════════════════════════════════════════
+// CMD: /ai — Powered by Groq (llama-3.3-70b-versatile)
+// Fitur: Multi-model, conversation history, cooldown, streaming
+// ══════════════════════════════════════════════════════════════
+if (cmd === 'ai') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const GROQ_API_KEY = env.GROQ_API_KEY;
+
+  if (!GROQ_API_KEY) {
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m✗  API KEY BELUM DISET  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ❌ **GROQ_API_KEY** belum diset di Cloudflare Variables!`,
+      `> 🔑 Daftar gratis di: **console.groq.com**`
+    ].join('\n'));
+  }
+
+  const pertanyaan = getOption(options, 'pertanyaan');
+  const modelOpt   = getOption(options, 'model') || 'llama';
+  const resetOpt   = getOption(options, 'reset') || 'tidak';
+
+  // ── Model mapping ──
+  const modelMap = {
+    llama:    { id: 'llama-3.3-70b-versatile',       label: 'LLaMA 3.3 70B',       emoji: '🦙', color: 0x7C3AED },
+    mixtral:  { id: 'mixtral-8x7b-32768',             label: 'Mixtral 8x7B',         emoji: '🌪️', color: 0x2563EB },
+    gemma:    { id: 'gemma2-9b-it',                   label: 'Gemma 2 9B',           emoji: '💎', color: 0x059669 },
+    llama_guard: { id: 'llama-guard-3-8b',            label: 'LLaMA Guard 3 8B',     emoji: '🛡️', color: 0xDC2626 },
+    deepseek: { id: 'deepseek-r1-distill-llama-70b',  label: 'DeepSeek R1 70B',      emoji: '🔍', color: 0xEA580C },
+  };
+
+  const selectedModel = modelMap[modelOpt] || modelMap['llama'];
+
+  // ── Reset history ──
+  const historyKey = `ai_history:${discordId}`;
+  if (resetOpt === 'ya') {
+    await env.USERS_KV.delete(historyKey);
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;32m✓  HISTORY DIRESET  ✓\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} 🗑️ Riwayat percakapan AI kamu sudah **dihapus**!`,
+      `> 💬 Mulai percakapan baru dengan \`/ai pertanyaan:...\``
+    ].join('\n'));
+  }
+
+  if (!pertanyaan || pertanyaan.trim() === '') {
+    return respond(`> ${EMOJI} ❌ Pertanyaan tidak boleh kosong!`);
+  }
+
+  if (pertanyaan.length > 1000) {
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m✗  TEKS TERLALU PANJANG  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ❌ Maksimal **1000 karakter**! Kamu mengirim **${pertanyaan.length}** karakter.`
+    ].join('\n'));
+  }
+
+  // ── Cooldown 10 detik ──
+  const cdKey   = `ai_cd:${discordId}`;
+  const lastUsed = await env.USERS_KV.get(cdKey);
+  if (lastUsed) {
+    const sisa = 10000 - (Date.now() - parseInt(lastUsed));
+    if (sisa > 0) {
+      return respond(`> ${EMOJI} ⏳ Sabar dulu! Cooldown **${Math.ceil(sisa / 1000)}s** lagi.`);
+    }
+  }
+
+  // ── Deferred response (bot "thinking...") ──
+  const deferredResponse = new Response(JSON.stringify({ type: 5 }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+  // ── Background processing ──
+  waitUntil((async () => {
+    try {
+      // Set cooldown
+      await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 30 });
+
+      // Ambil history (max 10 pesan terakhir)
+      const historyRaw = await env.USERS_KV.get(historyKey);
+      let history = historyRaw ? JSON.parse(historyRaw) : [];
+
+      // Batasi history ke 10 pasang pesan (20 entry)
+      if (history.length > 20) {
+        history = history.slice(history.length - 20);
+      }
+
+      // System prompt
+      const systemPrompt = {
+        role: 'system',
+        content: [
+          `Kamu adalah OwoBim AI, asisten cerdas dan gaul milik bot Discord OwoBim.`,
+          `Dibuat oleh Bimxr, ditenagai oleh Groq & model ${selectedModel.label}.`,
+          `Kamu harus menjawab dengan santai, friendly, dan pakai bahasa Indonesia campuran (bisa sedikit english).`,
+          `Gunakan emoji secukupnya. Jangan terlalu formal tapi tetap informatif.`,
+          `Kalau ada pertanyaan teknis/coding, jelaskan dengan detail dan contoh.`,
+          `Batas jawaban: maksimal 1800 karakter agar tidak kepotong di Discord.`,
+          `Jangan pernah sebut dirimu sebagai model AI lain (GPT, Claude, Gemini, dll).`,
+          `Kamu adalah OwoBim AI. Jawab langsung tanpa preamble panjang.`
+        ].join(' ')
+      };
+
+      // Build messages array
+      const messages = [
+        systemPrompt,
+        ...history,
+        { role: 'user', content: pertanyaan }
+      ];
+
+      // ── Call Groq API ──
+      const startTime = Date.now();
+      const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${GROQ_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: selectedModel.id,
+          messages,
+          max_tokens: 1024,
+          temperature: 0.75,
+          top_p: 0.9,
+          stream: false
+        })
+      });
+
+      if (!groqRes.ok) {
+        const errData = await groqRes.json().catch(() => ({}));
+        const errMsg = errData?.error?.message || `HTTP ${groqRes.status}`;
+        await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: [
+              '```ansi',
+              '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+              '\u001b[2;34m║  \u001b[1;31m✗  AI OwoBim API ERROR  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+              '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+              '```',
+              `> ${EMOJI} ❌ Groq API error: \`${errMsg}\``,
+              `> 🔑 Cek API key atau coba lagi nanti.`
+            ].join('\n')
+          })
+        });
+        return;
+      }
+
+      const groqData    = await groqRes.json();
+      const responseTime = Date.now() - startTime;
+      const aiReply      = groqData.choices?.[0]?.message?.content || 'Maaf, tidak ada respons dari AI.';
+      const tokensUsed   = groqData.usage?.total_tokens || 0;
+      const tokensIn     = groqData.usage?.prompt_tokens || 0;
+      const tokensOut    = groqData.usage?.completion_tokens || 0;
+
+      // Potong reply jika terlalu panjang (Discord limit 2000 total)
+      const maxReplyLen = 1500;
+      const replyDisplay = aiReply.length > maxReplyLen
+        ? aiReply.slice(0, maxReplyLen) + '\n*(... jawaban terpotong, tanya lagi untuk lanjutan)*'
+        : aiReply;
+
+      // ── Update history ──
+      history.push(
+        { role: 'user',      content: pertanyaan },
+        { role: 'assistant', content: aiReply.slice(0, 500) } // simpan max 500 char per entry
+      );
+      // Batasi 20 entry
+      if (history.length > 20) history = history.slice(history.length - 20);
+      await env.USERS_KV.put(historyKey, JSON.stringify(history), { expirationTtl: 86400 * 3 });
+
+      // ── Format response ──
+      const histLen   = Math.floor(history.length / 2);
+      const respSec   = (responseTime / 1000).toFixed(2);
+      const waktu     = new Date().toLocaleTimeString('id-ID', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        timeZone: 'Asia/Jakarta'
+      });
+
+      // Tentukan warna embed berdasarkan model
+      const embedColor = selectedModel.color;
+
+      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          embeds: [{
+            color: embedColor,
+            author: {
+              name: `${selectedModel.emoji} OwoBim AI • ${selectedModel.label}`,
+              icon_url: `https://cdn.discordapp.com/avatars/${discordId}/${interaction.member?.user?.avatar || interaction.user?.avatar}.png?size=64`
+            },
+            description: [
+              '```ansi',
+              '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+              '\u001b[2;34m║  \u001b[1;33m🤖  OWOBIM AI  🤖\u001b[0m  \u001b[2;34m║\u001b[0m',
+              '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+              '```',
+              `💬 **Pertanyaan:**`,
+              `> ${pertanyaan.length > 200 ? pertanyaan.slice(0, 200) + '...' : pertanyaan}`,
+              '',
+              `🤖 **Jawaban:**`,
+              replyDisplay,
+              '',
+              '```ansi',
+              '\u001b[1;32m━━━━━━━━━━━━ 📊 STATS ━━━━━━━━━━━━\u001b[0m',
+              `\u001b[1;36m ⚡  Model      :\u001b[0m \u001b[0;37m${selectedModel.label}\u001b[0m`,
+              `\u001b[1;36m ⏱️  Respons    :\u001b[0m \u001b[0;37m${respSec}s\u001b[0m`,
+              `\u001b[1;36m 📥  Token In   :\u001b[0m \u001b[0;37m${tokensIn}\u001b[0m`,
+              `\u001b[1;36m 📤  Token Out  :\u001b[0m \u001b[0;37m${tokensOut}\u001b[0m`,
+              `\u001b[1;36m 🔢  Total Token:\u001b[0m \u001b[0;37m${tokensUsed}\u001b[0m`,
+              `\u001b[1;36m 💬  History    :\u001b[0m \u001b[0;37m${histLen} pesan tersimpan\u001b[0m`,
+              `\u001b[1;36m 🕐  Waktu      :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+              '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+              '```'
+            ].join('\n'),
+            footer: {
+              text: `OwoBim AI • Powered by AI OwoBim 🚀 | /ai reset:ya untuk hapus history`
+            },
+            timestamp: new Date().toISOString()
+          }]
+        })
+      });
+
+    } catch (err) {
+      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `${EMOJI} ❌ Error tak terduga: \`${err.message}\``
+        })
+      });
+    }
+  })());
+
+  return deferredResponse;
 }
     
     
