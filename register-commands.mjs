@@ -449,31 +449,6 @@ const commands = [
       ]
     }
   ]
-},
-
-
-
-// Command AI
-{
-  name: 'ai',
-  description: 'Tanya Jarvis AI apapun yang kamu mau 🤖',
-  options: [
-    {
-      name: 'pertanyaan',
-      description: 'Pertanyaan yang ingin kamu tanyakan ke Jarvis',
-      type: 3,
-      required: true,
-      min_length: 2,
-      max_length: 500
-    }
-  ]
-},
-
-// Command Reset
-{
-  name: 'reset',
-  description: 'Hapus riwayat percakapan dengan Jarvis',
-  options: []
 }
 
   
