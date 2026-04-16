@@ -4089,160 +4089,144 @@ if (cmd === 'confess') {
 
 
 
-
-if (cmd === 'ai') {
-  const pertanyaan = getOption(options, 'pertanyaan');
-
-  // =========================
-  // ❗ VALIDASI CEPAT (NO AWAIT)
-  // =========================
-  if (!pertanyaan) {
-    return new Response(JSON.stringify({
-      type: 4,
-      data: { content: '❌ Tulis pertanyaanmu dulu!' }
-    }), { headers });
-  }
-
-  // =========================
-  // 🚀 LANGSUNG ACK (ANTI TIMEOUT)
-  // =========================
-  const ack = new Response(JSON.stringify({ type: 5 }), {
-    headers: { 'Content-Type': 'application/json' }
-  });
-
-  // =========================
-  // 🔥 BACKGROUND PROCESS (SEMUA BERAT DI SINI)
-  // =========================
-  waitUntil((async () => {
-    try {
-      const userId = discordId;
-      const now = Date.now();
-      const cooldownKey = `ai_cd:${userId}`;
-
-      // =========================
-      // ⚡ COOLDOWN (NON-BLOCKING)
-      // =========================
-      const lastUsed = await env.USERS_KV.get(cooldownKey);
-
-      if (lastUsed) {
-        const diff = now - parseInt(lastUsed);
-        const cooldown = 60000;
-
-        if (diff < cooldown) {
-          const sisa = Math.ceil((cooldown - diff) / 1000);
-
-          await sendFollowUp(`⏳ Tunggu **${sisa} detik** sebelum pakai AI lagi.`);
-          return;
+    // AI COMMAND - Jarvis
+    // ============================================================
+    if (cmd === 'ai') {
+        const pertanyaan = getOption(options, 'pertanyaan');
+        if (!pertanyaan) {
+            return respond('❌ Tulis pertanyaanmu dulu!');
         }
-      }
 
-      // lock user
-      await env.USERS_KV.put(cooldownKey, String(now), {
-        expirationTtl: 70
-      });
+        const userId = discordId;
+        const usernameDisplay = username || 'User';
+        const cooldownKey = `ai_cd:${userId}`;
+        const historyKey = `ai_history:${userId}`;
 
-      // =========================
-      // 🔥 CACHE KEY (NO BUFFER)
-      // =========================
-      const normalized = pertanyaan.toLowerCase().trim().replace(/\s+/g, ' ');
-
-      const hashBuffer = await crypto.subtle.digest(
-        'SHA-256',
-        new TextEncoder().encode(normalized)
-      );
-
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-      const cacheKey = `ai_cache:${hashHex}`;
-
-      // =========================
-      // ⚡ CACHE CHECK
-      // =========================
-      const cached = await env.USERS_KV.get(cacheKey);
-
-      if (cached) {
-        await sendFollowUp(`💾 (cached)\n\n${cached}`);
-        return;
-      }
-
-      // =========================
-      // 🔥 GROQ CALL
-      // =========================
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20000);
-
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${env.GROQ_API_KEY || env.GROQ_KEY || env.AI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            {
-              role: 'system',
-              content: `Kamu adalah Jarvis AI OwoBim. Jawab singkat, jelas, dan ramah.`
-            },
-            {
-              role: 'user',
-              content: pertanyaan
+        // === COOLDOWN (3x per 60 detik) ===
+        const lastUsed = await env.USERS_KV.get(cooldownKey);
+        if (lastUsed) {
+            const sisa = 60000 - (Date.now() - parseInt(lastUsed));
+            if (sisa > 0) {
+                const detik = Math.ceil(sisa / 1000);
+                return respond(`⏳ Kamu terlalu cepat! Coba lagi dalam **${detik} detik**.`);
             }
-          ],
-          max_tokens: 800,
-          temperature: 0.7
-        })
-      });
+        }
+        await env.USERS_KV.put(cooldownKey, String(Date.now()), { expirationTtl: 70 });
 
-      clearTimeout(timeout);
+        // === DEFER RESPONSE ===
+        await fetch(`https://discord.com/api/v10/interactions/${interaction.id}/${interaction.token}/callback`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 5 })
+        });
 
-      const data = await res.json();
+        try {
+            // Load history
+            let history = [];
+            const saved = await env.USERS_KV.get(historyKey);
+            if (saved) {
+                history = JSON.parse(saved);
+            }
 
-      const jawaban =
-        data?.choices?.[0]?.message?.content?.trim() ||
-        '❌ AI OwoBim tidak bisa menjawab sekarang.';
+            history.push({ role: "user", content: pertanyaan });
 
-      // =========================
-      // 💾 SAVE CACHE
-      // =========================
-      await env.USERS_KV.put(cacheKey, jawaban, {
-        expirationTtl: 3600
-      });
+            // Batasi maksimal 6 pasang (12 messages)
+            if (history.length > 12) {
+                history = history.slice(-12);
+            }
 
-      // =========================
-      // 📤 SEND RESULT
-      // =========================
-      await sendFollowUp(
-        jawaban.length > 2000
-          ? jawaban.slice(0, 2000)
-          : jawaban
-      );
+            // === GROQ API CALL ===
+            const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${env.GROQ_API_KEY || env.GROQ_KEY || env.AI_API_KEY || env.API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: "llama-3.3-70b-versatile",
+                    messages: [
+                        {
+                            role: 'system',
+                            content: AI_PERSONALITY || `Kamu adalah Jarvis, asisten AI yang cerdas, ramah, dan sedikit humoris.
+Kamu menjawab dalam bahasa yang sama dengan pengguna (Global).
+Jawaban kamu singkat, padat, dan mudah dipahami. Gunakan emoji secukupnya.`
+                        },
+                        ...history
+                    ],
+                    max_tokens: 1024,
+                    temperature: 0.7
+                })
+            });
 
-    } catch (err) {
-      console.log('AI ERROR:', err);
+            if (!groqRes.ok) {
+                const errorText = await groqRes.text().catch(() => '');
+                throw new Error(`Groq error ${groqRes.status}: ${errorText}`);
+            }
 
-      await sendFollowUp('❌ AI OwoBim error / timeout. Coba lagi sebentar.');
+            const groqData = await groqRes.json();
+            let jawaban = groqData.choices?.[0]?.message?.content?.trim()
+                || '❌ Maaf, aku lagi bingung nih. Coba lagi ya!';
+
+            // Simpan jawaban ke history
+            history.push({ role: "assistant", content: jawaban });
+
+            // Simpan ke KV (expire 1 jam)
+            await env.USERS_KV.put(historyKey, JSON.stringify(history), { expirationTtl: 3600 });
+
+            // === EMBED ===
+            const embed = {
+                color: 0x5865F2,
+                author: { name: '🤖 Jarvis' },
+                description: jawaban.length > 4000 ? jawaban.slice(0, 4000) + '\n...' : jawaban,
+                fields: [{
+                    name: '❓ Pertanyaan',
+                    value: `\`\`\`${pertanyaan.slice(0, 200)}${pertanyaan.length > 200 ? '...' : ''}\`\`\``,
+                    inline: false
+                }],
+                footer: {
+                    text: `Ditanya oleh ${usernameDisplay} • Gunakan /reset untuk hapus riwayat`
+                },
+                timestamp: new Date().toISOString()
+            };
+
+            // Edit deferred message
+            await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID || env.CLIENT_ID}/${interaction.token}/messages/@original`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ embeds: [embed] })
+            });
+
+        } catch (err) {
+            console.error('[AI Error]', err);
+            await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID || env.CLIENT_ID}/${interaction.token}/messages/@original`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: '❌ Jarvis lagi sibuk atau ada masalah teknis. Coba lagi sebentar ya!'
+                })
+            });
+        }
+
+        return new Response(null, { status: 202 });
     }
-  })());
 
-  return ack;
+    // ============================================================
+    // RESET AI HISTORY COMMAND
+    // ============================================================
+    if (cmd === 'reset') {
+        const userId = discordId;
+        await env.USERS_KV.delete(`ai_history:${userId}`);
 
-  // =========================
-  // 🔧 HELPER (WAJIB ADA)
-  // =========================
-  async function sendFollowUp(content) {
-    return fetch(
-      `https://discord.com/api/v10/webhooks/${env.CLIENT_ID}/${interaction.token}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
-      }
-    );
-  }
-}
+        return respond([
+            '```ansi',
+            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[2;34m║ \u001b[1;32m✅ RIWAYAT BERHASIL DIRESET! ✅\u001b[0m \u001b[2;34m║\u001b[0m',
+            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `> Riwayat percakapan dengan **Jarvis** sudah dihapus.`,
+            `> Kamu bisa mulai obrolan baru sekarang.`
+        ].join('\n'));
+    }
     
     
     
