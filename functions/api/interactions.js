@@ -4092,161 +4092,156 @@ if (cmd === 'confess') {
 
 if (cmd === 'ai') {
   const pertanyaan = getOption(options, 'pertanyaan');
-  if (!pertanyaan) return respond('❌ Tulis pertanyaanmu dulu!');
-
-  const userId = discordId;
-
-  const aiCooldownKey = `ai_cd:${userId}`;
 
   // =========================
-  // 🔥 1. ANTI SPAM (GLOBAL)
+  // ❗ VALIDASI CEPAT (NO AWAIT)
   // =========================
-  const now = Date.now();
-  const lastUsed = await env.USERS_KV.get(aiCooldownKey);
-
-  if (lastUsed) {
-    const diff = now - parseInt(lastUsed);
-    const cooldown = 60000;
-
-    if (diff < cooldown) {
-      const sisa = Math.ceil((cooldown - diff) / 1000);
-      return respond(`⏳ Tunggu **${sisa} detik** sebelum pakai AI lagi.`);
-    }
+  if (!pertanyaan) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Tulis pertanyaanmu dulu!' }
+    }), { headers });
   }
 
-  await env.USERS_KV.put(aiCooldownKey, String(now), {
-    expirationTtl: 70
-  });
-
   // =========================
-  // 🔥 2. CACHE SYSTEM (IMPORTANT)
-  // =========================
-  const normalizeQuestion = pertanyaan
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, ' ');
-
-  const hashKey = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(normalizeQuestion)
-  );
-
-  const cacheKey = `ai_cache:${Buffer.from(hashKey).toString('hex')}`;
-
-  const cached = await env.USERS_KV.get(cacheKey);
-
-  // =========================
-  // 🔥 3. INSTANT ACK
+  // 🚀 LANGSUNG ACK (ANTI TIMEOUT)
   // =========================
   const ack = new Response(JSON.stringify({ type: 5 }), {
     headers: { 'Content-Type': 'application/json' }
   });
 
   // =========================
-  // 🔥 4. BACKGROUND PROCESS
+  // 🔥 BACKGROUND PROCESS (SEMUA BERAT DI SINI)
   // =========================
   waitUntil((async () => {
     try {
+      const userId = discordId;
+      const now = Date.now();
+      const cooldownKey = `ai_cd:${userId}`;
 
       // =========================
-      // ⚡ CACHE HIT (NO API CALL)
+      // ⚡ COOLDOWN (NON-BLOCKING)
       // =========================
+      const lastUsed = await env.USERS_KV.get(cooldownKey);
+
+      if (lastUsed) {
+        const diff = now - parseInt(lastUsed);
+        const cooldown = 60000;
+
+        if (diff < cooldown) {
+          const sisa = Math.ceil((cooldown - diff) / 1000);
+
+          await sendFollowUp(`⏳ Tunggu **${sisa} detik** sebelum pakai AI lagi.`);
+          return;
+        }
+      }
+
+      // lock user
+      await env.USERS_KV.put(cooldownKey, String(now), {
+        expirationTtl: 70
+      });
+
+      // =========================
+      // 🔥 CACHE KEY (NO BUFFER)
+      // =========================
+      const normalized = pertanyaan.toLowerCase().trim().replace(/\s+/g, ' ');
+
+      const hashBuffer = await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(normalized)
+      );
+
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const cacheKey = `ai_cache:${hashHex}`;
+
+      // =========================
+      // ⚡ CACHE CHECK
+      // =========================
+      const cached = await env.USERS_KV.get(cacheKey);
+
       if (cached) {
-        await fetch(
-          `https://discord.com/api/v10/webhooks/${env.CLIENT_ID}/${interaction.token}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              content: `💾 (cached)\n\n${cached}`
-            })
-          }
-        );
+        await sendFollowUp(`💾 (cached)\n\n${cached}`);
         return;
       }
 
       // =========================
-      // 🔥 CALL GROQ (CACHE MISS)
+      // 🔥 GROQ CALL
       // =========================
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 20000);
 
-      const groqRes = await fetch(
-        'https://api.groq.com/openai/v1/chat/completions',
-        {
-          method: 'POST',
-          signal: controller.signal,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${env.GROQ_API_KEY || env.GROQ_KEY || env.AI_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-              {
-                role: 'system',
-                content: `Kamu adalah Jarvis AI. Jawab singkat, jelas, dan ramah.`
-              },
-              {
-                role: 'user',
-                content: pertanyaan
-              }
-            ],
-            max_tokens: 800,
-            temperature: 0.7
-          })
-        }
-      );
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.GROQ_API_KEY || env.GROQ_KEY || env.AI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            {
+              role: 'system',
+              content: `Kamu adalah Jarvis AI OwoBim. Jawab singkat, jelas, dan ramah.`
+            },
+            {
+              role: 'user',
+              content: pertanyaan
+            }
+          ],
+          max_tokens: 800,
+          temperature: 0.7
+        })
+      });
 
       clearTimeout(timeout);
 
-      const data = await groqRes.json();
+      const data = await res.json();
 
       const jawaban =
         data?.choices?.[0]?.message?.content?.trim() ||
         '❌ AI OwoBim tidak bisa menjawab sekarang.';
 
       // =========================
-      // 🔥 SAVE CACHE (IMPORTANT)
+      // 💾 SAVE CACHE
       // =========================
       await env.USERS_KV.put(cacheKey, jawaban, {
-        expirationTtl: 3600 // 1 JAM CACHE
+        expirationTtl: 3600
       });
 
       // =========================
-      // 🔥 SEND RESPONSE
+      // 📤 SEND RESULT
       // =========================
-      await fetch(
-        `https://discord.com/api/v10/webhooks/${env.CLIENT_ID}/${interaction.token}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content:
-              jawaban.length > 2000
-                ? jawaban.slice(0, 2000)
-                : jawaban
-          })
-        }
+      await sendFollowUp(
+        jawaban.length > 2000
+          ? jawaban.slice(0, 2000)
+          : jawaban
       );
 
     } catch (err) {
       console.log('AI ERROR:', err);
 
-      await fetch(
-        `https://discord.com/api/v10/webhooks/${env.CLIENT_ID}/${interaction.token}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: '❌ AI OwoBim error / timeout. Coba lagi sebentar.'
-          })
-        }
-      );
+      await sendFollowUp('❌ AI OwoBim error / timeout. Coba lagi sebentar.');
     }
   })());
 
   return ack;
+
+  // =========================
+  // 🔧 HELPER (WAJIB ADA)
+  // =========================
+  async function sendFollowUp(content) {
+    return fetch(
+      `https://discord.com/api/v10/webhooks/${env.CLIENT_ID}/${interaction.token}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      }
+    );
+  }
 }
     
     
