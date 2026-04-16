@@ -449,6 +449,21 @@ const commands = [
       ]
     }
   ]
+},
+
+
+
+  {
+  name: 'ai',
+  description: 'Tanya Jarvis AI apapun yang kamu mau 🤖',
+  options: [
+    {
+      name: 'pertanyaan',
+      description: 'Pertanyaan yang ingin kamu tanyakan ke Jarvis',
+      type: 3,        // STRING
+      required: true
+    }
+  ]
 }
 
   
