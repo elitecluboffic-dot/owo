@@ -453,7 +453,7 @@ const commands = [
 
 
   {
-  "name": "support",
+  "name": "center",
   "description": "🌐 Info website, fitur AI (!ai), dan support developer OwoBim"
 }
 
