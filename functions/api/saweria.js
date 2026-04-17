@@ -1,7 +1,28 @@
+// functions/api/saweria.js
+// GET  → return donatur list (dipake saweria.html)
+// POST → webhook dari Saweria (simpan donatur + notif Discord)
+
+// ── GET: untuk saweria.html fetch donatur list ──────────────
+export const onRequestGet = async ({ env }) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*'
+  };
+
+  try {
+    const listRaw = await env.USERS_KV.get('donatur:list');
+    const list = listRaw ? JSON.parse(listRaw) : [];
+    return new Response(JSON.stringify(list), { headers });
+  } catch (e) {
+    return new Response(JSON.stringify([]), { headers });
+  }
+};
+
+// ── POST: webhook dari Saweria ──────────────────────────────
 export const onRequestPost = async ({ request, env }) => {
   const headers = { 'Content-Type': 'application/json' };
-  
-  // Verifikasi secret dari Saweria (set di dashboard Saweria)
+
+  // Verifikasi secret dari Saweria
   const secret = request.headers.get('x-saweria-secret');
   if (secret !== env.SAWERIA_WEBHOOK_SECRET) {
     return new Response('Unauthorized', { status: 401 });
@@ -20,10 +41,8 @@ export const onRequestPost = async ({ request, env }) => {
   // Simpan ke list donatur di KV
   const listRaw = await env.USERS_KV.get('donatur:list');
   const list = listRaw ? JSON.parse(listRaw) : [];
-
-  list.unshift(donatur); // tambah di depan (terbaru duluan)
-  if (list.length > 50) list.pop(); // maksimal 50 donatur tersimpan
-
+  list.unshift(donatur);
+  if (list.length > 50) list.pop();
   await env.USERS_KV.put('donatur:list', JSON.stringify(list));
 
   // Kirim notif ke Discord via webhook
@@ -31,10 +50,16 @@ export const onRequestPost = async ({ request, env }) => {
   if (WEBHOOK) {
     const nominal = parseInt(donatur.nominal).toLocaleString('id-ID');
     const tierEmoji =
-      donatur.nominal >= 50000 ? '🚀' :
-      donatur.nominal >= 25000 ? '👑' :
-      donatur.nominal >= 10000 ? '💎' :
-      donatur.nominal >= 5000  ? '⭐' : '☕';
+      donatur.nominal >= 100000 ? '🚀' :
+      donatur.nominal >= 50000  ? '👑' :
+      donatur.nominal >= 25000  ? '💎' :
+      donatur.nominal >= 10000  ? '⭐' : '☕';
+
+    const tierName =
+      donatur.nominal >= 100000 ? 'ROCKET 🚀' :
+      donatur.nominal >= 50000  ? 'CROWN 👑'  :
+      donatur.nominal >= 25000  ? 'DIAMOND 💎':
+      donatur.nominal >= 10000  ? 'STAR ⭐'   : 'COFFEE ☕';
 
     await fetch(WEBHOOK, {
       method: 'POST',
@@ -54,15 +79,10 @@ export const onRequestPost = async ({ request, env }) => {
             '\u001b[1;32m━━━━━━━━━━━━ DETAIL DONASI ━━━━━━━━━━━\u001b[0m',
             `\u001b[1;36m 👤  Nama    :\u001b[0m \u001b[1;37m${donatur.nama}\u001b[0m`,
             `\u001b[1;36m 💰  Nominal :\u001b[0m \u001b[1;32mRp ${nominal}\u001b[0m`,
-            `\u001b[1;36m ${tierEmoji}  Tier    :\u001b[0m \u001b[0;37m${
-              donatur.nominal >= 50000 ? 'ROCKET 🚀' :
-              donatur.nominal >= 25000 ? 'CROWN 👑' :
-              donatur.nominal >= 10000 ? 'DIAMOND 💎' :
-              donatur.nominal >= 5000  ? 'STAR ⭐' : 'COFFEE ☕'
-            }\u001b[0m`,
+            `\u001b[1;36m ${tierEmoji}  Tier    :\u001b[0m \u001b[0;37m${tierName}\u001b[0m`,
             `\u001b[1;36m 💬  Pesan   :\u001b[0m \u001b[0;37m${donatur.pesan || '(tidak ada pesan)'}\u001b[0m`,
             '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-            '```',
+            '```'
           ].join('\n'),
           footer: { text: 'OwoBim Donation System • Saweria' },
           timestamp: new Date().toISOString()
