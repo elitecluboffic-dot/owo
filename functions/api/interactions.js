@@ -651,7 +651,7 @@ if (isSpamming) {
 • \`/avatar user:@user\` → Tampilkan avatar user
 • \`/infopemilikbot\` → Info pemilik bot
 
-**Eksklusif:**
+**Eksklusif (prefix \`!\`):**
 • \`!ai\` → !ai (pertanyaan) Ai OwoBim Percakapan
 • \`!support\` → !support (enter) Support Dev OwoBim
 
