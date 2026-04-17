@@ -1991,7 +1991,7 @@ if (cmd === 'infopemilikbot') {
     
 
 
-    if (cmd === 'support') {
+if (cmd === 'support') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const EMOJI2 = '<:Owo3:1492611511087140985>';
   const EMOJI3 = '<a:Owo1:1492563819464102078>';
@@ -2009,16 +2009,24 @@ if (cmd === 'infopemilikbot') {
     `\`\`\`ansi`,
     `\u001b[2;34m╔══════════════════════════════════════════╗\u001b[0m`,
     `\u001b[2;34m║ \u001b[1;33m🌐 OWO BIM — SUPPORT CENTER 🌐\u001b[0m \u001b[2;34m║\u001b[0m`,
-    `\u001b[2;34m║ \u001b[0;37m「 Pusat Bantuan & Layanan Bot 」\u001b[0m \u001b[2;34m║\u001b[0m`,
+    `\u001b[2;34m║ \u001b[0;37m「 Pusat Bantuan & Layanan Resmi 」\u001b[0m \u001b[2;34m║\u001b[0m`,
     `\u001b[2;34m╚══════════════════════════════════════════╝\u001b[0m`,
     `\`\`\``,
 
     line('🔗', 'Website Utama', 'https://owo.kraxx.my.id'),
     line('📖', 'Support Donate', 'https://advance.kraxx.my.id'),
-    line('📊', 'Status Bot', '`🟢 ONLINE & RUNNING`'),
-    line('⚡', 'Engine', 'Cloudflare + Python + Discord.js + Node.js'),
+    line('📊', 'Status Bot', '`🟢 ONLINE & STABLE`'),
 
     ``,
+
+    `\`\`\`ansi`,
+    `\u001b[1;36m━━━━━━━━━━━━ ⚡ ENGINE & TECHNOLOGY ━━━━━━━━━━━━\u001b[0m`,
+    `\u001b[1;33m 🚀\u001b[0m \u001b[0;37mPlatform   : Cloudflare Workers (Edge)\u001b[0m`,
+    `\u001b[1;33m 🌍\u001b[0m \u001b[0;37mNetwork    : 300+ Cities Global — Ultra Fast\u001b[0m`,
+    `\u001b[1;33m ⚡\u001b[0m \u001b[0;37mLatency    : < 50ms Worldwide 🚀\u001b[0m`,
+    `\u001b[1;33m 🗄️\u001b[0m \u001b[0;37mDatabase   : Workers KV + Durable Objects\u001b[0m`,
+    `\u001b[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
+    `\`\`\``,
 
     `\`\`\`ansi`,
     `\u001b[1;35m━━━━━━━━━━━━ 🤖 FITUR AI OWOBIM ━━━━━━━━━━━━\u001b[0m`,
@@ -2026,7 +2034,7 @@ if (cmd === 'infopemilikbot') {
     `\u001b[1;33m 🧠\u001b[0m \u001b[0;37mModel   : OwoBim AI Engine\u001b[0m`,
     `\u001b[1;33m 💬\u001b[0m \u001b[0;37mMode    : Percakapan bebas & tanya jawab\u001b[0m`,
     `\u001b[1;33m 🔐\u001b[0m \u001b[0;37mPrefix  : ! (bukan slash)\u001b[0m`,
-    `\u001b[1;33m 🌐\u001b[0m \u001b[0;37mBahasa  : Global\u001b[0m`,
+    `\u001b[1;33m 🌐\u001b[0m \u001b[0;37mBahasa  : Global (Indonesia & English)\u001b[0m`,
     `\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
     `\`\`\``,
 
@@ -2036,7 +2044,7 @@ if (cmd === 'infopemilikbot') {
     `\u001b[0;37m !ai buatkan cerpen singkat`,
     `\u001b[0;37m !ai apa itu machine learning?`,
     `\u001b[0;37m !ai translate "hello world" ke bahasa indonesia`,
-    `\u001b[0;37m !ai bantu saya buat caption instagram`,
+    `\u001b[0;37m !ai bantu saya buat caption instagram aesthetic`,
     `\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
     `\`\`\``,
 
