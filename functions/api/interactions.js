@@ -1992,7 +1992,7 @@ if (cmd === 'infopemilikbot') {
     
 
 
-if (cmd === 'support') {
+if (cmd === 'center') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const EMOJI2 = '<:Owo3:1492611511087140985>';
   const EMOJI3 = '<a:Owo1:1492563819464102078>';
