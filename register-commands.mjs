@@ -449,6 +449,12 @@ const commands = [
       ]
     }
   ]
+},
+
+
+  {
+  "name": "support",
+  "description": "🌐 Info website, fitur AI (!ai), dan support developer OwoBim"
 }
 
   
