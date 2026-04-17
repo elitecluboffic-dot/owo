@@ -652,8 +652,8 @@ if (isSpamming) {
 • \`/infopemilikbot\` → Info pemilik bot
 
 **Eksklusif:**
-• !`/ai\` → Ai OwoBim Percakapan
-• !`/support\` → Support Dev OwoBim
+• `!ai` → Ai OwoBim Percakapan
+• `!support` → Support Dev OwoBim
 
 > **Tips:** Beberapa command support \`all\` untuk jumlah (contoh: /wcf jumlah:all)
 Butuh bantuan lebih lanjut? Hubungi <@1442230317455900823> 💬`;
