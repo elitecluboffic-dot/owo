@@ -651,10 +651,6 @@ if (isSpamming) {
 • \`/avatar user:@user\` → Tampilkan avatar user
 • \`/infopemilikbot\` → Info pemilik bot
 
-**Eksklusif (prefix \`!\`):**
-• \`!ai\` → !ai (pertanyaan) Ai OwoBim Percakapan
-• \`!support\` → !support (enter) Support Dev OwoBim
-
 > **Tips:** Beberapa command support \`all\` untuk jumlah (contoh: /wcf jumlah:all)
 Butuh bantuan lebih lanjut? Hubungi <@1442230317455900823> 💬`;
 
@@ -4088,6 +4084,120 @@ if (cmd === 'confess') {
     ]);
     return respond(`❌ Gagal kirim DM ke **${tName}**!\n> 💡 Pastikan mereka mengizinkan DM dari server ini.\n> 🔧 \`${err.message}\``);
   }
+}
+
+
+
+
+    if (cmd === 'support') {
+  const EMOJI  = '<a:GifOwoBim:1492599199038967878>';
+  const EMOJI2 = '<:Owo3:1492611511087140985>';
+  const EMOJI3 = '<a:Owo1:1492563819464102078>';
+
+  const waktu = new Date().toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: [
+        '```ansi',
+        '\u001b[2;34m╔══════════════════════════════════════════╗\u001b[0m',
+        '\u001b[2;34m║  \u001b[1;33m🌐  OWO BIM — SUPPORT CENTER  🌐\u001b[0m  \u001b[2;34m║\u001b[0m',
+        '\u001b[2;34m║  \u001b[0;37m「 Pusat Bantuan & Layanan Bot 」\u001b[0m  \u001b[2;34m║\u001b[0m',
+        '\u001b[2;34m╚══════════════════════════════════════════╝\u001b[0m',
+        '```',
+        '',
+
+        // ── WEBSITE SECTION ──
+        '```ansi',
+        '\u001b[1;36m━━━━━━━━━━━━ 🌐 WEBSITE RESMI ━━━━━━━━━━━━\u001b[0m',
+        '\u001b[1;37m  🔗  Main Site  :\u001b[0m \u001b[1;32mhttps://owo.kraxx.my.id\u001b[0m',
+        '\u001b[1;37m  📖  Support Donate     :\u001b[0m \u001b[1;32mhttps://advance.kraxx.my.id\u001b[0m',
+        '\u001b[1;37m  📊  Status     :\u001b[0m \u001b[0;32m🟢 ONLINE & RUNNING\u001b[0m',
+        '\u001b[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+        '```',
+        '',
+
+        // ── AI SECTION ──
+        '```ansi',
+        '\u001b[1;35m━━━━━━━━━━━ 🤖 FITUR AI OWOBIM ━━━━━━━━━━━\u001b[0m',
+        '\u001b[1;33m  ⚡  Command  :\u001b[0m \u001b[1;37m!ai [pertanyaan kamu]\u001b[0m',
+        '\u001b[1;33m  🧠  Model    :\u001b[0m \u001b[0;37mOwoBim AI Engine\u001b[0m',
+        '\u001b[1;33m  💬  Mode     :\u001b[0m \u001b[0;37mPercakapan bebas & tanya jawab\u001b[0m',
+        '\u001b[1;33m  🔐  Prefix   :\u001b[0m \u001b[1;31m!   (bukan slash command)\u001b[0m',
+        '\u001b[1;33m  🌐  Bahasa   :\u001b[0m \u001b[0;37mGlobal\u001b[0m',
+        '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+        '```',
+        '',
+
+        // ── CONTOH PENGGUNAAN AI ──
+        '```ansi',
+        '\u001b[1;32m━━━━━━━━━━━ 💡 CONTOH PENGGUNAAN ━━━━━━━━━━\u001b[0m',
+        '\u001b[0;37m  !ai siapa kamu?\u001b[0m',
+        '\u001b[0;37m  !ai buatkan cerpen singkat\u001b[0m',
+        '\u001b[0;37m  !ai apa itu machine learning?\u001b[0m',
+        '\u001b[0;37m  !ai translate "hello world" ke bahasa indonesia\u001b[0m',
+        '\u001b[0;37m  !ai bantu saya buat caption instagram\u001b[0m',
+        '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+        '```',
+        '',
+
+        // ── SUPPORT DEVELOPER ──
+        '```ansi',
+        '\u001b[1;31m━━━━━━━━━━━ 🛠️  SUPPORT DEVELOPER ━━━━━━━━━\u001b[0m',
+        '\u001b[1;33m  Command      :\u001b[0m \u001b[1;37m!support\u001b[0m',
+        '\u001b[1;33m  Discord      :\u001b[0m \u001b[0;37m@bimxr\u001b[0m',
+        '\u001b[1;33m  Server       :\u001b[0m \u001b[0;37mGlobal OwoBim\'s Domain\u001b[0m',
+        '\u001b[1;33m  Owner        :\u001b[0m \u001b[0;37m<@1442230317455900823>\u001b[0m',
+        '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+        '```',
+        '',
+
+        // ── SEMUA COMMAND ──
+        '```ansi',
+        '\u001b[1;36m━━━━━━━━━━━ 📋 SEMUA LAYANAN BOT ━━━━━━━━━━\u001b[0m',
+        '\u001b[1;32m  🪙  Ekonomi   :\u001b[0m \u001b[0;37m/wcash /wcf /wsend /daily /kerja\u001b[0m',
+        '\u001b[1;32m  🏦  Bank      :\u001b[0m \u001b[0;37m/bank /deposit /withdraw\u001b[0m',
+        '\u001b[1;32m  💍  Sosial    :\u001b[0m \u001b[0;37m/marry /partner /divorce /hug /slap /pat\u001b[0m',
+        '\u001b[1;32m  🔥  Fun       :\u001b[0m \u001b[0;37m/roast /rps /explode /makequote\u001b[0m',
+        '\u001b[1;32m  🌐  Tools     :\u001b[0m \u001b[0;37m/weather /kurs /translate /ip /color\u001b[0m',
+        '\u001b[1;32m  📝  Lainnya   :\u001b[0m \u001b[0;37m/confess /feedback /afk /quotesweb\u001b[0m',
+        '\u001b[1;32m  🤖  AI        :\u001b[0m \u001b[1;33m!ai [tanya apa saja]\u001b[0m',
+        '\u001b[1;32m  💬  Support   :\u001b[0m \u001b[1;33m!support\u001b[0m',
+        '\u001b[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+        '```',
+        '',
+
+        // ── FOOTER ──
+        `> ${EMOJI} *Dibuat dengan ❤️ oleh* **Bimxr** • \`v9.9.9\` ${EMOJI3}`,
+        `> ${EMOJI2} 🕐 Dikirim: **${waktu} WIB**`,
+        `> 🌐 **Website:** https://owo.kraxx.my.id`
+      ].join('\n'),
+
+      // ── TOMBOL INTERAKTIF ──
+      components: [{
+        type: 1,
+        components: [
+          {
+            type: 2,
+            style: 5,
+            label: '🌐 Buka Website',
+            url: 'https://owo.kraxx.my.id'
+          },
+          {
+            type: 2,
+            style: 5,
+            label: '📖 Support Donate',
+            url: 'https://advance.kraxx.my.id'
+          }
+        ]
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
 }
     
     
