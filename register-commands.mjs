@@ -449,6 +449,11 @@ const commands = [
       ]
     }
   ]
+},
+
+  {
+  name: 'support',
+  description: 'Support developer OwoBim & lihat list donatur ☕'
 }
 
   
