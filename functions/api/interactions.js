@@ -26,6 +26,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
   // ==================== COMPONENT INTERACTION (Button) ====================
 if (interaction.type === 3) {
   const customId  = interaction.data.custom_id;
+  const type = interaction.type;
   const clickerId = interaction.member?.user?.id || interaction.user?.id;
 
 
