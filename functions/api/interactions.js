@@ -4088,102 +4088,116 @@ if (cmd === 'confess') {
 
 
 
-    if (cmd === 'support') {
-  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
-
-  // Ambil list donatur dari KV
-  const listRaw = await env.USERS_KV.get('donatur:list');
-  const donaturList = listRaw ? JSON.parse(listRaw) : [];
-
-  // Format list donatur
-  const tierEmoji = (nominal) =>
-    nominal >= 50000 ? '🚀' :
-    nominal >= 25000 ? '👑' :
-    nominal >= 10000 ? '💎' :
-    nominal >= 5000  ? '⭐' : '☕';
-
-  const formatNominal = (n) => `Rp ${parseInt(n).toLocaleString('id-ID')}`;
-
-  const donaturLines = donaturList.length > 0
-    ? donaturList.slice(0, 10).map((d, i) => {
-        const emoji = tierEmoji(d.nominal);
-        const nama = d.nama.slice(0, 15).padEnd(15);
-        const nominal = formatNominal(d.nominal);
-        const tgl = new Date(d.createdAt).toLocaleDateString('id-ID', {
-          day: '2-digit', month: 'short'
-        });
-        return `\u001b[1;36m ${i + 1 < 10 ? ' ' + (i+1) : i+1}. ${emoji}\u001b[0m \u001b[1;37m${nama}\u001b[0m \u001b[1;32m${nominal}\u001b[0m \u001b[0;37m(${tgl})\u001b[0m`;
-      }).join('\n')
-    : '\u001b[0;37m  Belum ada donatur. Jadilah yang pertama! ☕\u001b[0m';
-
-  const totalDonasi = donaturList.reduce((a, b) => a + parseInt(b.nominal || 0), 0);
-  const totalFormatted = `Rp ${totalDonasi.toLocaleString('id-ID')}`;
-
-  return new Response(JSON.stringify({
-    type: 4,
-    data: {
-      embeds: [{
-        color: 0xFF6B35,
-        title: '☕ Support OwoBim!',
-        description: [
-          '```ansi',
-          '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-          '\u001b[2;34m║  \u001b[1;33m☕  SUPPORT THE DEVELOPER  ☕\u001b[0m  \u001b[2;34m║\u001b[0m',
-          '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-          '```',
-          `> ${EMOJI} Hei! Terima kasih sudah pakai **OwoBim**!`,
-          `> 💙 Bot ini gratis & terus dikembangin oleh **Bimxr**.`,
-          '',
-          '```ansi',
-          '\u001b[1;33m━━━━━━━━━━ 💸 CARA SUPPORT ━━━━━━━━━━━\u001b[0m',
-          '\u001b[1;36m ☕  Saweria :\u001b[0m \u001b[1;37mhttps://saweria.co/teamowo\u001b[0m',
-          '\u001b[1;36m 💬  Discord :\u001b[0m \u001b[0;37m@bimxr\u001b[0m',
-          '\u001b[1;36m 🌐  Website :\u001b[0m \u001b[0;37mhttps://owo.kraxx.my.id/api/saweria\u001b[0m',
-          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '```',
-          '',
-          '```ansi',
-          '\u001b[1;32m━━━━━━━━━━ 🎁 BENEFIT DONASI ━━━━━━━━━\u001b[0m',
-          '\u001b[1;33m ☕  Rp 10.000  :\u001b[0m \u001b[0;37mNama kamu di list donatur!\u001b[0m',
-          '\u001b[1;33m ⭐  Rp 30.000 :\u001b[0m \u001b[0;37m+ Spesial di server\u001b[0m',
-          '\u001b[1;33m 👑  Rp 50.000 :\u001b[0m \u001b[0;37m+ Pro fitur langsung!\u001b[0m',
-          '\u001b[1;33m 🚀  Rp 100.000+:\u001b[0m \u001b[0;37m+ Shoutout + semua benefit\u001b[0m',
-          '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '```',
-          '',
-          '```ansi',
-          '\u001b[1;35m━━━━━━━━━━ 🏆 TOP DONATUR ━━━━━━━━━━━━\u001b[0m',
-          `\u001b[0;37m  Total terkumpul: \u001b[1;32m${totalFormatted}\u001b[0m \u001b[0;37m dari ${donaturList.length} donatur\u001b[0m`,
-          '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          donaturLines,
-          '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '```',
-          `> 🙏 *Setiap dukungan sangat berarti buat Pengembang OwoBim!*`
-        ].join('\n'),
-        footer: {
-          text: 'OwoBim • Made with 💙 by OwoBim'
-        },
-        timestamp: new Date().toISOString()
-      }],
-      components: [{
-        type: 1,
-        components: [
-          {
-            type: 2,
-            style: 5,
-            label: '☕ Donate via Saweria',
-            url: 'https://saweria.co/teamowo'
-          },
-          {
-            type: 2,
-            style: 5,
-            label: '🌐 Website',
-            url: 'https://owo.kraxx.my.id/api/saweria'
-          }
-        ]
-      }]
-    }
-  }), { headers: { 'Content-Type': 'application/json' } });
+if (cmd === 'support') {
+  const appId = env.DISCORD_APP_ID;   // tambah DISCORD_APP_ID di env lo
+  const token = body.token;
+ 
+  // 1. Langsung ACK ke Discord (type 5 = deferred, loading state)
+  //    Ini yang bikin bot ga timeout — response balik < 1 detik
+  ctx.waitUntil((async () => {
+    const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+ 
+    // Fetch KV di background, aman dari timeout Discord
+    const listRaw = await Promise.race([
+      env.USERS_KV.get('donatur:list'),
+      new Promise(r => setTimeout(() => r(null), 4000))
+    ]);
+    const donaturList = listRaw ? JSON.parse(listRaw) : [];
+ 
+    const tierEmoji = (nominal) =>
+      nominal >= 100000 ? '🚀' :
+      nominal >= 50000  ? '👑' :
+      nominal >= 25000  ? '💎' :
+      nominal >= 10000  ? '⭐' : '☕';
+ 
+    const formatNominal = (n) => `Rp ${parseInt(n).toLocaleString('id-ID')}`;
+ 
+    const donaturLines = donaturList.length > 0
+      ? donaturList.slice(0, 10).map((d, i) => {
+          const emoji = tierEmoji(d.nominal);
+          const nama = d.nama.slice(0, 15).padEnd(15);
+          const nominal = formatNominal(d.nominal);
+          const tgl = new Date(d.createdAt).toLocaleDateString('id-ID', {
+            day: '2-digit', month: 'short'
+          });
+          return `\u001b[1;36m ${i + 1 < 10 ? ' ' + (i+1) : i+1}. ${emoji}\u001b[0m \u001b[1;37m${nama}\u001b[0m \u001b[1;32m${nominal}\u001b[0m \u001b[0;37m(${tgl})\u001b[0m`;
+        }).join('\n')
+      : '\u001b[0;37m  Belum ada donatur. Jadilah yang pertama! ☕\u001b[0m';
+ 
+    const totalDonasi = donaturList.reduce((a, b) => a + parseInt(b.nominal || 0), 0);
+    const totalFormatted = `Rp ${totalDonasi.toLocaleString('id-ID')}`;
+ 
+    // 2. Kirim followup ke Discord setelah data siap
+    await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        embeds: [{
+          color: 0xFF6B35,
+          title: '☕ Support OwoBim!',
+          description: [
+            '```ansi',
+            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[2;34m║  \u001b[1;33m☕  SUPPORT THE DEVELOPER  ☕\u001b[0m  \u001b[2;34m║\u001b[0m',
+            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `> ${EMOJI} Hei! Terima kasih sudah pakai **OwoBim**!`,
+            `> 💙 Bot ini gratis & terus dikembangin oleh **Bimxr**.`,
+            '',
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━ 💸 CARA SUPPORT ━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;36m ☕  Saweria :\u001b[0m \u001b[1;37mhttps://saweria.co/teamowo\u001b[0m',
+            '\u001b[1;36m 💬  Discord :\u001b[0m \u001b[0;37m@bimxr\u001b[0m',
+            '\u001b[1;36m 🌐  Website :\u001b[0m \u001b[0;37mhttps://owo.kraxx.my.id/api/saweria\u001b[0m',
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            '',
+            '```ansi',
+            '\u001b[1;32m━━━━━━━━━━ 🎁 BENEFIT DONASI ━━━━━━━━━\u001b[0m',
+            '\u001b[1;33m ☕  Rp 10.000  :\u001b[0m \u001b[0;37mNama kamu di list donatur!\u001b[0m',
+            '\u001b[1;33m ⭐  Rp 25.000 :\u001b[0m \u001b[0;37m+ Role spesial di server\u001b[0m',
+            '\u001b[1;33m 💎  Rp 50.000 :\u001b[0m \u001b[0;37m+ Pro fitur langsung!\u001b[0m',
+            '\u001b[1;33m 👑  Rp 100.000+:\u001b[0m \u001b[0;37m+ Shoutout + semua benefit\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            '',
+            '```ansi',
+            '\u001b[1;35m━━━━━━━━━━ 🏆 TOP DONATUR ━━━━━━━━━━━━\u001b[0m',
+            `\u001b[0;37m  Total terkumpul: \u001b[1;32m${totalFormatted}\u001b[0m \u001b[0;37m dari ${donaturList.length} donatur\u001b[0m`,
+            '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            donaturLines,
+            '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 🙏 *Setiap dukungan sangat berarti buat Pengembang OwoBim!*`
+          ].join('\n'),
+          footer: { text: 'OwoBim • Made with 💙 by Bimxr' },
+          timestamp: new Date().toISOString()
+        }],
+        components: [{
+          type: 1,
+          components: [
+            {
+              type: 2,
+              style: 5,
+              label: '☕ Donate via Saweria',
+              url: 'https://saweria.co/teamowo'
+            },
+            {
+              type: 2,
+              style: 5,
+              label: '🌐 Website',
+              url: 'https://owo.kraxx.my.id/api/saweria'
+            }
+          ]
+        }]
+      })
+    });
+  })());
+ 
+  // Balik ACK ke Discord seketika — bot ga bakal timeout lagi
+  return new Response(JSON.stringify({ type: 5 }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
     
     
