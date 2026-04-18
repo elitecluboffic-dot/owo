@@ -449,25 +449,6 @@ const commands = [
       ]
     }
   ]
-},
-
-
-{
-  "name": "versi-bot",
-  "description": "🌐 Info lengkap versi bot, fitur AI (!ai), dan stats global OwoBim",
-  "options": [
-    {
-      "name": "tab",
-      "description": "Pilih tab info yang ingin dilihat",
-      "type": 3,
-      "required": false,
-      "choices": [
-        { "name": "📊 Global Stats", "value": "stats" },
-        { "name": "🤖 AI & Support", "value": "ai" },
-        { "name": "📜 Changelog", "value": "changelog" }
-      ]
-    }
-  ]
 }
 
   
