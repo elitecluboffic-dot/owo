@@ -10,8 +10,9 @@ export async function onRequestPost(context) {
     const { productKey, username, paymentMethod } = body;
 
     // .trim() untuk pastikan tidak ada spasi/enter tersembunyi
-    const MERCHANT_CODE = (context.env.DUITKU_MERCHANT_CODE || '').trim();
-    const API_KEY       = (context.env.DUITKU_API_KEY || '').trim();
+const MERCHANT_CODE = 'DS29842';
+const API_KEY       = '2c3ec6a1c0d8b28b8515695aa14205da';
+    
 
     if (!MERCHANT_CODE || !API_KEY) {
       return new Response(JSON.stringify({ error: 'Konfigurasi merchant tidak lengkap' }), {
