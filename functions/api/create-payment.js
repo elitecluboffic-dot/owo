@@ -9,8 +9,16 @@ export async function onRequestPost(context) {
     const body = await context.request.json();
     const { productKey, username, paymentMethod } = body;
 
-    const MERCHANT_CODE = context.env.DUITKU_MERCHANT_CODE;
-    const API_KEY       = context.env.DUITKU_API_KEY;
+    // .trim() untuk pastikan tidak ada spasi/enter tersembunyi
+    const MERCHANT_CODE = (context.env.DUITKU_MERCHANT_CODE || '').trim();
+    const API_KEY       = (context.env.DUITKU_API_KEY || '').trim();
+
+    if (!MERCHANT_CODE || !API_KEY) {
+      return new Response(JSON.stringify({ error: 'Konfigurasi merchant tidak lengkap' }), {
+        status: 500,
+        headers: corsHeaders
+      });
+    }
 
     const PRODUCTS = {
       starter: { name:'Starter Pack',  cowoncy:1000,  price:5000   },
@@ -25,17 +33,30 @@ export async function onRequestPost(context) {
       headers: corsHeaders
     });
 
+    if (!username || username.trim() === '') {
+      return new Response(JSON.stringify({ error: 'Discord ID tidak boleh kosong' }), {
+        status: 400,
+        headers: corsHeaders
+      });
+    }
+
     const orderId = 'OWO-' + Date.now() + '-' + Math.random().toString(36).slice(2,7).toUpperCase();
 
-    // Buat signature MD5 di server (aman)
-    const signatureRaw = MERCHANT_CODE + orderId + p.price + API_KEY;
-    const signature    = await md5(signatureRaw);
+    // Format: merchantCode + orderId + amount + apiKey
+    const signatureRaw = MERCHANT_CODE + orderId + String(p.price) + API_KEY;
+    const signature    = md5(signatureRaw);
+
+    console.log('MERCHANT_CODE:', MERCHANT_CODE);
+    console.log('orderId:', orderId);
+    console.log('price:', p.price);
+    console.log('signatureRaw:', signatureRaw);
+    console.log('signature:', signature);
 
     const payload = {
       merchantCode:    MERCHANT_CODE,
       paymentAmount:   p.price,
       merchantOrderId: orderId,
-      productDetails:  p.name + ' - ' + p.cowoncy + ' Cowoncy untuk ' + username,
+      productDetails:  p.name + ' - ' + p.cowoncy + ' Cowoncy | Discord: ' + username.trim(),
       email:           'customer@example.com',
       paymentMethod:   paymentMethod,
       returnUrl:       'https://owo.kraxx.my.id',
@@ -51,12 +72,15 @@ export async function onRequestPost(context) {
     });
 
     const data = await res.json();
+    console.log('Duitku response:', JSON.stringify(data));
+
     return new Response(JSON.stringify(data), {
       status:  200,
       headers: corsHeaders
     });
 
   } catch (err) {
+    console.error('Error:', err.message);
     return new Response(JSON.stringify({ error: err.message }), {
       status:  500,
       headers: corsHeaders
@@ -64,8 +88,8 @@ export async function onRequestPost(context) {
   }
 }
 
-// MD5 helper di server
-async function md5(str) {
+// MD5 helper (pure JS, tidak pakai crypto.subtle karena MD5 tidak didukung)
+function md5(str) {
   function safeAdd(x,y){var lsw=(x&0xffff)+(y&0xffff);var msw=(x>>16)+(y>>16)+(lsw>>16);return(msw<<16)|(lsw&0xffff);}
   function bitRotateLeft(num,cnt){return(num<<cnt)|(num>>>(32-cnt));}
   function md5cmn(q,a,b,x,s,t){return safeAdd(bitRotateLeft(safeAdd(safeAdd(a,q),safeAdd(x,t)),s),b);}
