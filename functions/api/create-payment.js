@@ -9,8 +9,8 @@
     const body = await context.request.json();
     const { productKey, username, paymentMethod } = body;
 
-    const MERCHANT_CODE = 'DS29842';
-    const API_KEY       = '2c3ec6a1c0d8b28b8515695aa14205da';
+    const MERCHANT_CODE = 'DS29845';
+    const API_KEY       = '74c29158217814ad1b62b462047ac065';
 
     const PAYMENT_CODES = {
       VA_BRI:     'BT',
