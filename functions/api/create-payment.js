@@ -8,9 +8,11 @@ export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
     const { productKey, username, paymentMethod } = body;
+    
 
-    const MERCHANT_CODE = (context.env.DUITKU_MERCHANT_CODE || '').trim();
-    const API_KEY       = (context.env.DUITKU_API_KEY || '').trim();
+const MERCHANT_CODE = 'DS29842';
+const API_KEY       = '2c3ec6a1c0d8b28b8515695aa14205da';
+    
 
     // Mapping kode metode pembayaran ke kode resmi Duitku
     const PAYMENT_CODES = {
