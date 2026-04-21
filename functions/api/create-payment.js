@@ -1,4 +1,4 @@
-export async function onRequestPost(context) {
+﻿export async function onRequestPost(context) {
 
   const corsHeaders = {
     'Content-Type': 'application/json',
@@ -9,8 +9,17 @@ export async function onRequestPost(context) {
     const body = await context.request.json();
     const { productKey, username, paymentMethod } = body;
 
-    const MERCHANT_CODE = context.env.DUITKU_MERCHANT_CODE;
-    const API_KEY       = context.env.DUITKU_API_KEY;
+    const MERCHANT_CODE = 'DS29842';
+    const API_KEY       = '2c3ec6a1c0d8b28b8515695aa14205da';
+
+    const PAYMENT_CODES = {
+      VA_BRI:     'BT',
+      VA_BNI:     'B1',
+      VA_MANDIRI: 'M2',
+      QRIS:       'SP',
+      OVO:        'OV',
+      DANA:       'DA',
+    };
 
     const PRODUCTS = {
       starter: { name:'Starter Pack',  cowoncy:1000,  price:5000   },
@@ -21,23 +30,28 @@ export async function onRequestPost(context) {
 
     const p = PRODUCTS[productKey];
     if (!p) return new Response(JSON.stringify({ error: 'Produk tidak valid' }), {
-      status: 400,
-      headers: corsHeaders
+      status: 400, headers: corsHeaders
+    });
+
+    const duitkuCode = PAYMENT_CODES[paymentMethod];
+    if (!duitkuCode) return new Response(JSON.stringify({ error: 'Metode pembayaran tidak valid' }), {
+      status: 400, headers: corsHeaders
     });
 
     const orderId = 'OWO-' + Date.now() + '-' + Math.random().toString(36).slice(2,7).toUpperCase();
+    const signatureRaw = MERCHANT_CODE + orderId + String(p.price) + API_KEY;
+    const signature    = md5(signatureRaw);
 
-    // Buat signature MD5 di server (aman)
-    const signatureRaw = MERCHANT_CODE + orderId + p.price + API_KEY;
-    const signature    = await md5(signatureRaw);
+    console.log('signatureRaw:', signatureRaw);
+    console.log('signature:', signature);
 
     const payload = {
       merchantCode:    MERCHANT_CODE,
       paymentAmount:   p.price,
       merchantOrderId: orderId,
-      productDetails:  p.name + ' - ' + p.cowoncy + ' Cowoncy untuk ' + username,
+      productDetails:  p.name + ' - ' + p.cowoncy + ' Cowoncy | Discord: ' + (username||'').trim(),
       email:           'customer@example.com',
-      paymentMethod:   paymentMethod,
+      paymentMethod:   duitkuCode,
       returnUrl:       'https://owo.kraxx.my.id',
       callbackUrl:     'https://owo.kraxx.my.id/api/payment-notification',
       signature:       signature,
@@ -51,21 +65,21 @@ export async function onRequestPost(context) {
     });
 
     const data = await res.json();
+    console.log('Duitku response:', JSON.stringify(data));
+
     return new Response(JSON.stringify(data), {
-      status:  200,
-      headers: corsHeaders
+      status: 200, headers: corsHeaders
     });
 
   } catch (err) {
+    console.error('Error:', err.message);
     return new Response(JSON.stringify({ error: err.message }), {
-      status:  500,
-      headers: corsHeaders
+      status: 500, headers: corsHeaders
     });
   }
 }
 
-// MD5 helper di server
-async function md5(str) {
+function md5(str) {
   function safeAdd(x,y){var lsw=(x&0xffff)+(y&0xffff);var msw=(x>>16)+(y>>16)+(lsw>>16);return(msw<<16)|(lsw&0xffff);}
   function bitRotateLeft(num,cnt){return(num<<cnt)|(num>>>(32-cnt));}
   function md5cmn(q,a,b,x,s,t){return safeAdd(bitRotateLeft(safeAdd(safeAdd(a,q),safeAdd(x,t)),s),b);}
