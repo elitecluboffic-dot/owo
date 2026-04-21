@@ -168,6 +168,8 @@
     .quick-btn.purple:hover  { background: #6d28d9; }
     .quick-btn.teal          { background: #0e7490; color: white; }
     .quick-btn.teal:hover    { background: #0369a1; }
+    .quick-btn.orange        { background: #ea580c; color: white; }
+    .quick-btn.orange:hover  { background: #c2410c; }
 
     /* CMD BAR */
     #cmd-bar {
@@ -304,6 +306,7 @@
     .modal-confirm.yellow { background: #ca8a04; }
     .modal-confirm.purple { background: #7c3aed; }
     .modal-confirm.teal   { background: #0e7490; }
+    .modal-confirm.orange { background: #ea580c; }
 
     /* ADMIN DASHBOARD */
     .modal-header {
@@ -360,6 +363,200 @@
       white-space: nowrap;
     }
     .set-btn:hover { filter: brightness(1.15); }
+
+    /* ===== SHOP / TOPUP STYLES ===== */
+    .shop-section {
+      background: #2f3136;
+      border-radius: 16px;
+      padding: 20px;
+      margin: 0 0 16px 0;
+    }
+
+    .shop-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .shop-header h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .shop-header p {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .product-card {
+      background: #202225;
+      border-radius: 14px;
+      padding: 14px 12px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.15s, transform 0.1s;
+      position: relative;
+    }
+    .product-card:hover { border-color: #5865f2; transform: translateY(-2px); }
+    .product-card.popular { border-color: #ea580c; }
+
+    .product-badge {
+      position: absolute;
+      top: -8px;
+      right: 10px;
+      background: #ea580c;
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+
+    .product-icon {
+      font-size: 1.5rem;
+      margin-bottom: 6px;
+    }
+
+    .product-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+
+    .product-desc {
+      font-size: 0.72rem;
+      color: #9ca3af;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .product-price {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #22d3ee;
+    }
+
+    .product-original {
+      font-size: 0.7rem;
+      color: #6b7280;
+      text-decoration: line-through;
+      margin-left: 4px;
+    }
+
+    /* CONTACT SECTION */
+    .contact-section {
+      background: #2f3136;
+      border-radius: 16px;
+      padding: 20px;
+      margin: 0 0 16px 0;
+    }
+
+    .contact-section h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #40444b;
+      font-size: 0.875rem;
+    }
+    .contact-item:last-child { border-bottom: none; }
+
+    .contact-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .contact-label { font-size: 0.7rem; color: #9ca3af; }
+    .contact-value { font-size: 0.85rem; color: #dcddde; }
+
+    /* TOPUP MODAL */
+    .topup-product-summary {
+      background: #202225;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .topup-product-icon { font-size: 2rem; }
+
+    .topup-product-name { font-weight: 700; font-size: 1rem; color: #fff; }
+    .topup-product-price { font-size: 0.875rem; color: #22d3ee; font-weight: 600; margin-top: 2px; }
+
+    .payment-method-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .payment-method-btn {
+      background: #202225;
+      border: 2px solid transparent;
+      border-radius: 10px;
+      padding: 10px 8px;
+      cursor: pointer;
+      color: #dcddde;
+      font-size: 0.75rem;
+      text-align: center;
+      transition: border-color 0.15s;
+    }
+    .payment-method-btn:hover { border-color: #5865f2; }
+    .payment-method-btn.selected { border-color: #22d3ee; color: #22d3ee; }
+    .payment-method-btn i { display: block; font-size: 1.1rem; margin-bottom: 4px; }
+
+    .duitku-note {
+      font-size: 0.72rem;
+      color: #6b7280;
+      text-align: center;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    .duitku-note span { color: #22d3ee; }
+
+    /* STATUS BADGE */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .status-badge.pending  { background: #451a03; color: #fbbf24; }
+    .status-badge.success  { background: #052e16; color: #4ade80; }
+    .status-badge.failed   { background: #450a0a; color: #f87171; }
   </style>
 </head>
 <body>
@@ -380,10 +577,102 @@
   </div>
 
   <!-- CHAT -->
-  <div id="chat"></div>
+  <div id="chat">
+
+    <!-- SHOP SECTION -->
+    <div class="shop-section">
+      <div class="shop-header">
+        <div style="font-size:1.6rem">🦉</div>
+        <div>
+          <h2>Top-up Cowoncy</h2>
+          <p>Beli Cowoncy untuk digunakan di bot OWO BIM</p>
+        </div>
+      </div>
+      <div class="product-grid">
+
+        <div class="product-card" onclick="openTopup('starter')">
+          <div class="product-icon">💰</div>
+          <div class="product-name">Starter Pack</div>
+          <div class="product-desc">1.000 Cowoncy<br>Cocok untuk pemula</div>
+          <div class="product-price">Rp 5.000</div>
+        </div>
+
+        <div class="product-card popular" onclick="openTopup('basic')">
+          <div class="product-badge">Terlaris</div>
+          <div class="product-icon">💎</div>
+          <div class="product-name">Basic Pack</div>
+          <div class="product-desc">5.000 Cowoncy<br>Nilai terbaik untuk daily</div>
+          <div class="product-price">Rp 20.000 <span class="product-original">Rp 25.000</span></div>
+        </div>
+
+        <div class="product-card" onclick="openTopup('pro')">
+          <div class="product-icon">🏆</div>
+          <div class="product-name">Pro Pack</div>
+          <div class="product-desc">15.000 Cowoncy<br>Untuk player serius</div>
+          <div class="product-price">Rp 50.000</div>
+        </div>
+
+        <div class="product-card" onclick="openTopup('elite')">
+          <div class="product-icon">👑</div>
+          <div class="product-name">Elite Pack</div>
+          <div class="product-desc">50.000 Cowoncy<br>Dominasi leaderboard</div>
+          <div class="product-price">Rp 150.000</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- CONTACT SECTION -->
+    <div class="contact-section">
+      <h2><i class="fa-solid fa-headset" style="color:#22d3ee"></i> Kontak Support</h2>
+
+      <div class="contact-item">
+        <div class="contact-icon" style="background:#1e3a5f">
+          <i class="fa-solid fa-envelope" style="color:#60a5fa"></i>
+        </div>
+        <div>
+          <div class="contact-label">Email</div>
+          <div class="contact-value">support@example.com</div>
+        </div>
+      </div>
+
+      <div class="contact-item">
+        <div class="contact-icon" style="background:#14532d">
+          <i class="fa-solid fa-phone" style="color:#4ade80"></i>
+        </div>
+        <div>
+          <div class="contact-label">Nomor Telepon / WhatsApp</div>
+          <div class="contact-value">+62 8xx-xxxx-xxxx</div>
+        </div>
+      </div>
+
+      <div class="contact-item">
+        <div class="contact-icon" style="background:#3b1f2b">
+          <i class="fa-solid fa-location-dot" style="color:#f472b6"></i>
+        </div>
+        <div>
+          <div class="contact-label">Alamat Usaha</div>
+          <div class="contact-value">Jl. Contoh No. 1, Kota, Provinsi, Indonesia</div>
+        </div>
+      </div>
+
+      <div class="contact-item">
+        <div class="contact-icon" style="background:#1e1b4b">
+          <i class="fa-brands fa-discord" style="color:#818cf8"></i>
+        </div>
+        <div>
+          <div class="contact-label">Discord Support Server</div>
+          <div class="contact-value">discord.gg/owobim</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
 
   <!-- QUICK BAR -->
   <div id="quick-bar">
+    <button class="quick-btn orange" onclick="openTopup('basic')">🛒 Top-up</button>
     <button class="quick-btn" onclick="quickWcf(5000)">wcf 5000</button>
     <button class="quick-btn" onclick="quickWcf('all')">wcf all</button>
     <button class="quick-btn" onclick="checkBalance()">wcash</button>
@@ -476,22 +765,22 @@
   </div>
 
   <!-- GIVEAWAY MODAL -->
-<div id="giveaway-modal" class="modal-overlay hidden">
-  <div class="modal-box">
-    <div class="modal-title">
-      <i class="fa-solid fa-gift" style="color:#22d3ee"></i> Buat Giveaway
-    </div>
-    <p class="modal-subtitle">Buat giveaway cowoncy untuk pemain</p>
-    <input id="giveaway-jumlah" type="number" placeholder="Jumlah cowoncy" class="modal-input">
-    <input id="giveaway-durasi" type="number" placeholder="Durasi (menit)" class="modal-input">
-    <div class="modal-actions">
-      <button class="modal-cancel" onclick="hideGiveawayModal()">Batal</button>
-      <button class="modal-confirm teal" onclick="doCreateGiveaway()">Mulai</button>
+  <div id="giveaway-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">
+        <i class="fa-solid fa-gift" style="color:#22d3ee"></i> Buat Giveaway
+      </div>
+      <p class="modal-subtitle">Buat giveaway cowoncy untuk pemain</p>
+      <input id="giveaway-jumlah" type="number" placeholder="Jumlah cowoncy" class="modal-input">
+      <input id="giveaway-durasi" type="number" placeholder="Durasi (menit)" class="modal-input">
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="hideGiveawayModal()">Batal</button>
+        <button class="modal-confirm teal" onclick="doCreateGiveaway()">Mulai</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- ADMIN DASHBOARD MODAL -->
+  <!-- ADMIN DASHBOARD MODAL -->
   <div id="admin-dashboard" class="modal-overlay hidden">
     <div class="modal-box large">
       <div class="modal-header">
@@ -507,48 +796,291 @@
         <button class="btn" style="flex:1;background:#dc2626;" onclick="doEndGiveaway()">
           <i class="fa-solid fa-trophy"></i> End Giveaway
         </button>
-          <button class="btn" style="flex:1;background:#7c3aed;" onclick="showBroadcastModal()">
-    <i class="fa-solid fa-bullhorn"></i> Broadcast Update
-  </button>
+        <button class="btn" style="flex:1;background:#7c3aed;" onclick="showBroadcastModal()">
+          <i class="fa-solid fa-bullhorn"></i> Broadcast Update
+        </button>
       </div>
       <div id="players-list" style="display:flex;flex-direction:column;gap:10px;"></div>
     </div>
   </div>
 
-
-<!-- BROADCAST MODAL -->
-<div id="broadcast-modal" class="modal-overlay hidden">
-  <div class="modal-box">
-    <div class="modal-title">
-      <i class="fa-solid fa-bullhorn" style="color:#a78bfa"></i> Broadcast Update
-    </div>
-    <p class="modal-subtitle">Pesan akan dikirim ke semua server yang pakai bot</p>
-    <input id="broadcast-version" type="text" placeholder="Versi (contoh: v2.1.0)" class="modal-input">
-    <textarea id="broadcast-pesan"
-      placeholder="Tulis isi update disini...&#10;- Fitur baru&#10;- Bug fix"
-      class="modal-input"
-      style="height:120px;resize:vertical;line-height:1.5"></textarea>
-    <div id="broadcast-preview"
-      style="display:none;background:#202225;border-radius:10px;padding:12px;
-             font-size:0.8rem;color:#9ca3af;margin-bottom:10px;line-height:1.6;
-             white-space:pre-wrap;font-family:monospace"></div>
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <button class="btn" style="flex:1;background:#40444b;font-size:0.8rem"
-        onclick="previewBroadcast()">
-        <i class="fa-solid fa-eye"></i> Preview
-      </button>
-    </div>
-    <div id="broadcast-status" style="display:none;font-size:0.8rem;
-      padding:8px 12px;border-radius:8px;margin-bottom:10px;text-align:center"></div>
-    <div class="modal-actions">
-      <button class="modal-cancel" onclick="hideBroadcastModal()">Batal</button>
-      <button class="modal-confirm purple" onclick="doBroadcast()" id="broadcast-btn">
-        <i class="fa-solid fa-paper-plane"></i> Kirim ke Semua Server
-      </button>
+  <!-- BROADCAST MODAL -->
+  <div id="broadcast-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">
+        <i class="fa-solid fa-bullhorn" style="color:#a78bfa"></i> Broadcast Update
+      </div>
+      <p class="modal-subtitle">Pesan akan dikirim ke semua server yang pakai bot</p>
+      <input id="broadcast-version" type="text" placeholder="Versi (contoh: v2.1.0)" class="modal-input">
+      <textarea id="broadcast-pesan"
+        placeholder="Tulis isi update disini...&#10;- Fitur baru&#10;- Bug fix"
+        class="modal-input"
+        style="height:120px;resize:vertical;line-height:1.5"></textarea>
+      <div id="broadcast-preview"
+        style="display:none;background:#202225;border-radius:10px;padding:12px;
+               font-size:0.8rem;color:#9ca3af;margin-bottom:10px;line-height:1.6;
+               white-space:pre-wrap;font-family:monospace"></div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button class="btn" style="flex:1;background:#40444b;font-size:0.8rem"
+          onclick="previewBroadcast()">
+          <i class="fa-solid fa-eye"></i> Preview
+        </button>
+      </div>
+      <div id="broadcast-status" style="display:none;font-size:0.8rem;
+        padding:8px 12px;border-radius:8px;margin-bottom:10px;text-align:center"></div>
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="hideBroadcastModal()">Batal</button>
+        <button class="modal-confirm purple" onclick="doBroadcast()" id="broadcast-btn">
+          <i class="fa-solid fa-paper-plane"></i> Kirim ke Semua Server
+        </button>
+      </div>
     </div>
   </div>
-</div>
-  
+
+  <!-- ===== TOPUP / CHECKOUT MODAL ===== -->
+  <div id="topup-modal" class="modal-overlay hidden">
+    <div class="modal-box large">
+      <div class="modal-header">
+        <div class="modal-title" style="margin-bottom:0">
+          <i class="fa-solid fa-cart-shopping" style="color:#22d3ee"></i> Checkout
+        </div>
+        <button class="modal-close" onclick="hideTopupModal()">✕</button>
+      </div>
+
+      <!-- Step 1: Pilih produk & metode bayar -->
+      <div id="topup-step-1">
+        <div class="topup-product-summary" id="topup-summary">
+          <div class="topup-product-icon" id="topup-icon">💎</div>
+          <div>
+            <div class="topup-product-name" id="topup-name">Basic Pack</div>
+            <div class="topup-product-price" id="topup-price">Rp 20.000</div>
+          </div>
+        </div>
+
+        <p style="font-size:0.8rem;color:#9ca3af;margin-bottom:10px;">Username akun kamu:</p>
+        <input id="topup-username" type="text" placeholder="Username kamu di OWO BIM" class="modal-input">
+
+        <p style="font-size:0.8rem;color:#9ca3af;margin-bottom:10px;">Pilih metode pembayaran:</p>
+        <div class="payment-method-grid">
+          <button class="payment-method-btn" onclick="selectPayment(this,'VA_BRI')">
+            <i class="fa-solid fa-building-columns"></i> Virtual Account BRI
+          </button>
+          <button class="payment-method-btn" onclick="selectPayment(this,'VA_BNI')">
+            <i class="fa-solid fa-building-columns"></i> Virtual Account BNI
+          </button>
+          <button class="payment-method-btn" onclick="selectPayment(this,'VA_MANDIRI')">
+            <i class="fa-solid fa-building-columns"></i> Virtual Account Mandiri
+          </button>
+          <button class="payment-method-btn" onclick="selectPayment(this,'QRIS')">
+            <i class="fa-solid fa-qrcode"></i> QRIS
+          </button>
+          <button class="payment-method-btn" onclick="selectPayment(this,'OVO')">
+            <i class="fa-solid fa-wallet"></i> OVO
+          </button>
+          <button class="payment-method-btn" onclick="selectPayment(this,'DANA')">
+            <i class="fa-solid fa-wallet"></i> DANA
+          </button>
+        </div>
+
+        <div class="duitku-note">
+          Pembayaran diproses aman melalui <span>Duitku</span> (Sandbox Mode)<br>
+          Transaksi ini hanya untuk keperluan pengujian
+        </div>
+
+        <div id="topup-error" style="display:none;background:#450a0a;color:#f87171;
+          font-size:0.8rem;padding:10px 14px;border-radius:10px;margin-bottom:12px;"></div>
+
+        <div class="modal-actions">
+          <button class="modal-cancel" onclick="hideTopupModal()">Batal</button>
+          <button class="modal-confirm orange" id="topup-pay-btn" onclick="doCheckout()">
+            <i class="fa-solid fa-lock"></i> Bayar Sekarang
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: Menunggu pembayaran -->
+      <div id="topup-step-2" class="hidden">
+        <div style="text-align:center;padding:10px 0 20px;">
+          <div style="font-size:2.5rem;margin-bottom:10px;" id="topup-result-icon">⏳</div>
+          <div style="font-weight:700;font-size:1rem;margin-bottom:6px;" id="topup-result-title">Memproses pembayaran...</div>
+          <div style="font-size:0.8rem;color:#9ca3af;margin-bottom:16px;" id="topup-result-desc">Mohon tunggu sebentar</div>
+
+          <div id="topup-payment-info" style="display:none;background:#202225;
+            border-radius:14px;padding:16px;text-align:left;margin-bottom:16px;">
+            <div style="font-size:0.75rem;color:#9ca3af;margin-bottom:4px;">Nomor Referensi</div>
+            <div style="font-size:0.85rem;font-weight:600;color:#fff;margin-bottom:12px;" id="topup-ref-no">-</div>
+
+            <div style="font-size:0.75rem;color:#9ca3af;margin-bottom:4px;" id="topup-va-label">Nomor VA / Kode Bayar</div>
+            <div style="font-size:1.1rem;font-weight:700;color:#22d3ee;letter-spacing:1px;margin-bottom:12px;" id="topup-va-number">-</div>
+
+            <div style="font-size:0.75rem;color:#9ca3af;margin-bottom:4px;">Total Pembayaran</div>
+            <div style="font-size:1rem;font-weight:700;color:#4ade80;" id="topup-total-amount">-</div>
+          </div>
+
+          <div id="topup-qr-container" style="display:none;margin-bottom:16px;">
+            <img id="topup-qr-img" src="" alt="QR Code"
+              style="width:200px;height:200px;border-radius:12px;background:white;padding:8px;">
+          </div>
+
+          <div id="topup-status-badge" style="margin-bottom:16px;"></div>
+
+          <a id="topup-payment-url" href="#" target="_blank" style="display:none;">
+            <button class="btn btn-blue" style="width:100%;justify-content:center;margin-bottom:8px;">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Halaman Pembayaran
+            </button>
+          </a>
+
+          <button class="modal-cancel" style="width:100%;text-align:center;" onclick="hideTopupModal()">
+            Tutup
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <script src="app.js"></script>
+
+  <script>
+    // ===== PRODUK (hanya data tampilan — harga divalidasi di server) =====
+    const PRODUCTS = {
+      starter: { icon:'💰', name:'Starter Pack',  cowoncy:1000,  price:5000   },
+      basic:   { icon:'💎', name:'Basic Pack',    cowoncy:5000,  price:20000  },
+      pro:     { icon:'🏆', name:'Pro Pack',      cowoncy:15000, price:50000  },
+      elite:   { icon:'👑', name:'Elite Pack',    cowoncy:50000, price:150000 },
+    };
+
+    let selectedProduct     = null;
+    let selectedPaymentCode = null;
+
+    function formatRupiah(num) {
+      return 'Rp ' + num.toLocaleString('id-ID');
+    }
+
+    function openTopup(productKey) {
+      selectedProduct     = productKey;
+      selectedPaymentCode = null;
+      const p = PRODUCTS[productKey];
+
+      document.getElementById('topup-icon').textContent  = p.icon;
+      document.getElementById('topup-name').textContent  = p.name;
+      document.getElementById('topup-price').textContent = formatRupiah(p.price);
+      document.getElementById('topup-username').value    = '';
+      document.getElementById('topup-error').style.display = 'none';
+
+      document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('selected'));
+
+      document.getElementById('topup-step-1').classList.remove('hidden');
+      document.getElementById('topup-step-2').classList.add('hidden');
+      document.getElementById('topup-modal').classList.remove('hidden');
+    }
+
+    function hideTopupModal() {
+      document.getElementById('topup-modal').classList.add('hidden');
+    }
+
+    function selectPayment(btn, code) {
+      document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedPaymentCode = code;
+    }
+
+    async function doCheckout() {
+      const username = document.getElementById('topup-username').value.trim();
+      const errEl    = document.getElementById('topup-error');
+      errEl.style.display = 'none';
+
+      if (!username) {
+        errEl.textContent   = 'Masukkan username kamu dulu.';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (!selectedPaymentCode) {
+        errEl.textContent   = 'Pilih metode pembayaran dulu.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const p      = PRODUCTS[selectedProduct];
+      const payBtn = document.getElementById('topup-pay-btn');
+      payBtn.disabled = true;
+      payBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+
+      // Pindah ke step 2 – loading state
+      document.getElementById('topup-step-1').classList.add('hidden');
+      document.getElementById('topup-step-2').classList.remove('hidden');
+      document.getElementById('topup-result-icon').textContent  = '⏳';
+      document.getElementById('topup-result-title').textContent = 'Membuat transaksi...';
+      document.getElementById('topup-result-desc').textContent  = 'Mohon tunggu sebentar';
+      document.getElementById('topup-payment-info').style.display  = 'none';
+      document.getElementById('topup-status-badge').innerHTML       = '';
+      document.getElementById('topup-payment-url').style.display    = 'none';
+      document.getElementById('topup-qr-container').style.display   = 'none';
+
+      try {
+        // ✅ Kirim ke Cloudflare Worker — credential aman di server
+        const res  = await fetch('/api/create-payment', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            productKey:    selectedProduct,
+            username:      username,
+            paymentMethod: selectedPaymentCode
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Gagal membuat transaksi');
+        }
+
+        if (data.statusCode === '00') {
+          document.getElementById('topup-result-icon').textContent  = '✅';
+          document.getElementById('topup-result-title').textContent = 'Transaksi Dibuat!';
+          document.getElementById('topup-result-desc').textContent  = 'Selesaikan pembayaran sebelum transaksi kedaluwarsa';
+
+          document.getElementById('topup-ref-no').textContent        = data.reference || '-';
+          document.getElementById('topup-total-amount').textContent  = formatRupiah(p.price);
+          document.getElementById('topup-payment-info').style.display = 'block';
+
+          const vaNum = data.vaNumber || data.paymentCode || '-';
+          document.getElementById('topup-va-number').textContent = vaNum;
+
+          if (selectedPaymentCode === 'QRIS' && data.qrString) {
+            document.getElementById('topup-va-label').textContent = 'Scan QR Code';
+            document.getElementById('topup-qr-container').style.display = 'block';
+            document.getElementById('topup-qr-img').src =
+              'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(data.qrString);
+          } else {
+            document.getElementById('topup-va-label').textContent = 'Nomor VA / Kode Bayar';
+          }
+
+          if (data.paymentUrl) {
+            const linkEl = document.getElementById('topup-payment-url');
+            linkEl.href  = data.paymentUrl;
+            linkEl.style.display = 'block';
+          }
+
+          document.getElementById('topup-status-badge').innerHTML =
+            '<span class="status-badge pending">⏳ Menunggu Pembayaran</span>';
+
+        } else {
+          throw new Error(data.statusMessage || 'Gagal membuat transaksi');
+        }
+
+      } catch (err) {
+        document.getElementById('topup-result-icon').textContent  = '❌';
+        document.getElementById('topup-result-title').textContent = 'Transaksi Gagal';
+        document.getElementById('topup-result-desc').textContent  = err.message;
+        document.getElementById('topup-status-badge').innerHTML =
+          '<span class="status-badge failed">✕ Gagal</span>';
+      }
+
+      payBtn.disabled = false;
+      payBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Bayar Sekarang';
+    }
+  </script>
+
 </body>
 </html>
