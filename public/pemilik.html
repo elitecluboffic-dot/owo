@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pemilik — OwoCash</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink:    #0a0a0f;
+      --paper:  #f5f2ec;
+      --gold:   #c9a84c;
+      --gold2:  #e8c97a;
+      --dim:    #6b6860;
+      --line:   rgba(201,168,76,0.25);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--ink);
+      color: var(--paper);
+      font-family: 'Cormorant Garamond', serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.6;
+    }
+
+    /* ── BACK LINK ── */
+    .back {
+      position: fixed;
+      top: 28px;
+      left: 32px;
+      z-index: 100;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--dim);
+      text-decoration: none;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.3s;
+    }
+    .back::before {
+      content: '←';
+      font-size: 0.9rem;
+      transition: transform 0.3s;
+    }
+    .back:hover { color: var(--gold); }
+    .back:hover::before { transform: translateX(-4px); }
+
+    /* ── WATERMARK ── */
+    .wm {
+      position: fixed;
+      top: 28px;
+      right: 32px;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: rgba(201,168,76,0.3);
+      text-transform: uppercase;
+      z-index: 100;
+    }
+
+    /* ── MAIN WRAPPER ── */
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 120px 40px 80px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      min-height: 100vh;
+    }
+
+    /* ── LEFT COLUMN ── */
+    .left {
+      padding-right: 60px;
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-top: 60px;
+      padding-bottom: 60px;
+    }
+
+    .eyebrow {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 28px;
+      opacity: 0;
+      animation: fadeUp 0.8s 0.2s forwards;
+    }
+
+    .name-block {
+      margin-bottom: 32px;
+      opacity: 0;
+      animation: fadeUp 0.8s 0.35s forwards;
+    }
+
+    .name-main {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(3rem, 6vw, 5rem);
+      font-weight: 300;
+      line-height: 0.95;
+      letter-spacing: -0.02em;
+      color: var(--paper);
+    }
+
+    .name-main em {
+      font-style: italic;
+      color: var(--gold);
+    }
+
+    .name-aka {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--dim);
+      letter-spacing: 0.15em;
+      margin-top: 14px;
+    }
+
+    .divider {
+      width: 48px;
+      height: 1px;
+      background: linear-gradient(90deg, var(--gold), transparent);
+      margin: 28px 0;
+      opacity: 0;
+      animation: fadeUp 0.8s 0.5s forwards;
+    }
+
+    .bio {
+      font-size: 1.05rem;
+      font-weight: 300;
+      line-height: 1.8;
+      color: rgba(245,242,236,0.75);
+      opacity: 0;
+      animation: fadeUp 0.8s 0.6s forwards;
+    }
+
+    .bio strong {
+      color: var(--paper);
+      font-weight: 400;
+    }
+
+    /* ── AVATAR AREA ── */
+    .avatar-wrap {
+      margin-bottom: 36px;
+      opacity: 0;
+      animation: fadeUp 0.8s 0.15s forwards;
+    }
+
+    .avatar-ring {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .avatar-ring::before {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 1px solid transparent;
+      border-top-color: var(--gold);
+      animation: spin 8s linear infinite;
+    }
+
+    .avatar-inner {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--gold);
+      letter-spacing: -0.05em;
+    }
+
+    /* ── RIGHT COLUMN ── */
+    .right {
+      padding-left: 60px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-top: 60px;
+      padding-bottom: 60px;
+      gap: 48px;
+    }
+
+    /* ── STAT BLOCKS ── */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+      opacity: 0;
+      animation: fadeUp 0.8s 0.7s forwards;
+    }
+
+    .stat {
+      background: var(--ink);
+      padding: 20px;
+      transition: background 0.3s;
+    }
+    .stat:hover { background: rgba(201,168,76,0.04); }
+
+    .stat-val {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--gold);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .stat-lbl {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    /* ── SKILL TAGS ── */
+    .skills-section {
+      opacity: 0;
+      animation: fadeUp 0.8s 0.85s forwards;
+    }
+
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 14px;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      padding: 5px 12px;
+      border: 1px solid var(--line);
+      color: rgba(245,242,236,0.6);
+      transition: all 0.25s;
+      cursor: default;
+    }
+    .tag:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(201,168,76,0.05);
+    }
+
+    /* ── CONTACT ── */
+    .contact-section {
+      opacity: 0;
+      animation: fadeUp 0.8s 1s forwards;
+    }
+
+    .contact-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+      color: rgba(245,242,236,0.6);
+      transition: color 0.25s;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+    }
+    .contact-item:hover { color: var(--gold); }
+
+    .contact-icon {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+      transition: border-color 0.25s;
+    }
+    .contact-item:hover .contact-icon { border-color: var(--gold); }
+
+    /* ── QUOTE ── */
+    .quote-block {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--line);
+      padding-top: 48px;
+      margin-top: 0;
+      text-align: center;
+      opacity: 0;
+      animation: fadeUp 0.8s 1.1s forwards;
+    }
+
+    .quote-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+      font-weight: 300;
+      font-style: italic;
+      color: rgba(245,242,236,0.5);
+      line-height: 1.6;
+      max-width: 600px;
+      margin: 0 auto 16px;
+    }
+
+    .quote-attr {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+
+    /* ── FOOTER LINE ── */
+    .footer-line {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 32px;
+      border-top: 1px solid var(--line);
+      opacity: 0;
+      animation: fadeUp 0.8s 1.2s forwards;
+    }
+
+    .footer-brand {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: rgba(201,168,76,0.4);
+      text-transform: uppercase;
+    }
+
+    .footer-copy {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--dim);
+      letter-spacing: 0.1em;
+    }
+
+    /* ── VERTICAL TEXT ── */
+    .vert-text {
+      position: fixed;
+      left: 32px;
+      bottom: 80px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.55rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(201,168,76,0.2);
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg);
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 700px) {
+      .page {
+        grid-template-columns: 1fr;
+        padding: 100px 24px 60px;
+        gap: 48px;
+      }
+      .left {
+        padding-right: 0;
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 48px;
+      }
+      .right {
+        padding-left: 0;
+        padding-top: 0;
+      }
+      .back { left: 24px; }
+      .wm { right: 24px; }
+      .vert-text { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <a class="back" href="/">owocash</a>
+  <div class="wm">OWO CASH</div>
+  <div class="vert-text">owo.kraxx.my.id — since 2025</div>
+
+  <div class="page">
+
+    <!-- LEFT -->
+    <div class="left">
+      <div class="avatar-wrap">
+        <div class="avatar-ring">
+          <div class="avatar-inner">KX</div>
+        </div>
+      </div>
+
+      <div class="eyebrow">Pendiri & Pemilik</div>
+
+      <div class="name-block">
+        <div class="name-main">
+          <em>Kraxx</em>
+        </div>
+        <div class="name-aka">Bustanul Labib Alwasi · EliteClub/OwoCash Owner</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <p class="bio">
+        Developer independen dan penggemar ekosistem Discord.
+        Membangun <strong>OwoCash</strong> sebagai platform bot modern
+        yang aman, cepat, dan terpercaya untuk komunitas
+        <strong>OWO BIM</strong> di seluruh Indonesia.
+      </p>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right">
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-val">2024</div>
+          <div class="stat-lbl">Tahun Berdiri</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val">100%</div>
+          <div class="stat-lbl">Kepuasan Pelanggan</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val">4</div>
+          <div class="stat-lbl">Paket Tersedia</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val">24/7</div>
+          <div class="stat-lbl">Support Aktif</div>
+        </div>
+      </div>
+
+      <div class="skills-section">
+        <div class="section-label">Keahlian</div>
+        <div class="tags">
+          <span class="tag">Web Development</span>
+          <span class="tag">Discord Bot</span>
+          <span class="tag">Cloudflare</span>
+          <span class="tag">Payment Gateway</span>
+          <span class="tag">UI / UX</span>
+          <span class="tag">JavaScript</span>
+        </div>
+      </div>
+
+      <div class="contact-section">
+        <div class="section-label">Kontak</div>
+        <div class="contact-list">
+          <a class="contact-item" href="mailto:elitecluboffic@gmail.com">
+            <div class="contact-icon">✉</div>
+            elitecluboffic@gmail.com
+          </a>
+          <a class="contact-item" href="https://wa.me/6285122975498">
+            <div class="contact-icon">☎</div>
+            +62 851-2297-5498
+          </a>
+          <a class="contact-item" href="https://discord.gg/MKdyX3ky" target="_blank">
+            <div class="contact-icon">◈</div>
+            discord.gg/MKdyX3ky
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- QUOTE -->
+    <div class="quote-block">
+      <p class="quote-text">
+        "Dibangun dengan dedikasi, dijalankan dengan kejujuran —
+        setiap transaksi adalah kepercayaan yang kami jaga."
+      </p>
+      <div class="quote-attr">— Bustanul Labib Alwasi · OwoCash</div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer-line">
+      <div class="footer-brand">OwoCash Platform</div>
+      <div class="footer-copy">© 2024 owo.kraxx.my.id</div>
+    </div>
+
+  </div>
+
+</body>
+</html>
