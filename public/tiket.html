@@ -15,6 +15,7 @@
       --accent2: #a5b4fc;
       --hot:     #f43f5e;
       --green:   #10b981;
+      --yellow:  #f59e0b;
       --text:    #e2e8f0;
       --muted:   #475569;
       --dim:     #1e1e2e;
@@ -41,7 +42,7 @@
     .status-text { font-size: 0.65rem; color: var(--green); letter-spacing: 0.1em; }
     .sidebar-nav { padding: 20px 16px; flex: 1; overflow-y: auto; }
     .nav-label { font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); padding: 0 8px; margin-bottom: 10px; }
-    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 6px; cursor: pointer; font-size: 0.72rem; color: var(--muted); letter-spacing: 0.05em; transition: all 0.2s; margin-bottom: 2px; border: 1px solid transparent; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 6px; cursor: pointer; font-size: 0.72rem; color: var(--muted); letter-spacing: 0.05em; transition: all 0.2s; margin-bottom: 2px; border: 1px solid transparent; text-decoration: none; }
     .nav-item:hover { background: rgba(99,102,241,0.06); color: var(--accent2); border-color: var(--border); }
     .nav-item.active { background: rgba(99,102,241,0.1); color: var(--accent2); border-color: rgba(99,102,241,0.2); }
     .nav-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; background: rgba(99,102,241,0.08); flex-shrink: 0; }
@@ -56,6 +57,14 @@
     .ticket-counter { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; display: flex; align-items: center; gap: 16px; }
     .counter-item strong { color: var(--accent2); }
     .content { flex: 1; overflow-y: auto; padding: 32px 40px 40px; scrollbar-width: thin; scrollbar-color: var(--dim) transparent; }
+    .content::-webkit-scrollbar { width: 4px; }
+    .content::-webkit-scrollbar-thumb { background: var(--dim); }
+
+    /* ── PAGE VIEWS ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── FORM ── */
     .steps { display: flex; align-items: center; margin-bottom: 36px; opacity: 0; animation: fadeIn 0.5s 0.1s forwards; }
     .step { display: flex; align-items: center; gap: 10px; flex: 1; }
     .step-num { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: var(--muted); flex-shrink: 0; transition: all 0.3s; }
@@ -115,7 +124,7 @@
     .attach-text { font-size: 0.62rem; color: var(--muted); line-height: 1.6; }
     .attach-text strong { color: var(--accent2); }
     .contact-methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .contact-btn { background: var(--dim); border: 1px solid var(--border); border-radius: 8px; padding: 12px; cursor: pointer; text-align: center; transition: all 0.2s; color: var(--muted); font-size: 0.65rem; letter-spacing: 0.05em; }
+    .contact-btn { background: var(--dim); border: 1px solid var(--border); border-radius: 8px; padding: 12px; cursor: pointer; text-align: center; transition: all 0.2s; color: var(--muted); font-size: 0.65rem; letter-spacing: 0.05em; font-family: 'Space Mono', monospace; }
     .contact-btn:hover { border-color: rgba(99,102,241,0.3); color: var(--accent2); }
     .contact-btn.selected { border-color: var(--accent); color: var(--accent2); background: rgba(99,102,241,0.08); }
     .contact-btn .cicon { font-size: 1.1rem; display: block; margin-bottom: 6px; }
@@ -131,6 +140,8 @@
     .submit-note strong { color: var(--accent2); }
     .sending-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── SUCCESS OVERLAY ── */
     .success-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(8,8,16,0.95); align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 40px; }
     .success-overlay.show { display: flex; }
     .success-icon { font-size: 3rem; margin-bottom: 20px; animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; }
@@ -146,9 +157,61 @@
     .success-actions { display: flex; gap: 12px; }
     .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 10px 24px; border-radius: 6px; font-family: 'Space Mono', monospace; font-size: 0.65rem; letter-spacing: 0.1em; cursor: pointer; text-transform: uppercase; transition: all 0.2s; text-decoration: none; }
     .btn-outline:hover { border-color: var(--accent2); color: var(--accent2); }
-    .content::-webkit-scrollbar { width: 4px; }
-    .content::-webkit-scrollbar-track { background: transparent; }
-    .content::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+    /* ── TIKET SAYA ── */
+    .my-tickets-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .my-tickets-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.1em; }
+    .clear-btn { background: none; border: 1px solid rgba(244,63,94,0.2); color: var(--muted); font-family: 'Space Mono', monospace; font-size: 0.58rem; letter-spacing: 0.1em; padding: 6px 14px; border-radius: 6px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+    .clear-btn:hover { border-color: var(--hot); color: var(--hot); }
+
+    .ticket-list { display: flex; flex-direction: column; gap: 12px; }
+    .ticket-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; cursor: pointer; transition: all 0.2s; animation: fadeIn 0.3s ease; position: relative; overflow: hidden; }
+    .ticket-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+    .ticket-card.priority-TINGGI::before { background: var(--hot); }
+    .ticket-card.priority-SEDANG::before { background: var(--yellow); }
+    .ticket-card.priority-RENDAH::before { background: #94a3b8; }
+    .ticket-card:hover { border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.03); }
+
+    .tc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .tc-id { font-size: 0.62rem; color: var(--accent); letter-spacing: 0.12em; font-weight: 700; }
+    .tc-time { font-size: 0.55rem; color: var(--muted); flex-shrink: 0; }
+    .tc-title { font-size: 0.8rem; font-weight: 700; color: var(--text); margin-bottom: 8px; letter-spacing: 0.02em; }
+    .tc-desc { font-size: 0.65rem; color: var(--muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 12px; }
+    .tc-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .tc-tag { font-size: 0.58rem; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.06em; }
+    .tc-tag.cat  { background: rgba(99,102,241,0.1); color: var(--accent2); border: 1px solid rgba(99,102,241,0.2); }
+    .tc-tag.low  { background: rgba(148,163,184,0.1); color: #94a3b8; border: 1px solid rgba(148,163,184,0.2); }
+    .tc-tag.mid  { background: rgba(245,158,11,0.1);  color: var(--yellow); border: 1px solid rgba(245,158,11,0.2); }
+    .tc-tag.high { background: rgba(244,63,94,0.1);   color: var(--hot); border: 1px solid rgba(244,63,94,0.2); }
+    .tc-tag.user { background: rgba(16,185,129,0.08); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+    .tc-status { margin-left: auto; font-size: 0.58rem; padding: 3px 10px; border-radius: 20px; }
+    .tc-status.open   { background: rgba(99,102,241,0.12); color: var(--accent2); border: 1px solid rgba(99,102,241,0.25); }
+    .tc-status.closed { background: rgba(16,185,129,0.1);  color: var(--green);   border: 1px solid rgba(16,185,129,0.2); }
+
+    /* Detail modal */
+    .ticket-detail-modal { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(8,8,16,0.9); align-items: center; justify-content: center; padding: 24px; }
+    .ticket-detail-modal.show { display: flex; }
+    .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 560px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
+    .modal-head { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .modal-head-id { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 0.1em; color: var(--accent); }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; transition: color 0.2s; }
+    .modal-close:hover { color: var(--text); }
+    .modal-body { padding: 24px; overflow-y: auto; scrollbar-width: thin; }
+    .modal-body::-webkit-scrollbar { width: 3px; }
+    .modal-body::-webkit-scrollbar-thumb { background: var(--dim); }
+    .detail-row { display: grid; grid-template-columns: 130px 1fr; gap: 8px; padding: 10px 0; border-bottom: 1px solid rgba(99,102,241,0.06); font-size: 0.7rem; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-key { color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.6rem; padding-top: 2px; }
+    .detail-val { color: var(--text); line-height: 1.6; word-break: break-word; }
+    .detail-desc { color: var(--text); line-height: 1.7; white-space: pre-wrap; font-size: 0.7rem; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 60px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .empty-icon { font-size: 2.5rem; opacity: 0.3; }
+    .empty-text { font-size: 0.68rem; color: var(--muted); line-height: 1.8; }
+    .empty-cta { margin-top: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; padding: 10px 24px; font-family: 'Space Mono', monospace; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; cursor: pointer; transition: background 0.2s; }
+    .empty-cta:hover { background: #4f46e5; }
+
     @media (max-width: 768px) {
       html, body { overflow: auto; }
       .shell { grid-template-columns: 1fr; height: auto; overflow: visible; }
@@ -180,8 +243,19 @@
       Pantau status tiket via Discord atau WhatsApp yang kamu daftarkan.
     </p>
     <div class="success-actions">
-      <a href="/" class="btn-outline">← Kembali ke Home</a>
+      <button class="btn-outline" onclick="goToMyTickets()">Lihat Tiket Saya →</button>
       <button class="btn-outline" onclick="resetForm()">Buat Tiket Baru</button>
+    </div>
+  </div>
+
+  <!-- TICKET DETAIL MODAL -->
+  <div class="ticket-detail-modal" id="detailModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div class="modal-head-id" id="modal-ticket-id">#OWO-XXXXXX</div>
+        <button class="modal-close" onclick="closeDetail()">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body-content"></div>
     </div>
   </div>
 
@@ -198,10 +272,10 @@
       </div>
       <nav class="sidebar-nav">
         <div class="nav-label">Menu</div>
-        <div class="nav-item active"><div class="nav-icon">🎫</div>Open Tiket Baru</div>
-        <div class="nav-item"><div class="nav-icon">📋</div>Tiket Saya<span class="nav-badge">2</span></div>
-        <div class="nav-item"><div class="nav-icon">📖</div>FAQ</div>
-        <div class="nav-item"><div class="nav-icon">💬</div>Live Chat</div>
+        <div class="nav-item active" id="nav-open" onclick="switchPage('open')"><div class="nav-icon">🎫</div>Open Tiket Baru</div>
+        <div class="nav-item" id="nav-mytickets" onclick="switchPage('mytickets')"><div class="nav-icon">📋</div>Tiket Saya<span class="nav-badge" id="ticket-count-badge" style="display:none">0</span></div>
+        <div class="nav-item" id="nav-faq"><div class="nav-icon">📖</div>FAQ</div>
+        <a class="nav-item" href="https://livechat.kraxx.my.id" target="_blank"><div class="nav-icon">💬</div>Live Chat</a>
         <div class="nav-label" style="margin-top:20px">Kontak Langsung</div>
         <div class="nav-item"><div class="nav-icon">🟢</div>WhatsApp Support</div>
         <div class="nav-item"><div class="nav-icon">🔵</div>Discord Server</div>
@@ -213,7 +287,7 @@
 
     <main class="main">
       <div class="topbar">
-        <div class="topbar-title">Open Tiket<span>// SUPPORT REQUEST FORM</span></div>
+        <div class="topbar-title" id="topbar-title">Open Tiket<span id="topbar-sub">// SUPPORT REQUEST FORM</span></div>
         <div class="ticket-counter">
           <span>Tiket Hari Ini: <strong>12</strong></span>
           <span>Terselesaikan: <strong>98%</strong></span>
@@ -221,114 +295,238 @@
       </div>
 
       <div class="content">
-        <div class="steps">
-          <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">Kategori</div></div>
-          <div class="step-line" id="line1"></div>
-          <div class="step active" id="step2"><div class="step-num">2</div><div class="step-label">Detail</div></div>
-          <div class="step-line" id="line2"></div>
-          <div class="step" id="step3"><div class="step-num">3</div><div class="step-label">Submit</div></div>
-        </div>
 
-        <!-- 01 KATEGORI -->
-        <div class="form-section">
-          <div class="section-header"><div class="section-num">01</div><div class="section-title">Pilih Kategori Masalah</div><div class="section-line"></div></div>
-          <div class="category-grid">
-            <button class="cat-btn" onclick="selectCat(this,'Top-Up')"><span class="cat-icon">💳</span><span class="cat-name">Top-Up</span><span class="cat-desc">Masalah pembayaran, cowoncy belum masuk</span></button>
-            <button class="cat-btn" onclick="selectCat(this,'Akun')"><span class="cat-icon">👤</span><span class="cat-name">Akun</span><span class="cat-desc">Login gagal, lupa password, akun bermasalah</span></button>
-            <button class="cat-btn" onclick="selectCat(this,'Bot OWO')"><span class="cat-icon">🤖</span><span class="cat-name">Bot OWO</span><span class="cat-desc">Bot tidak merespons, command error</span></button>
-            <button class="cat-btn" onclick="selectCat(this,'Refund')"><span class="cat-icon">↩️</span><span class="cat-name">Refund</span><span class="cat-desc">Permintaan pengembalian dana</span></button>
-            <button class="cat-btn" onclick="selectCat(this,'Lapor Bug')"><span class="cat-icon">🐛</span><span class="cat-name">Lapor Bug</span><span class="cat-desc">Temukan celah atau error di sistem</span></button>
-            <button class="cat-btn" onclick="selectCat(this,'Lainnya')"><span class="cat-icon">💡</span><span class="cat-name">Lainnya</span><span class="cat-desc">Pertanyaan umum atau saran</span></button>
+        <!-- ── PAGE: OPEN TIKET ── -->
+        <div class="page active" id="page-open">
+          <div class="steps">
+            <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">Kategori</div></div>
+            <div class="step-line" id="line1"></div>
+            <div class="step active" id="step2"><div class="step-num">2</div><div class="step-label">Detail</div></div>
+            <div class="step-line" id="line2"></div>
+            <div class="step" id="step3"><div class="step-num">3</div><div class="step-label">Submit</div></div>
           </div>
-        </div>
 
-        <!-- 02 PRIORITAS -->
-        <div class="form-section">
-          <div class="section-header"><div class="section-num">02</div><div class="section-title">Tingkat Urgensi</div><div class="section-line"></div></div>
-          <div class="priority-row">
-            <button class="priority-btn low"    onclick="selectPriority(this,'RENDAH')"><div class="priority-dot"></div><div class="info"><span class="pname">RENDAH</span><span class="pdesc">Pertanyaan umum, tidak mendesak</span></div></button>
-            <button class="priority-btn medium" onclick="selectPriority(this,'SEDANG')"><div class="priority-dot"></div><div class="info"><span class="pname">SEDANG</span><span class="pdesc">Ada gangguan, tapi masih bisa dipakai</span></div></button>
-            <button class="priority-btn high"   onclick="selectPriority(this,'TINGGI')"><div class="priority-dot"></div><div class="info"><span class="pname">TINGGI</span><span class="pdesc">Tidak bisa transaksi, dana hilang</span></div></button>
-          </div>
-        </div>
-
-        <!-- 03 IDENTITAS -->
-        <div class="form-section">
-          <div class="section-header"><div class="section-num">03</div><div class="section-title">Identitas Kamu</div><div class="section-line"></div></div>
-          <div class="field-row">
-            <div class="input-group">
-              <div class="input-label">Username OWO BIM<span class="required">* wajib</span></div>
-              <input type="text" class="field" id="f-username" placeholder="username kamu">
-            </div>
-            <div class="input-group">
-              <div class="input-label">Discord Tag / ID<span class="required">* wajib</span></div>
-              <input type="text" class="field" id="f-discord" placeholder="username#0000 atau ID">
+          <div class="form-section">
+            <div class="section-header"><div class="section-num">01</div><div class="section-title">Pilih Kategori Masalah</div><div class="section-line"></div></div>
+            <div class="category-grid">
+              <button class="cat-btn" onclick="selectCat(this,'Top-Up')"><span class="cat-icon">💳</span><span class="cat-name">Top-Up</span><span class="cat-desc">Masalah pembayaran, cowoncy belum masuk</span></button>
+              <button class="cat-btn" onclick="selectCat(this,'Akun')"><span class="cat-icon">👤</span><span class="cat-name">Akun</span><span class="cat-desc">Login gagal, lupa password, akun bermasalah</span></button>
+              <button class="cat-btn" onclick="selectCat(this,'Bot OWO')"><span class="cat-icon">🤖</span><span class="cat-name">Bot OWO</span><span class="cat-desc">Bot tidak merespons, command error</span></button>
+              <button class="cat-btn" onclick="selectCat(this,'Refund')"><span class="cat-icon">↩️</span><span class="cat-name">Refund</span><span class="cat-desc">Permintaan pengembalian dana</span></button>
+              <button class="cat-btn" onclick="selectCat(this,'Lapor Bug')"><span class="cat-icon">🐛</span><span class="cat-name">Lapor Bug</span><span class="cat-desc">Temukan celah atau error di sistem</span></button>
+              <button class="cat-btn" onclick="selectCat(this,'Lainnya')"><span class="cat-icon">💡</span><span class="cat-name">Lainnya</span><span class="cat-desc">Pertanyaan umum atau saran</span></button>
             </div>
           </div>
-          <div class="input-group">
-            <div class="input-label">Nomor Order (jika ada)</div>
-            <input type="text" class="field" id="f-order" placeholder="OWO-XXXXXXXXXX-XXXXX">
+
+          <div class="form-section">
+            <div class="section-header"><div class="section-num">02</div><div class="section-title">Tingkat Urgensi</div><div class="section-line"></div></div>
+            <div class="priority-row">
+              <button class="priority-btn low"    onclick="selectPriority(this,'RENDAH')"><div class="priority-dot"></div><div class="info"><span class="pname">RENDAH</span><span class="pdesc">Pertanyaan umum, tidak mendesak</span></div></button>
+              <button class="priority-btn medium" onclick="selectPriority(this,'SEDANG')"><div class="priority-dot"></div><div class="info"><span class="pname">SEDANG</span><span class="pdesc">Ada gangguan, tapi masih bisa dipakai</span></div></button>
+              <button class="priority-btn high"   onclick="selectPriority(this,'TINGGI')"><div class="priority-dot"></div><div class="info"><span class="pname">TINGGI</span><span class="pdesc">Tidak bisa transaksi, dana hilang</span></div></button>
+            </div>
           </div>
+
+          <div class="form-section">
+            <div class="section-header"><div class="section-num">03</div><div class="section-title">Identitas Kamu</div><div class="section-line"></div></div>
+            <div class="field-row">
+              <div class="input-group">
+                <div class="input-label">Username OWO BIM<span class="required">* wajib</span></div>
+                <input type="text" class="field" id="f-username" placeholder="username kamu">
+              </div>
+              <div class="input-group">
+                <div class="input-label">Discord Tag / ID<span class="required">* wajib</span></div>
+                <input type="text" class="field" id="f-discord" placeholder="username#0000 atau ID">
+              </div>
+            </div>
+            <div class="input-group">
+              <div class="input-label">Nomor Order (jika ada)</div>
+              <input type="text" class="field" id="f-order" placeholder="OWO-XXXXXXXXXX-XXXXX">
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="section-header"><div class="section-num">04</div><div class="section-title">Deskripsi Masalah</div><div class="section-line"></div></div>
+            <div class="input-group">
+              <div class="input-label">Judul Tiket<span class="required">* wajib</span></div>
+              <input type="text" class="field" id="f-title" placeholder="Ringkasan singkat masalahmu" maxlength="80" oninput="updateCount(this,'tc-title')">
+              <div class="char-count"><span id="tc-title">0</span>/80</div>
+            </div>
+            <div class="input-group">
+              <div class="input-label">Ceritakan Masalahmu<span class="required">* wajib</span></div>
+              <textarea class="field" id="f-desc" placeholder="Jelaskan masalah secara detail. Kapan terjadi? Apa yang sudah dicoba? Error apa yang muncul?" maxlength="1000" oninput="updateCount(this,'tc-desc')"></textarea>
+              <div class="char-count"><span id="tc-desc">0</span>/1000</div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="section-header"><div class="section-num">05</div><div class="section-title">Lampiran (Opsional)</div><div class="section-line"></div></div>
+            <div class="attach-zone" onclick="document.getElementById('f-file').click()">
+              <div class="attach-icon">📎</div>
+              <div class="attach-text"><strong>Klik untuk upload</strong> screenshot atau bukti pembayaran<br>PNG, JPG, PDF — maks 5MB</div>
+              <input type="file" id="f-file" style="display:none" accept="image/*,.pdf" onchange="showFile(this)">
+            </div>
+            <div id="file-preview" style="display:none;margin-top:10px;font-size:0.65rem;color:var(--accent2);letter-spacing:0.05em;"></div>
+          </div>
+
+          <div class="form-section">
+            <div class="section-header"><div class="section-num">06</div><div class="section-title">Preferensi Kontak Balasan</div><div class="section-line"></div></div>
+            <div class="contact-methods">
+              <button class="contact-btn" onclick="selectContact(this,'Discord DM')"><span class="cicon">💬</span>Discord DM</button>
+              <button class="contact-btn" onclick="selectContact(this,'WhatsApp')"><span class="cicon">🟢</span>WhatsApp</button>
+              <button class="contact-btn" onclick="selectContact(this,'Email')"><span class="cicon">✉️</span>Email</button>
+            </div>
+          </div>
+
+          <div class="submit-area">
+            <button class="submit-btn" id="submitBtn" onclick="submitTicket()">
+              Kirim Tiket <span class="arrow">→</span>
+            </button>
+            <div class="submit-note">
+              Dengan mengirim tiket, kamu menyetujui<br>
+              <strong>Terms of Service</strong> OwoCash Support
+            </div>
+          </div>
+        </div><!-- end page-open -->
+
+        <!-- ── PAGE: TIKET SAYA ── -->
+        <div class="page" id="page-mytickets">
+          <div class="my-tickets-header">
+            <div class="my-tickets-title">Tiket Saya</div>
+            <button class="clear-btn" onclick="clearTickets()">Hapus Semua</button>
+          </div>
+          <div id="ticket-list-container"></div>
         </div>
 
-        <!-- 04 DESKRIPSI -->
-        <div class="form-section">
-          <div class="section-header"><div class="section-num">04</div><div class="section-title">Deskripsi Masalah</div><div class="section-line"></div></div>
-          <div class="input-group">
-            <div class="input-label">Judul Tiket<span class="required">* wajib</span></div>
-            <input type="text" class="field" id="f-title" placeholder="Ringkasan singkat masalahmu" maxlength="80" oninput="updateCount(this,'tc-title')">
-            <div class="char-count"><span id="tc-title">0</span>/80</div>
-          </div>
-          <div class="input-group">
-            <div class="input-label">Ceritakan Masalahmu<span class="required">* wajib</span></div>
-            <textarea class="field" id="f-desc" placeholder="Jelaskan masalah secara detail. Kapan terjadi? Apa yang sudah dicoba? Error apa yang muncul?" maxlength="1000" oninput="updateCount(this,'tc-desc')"></textarea>
-            <div class="char-count"><span id="tc-desc">0</span>/1000</div>
-          </div>
-        </div>
-
-        <!-- 05 LAMPIRAN -->
-        <div class="form-section">
-          <div class="section-header"><div class="section-num">05</div><div class="section-title">Lampiran (Opsional)</div><div class="section-line"></div></div>
-          <div class="attach-zone" onclick="document.getElementById('f-file').click()">
-            <div class="attach-icon">📎</div>
-            <div class="attach-text"><strong>Klik untuk upload</strong> screenshot atau bukti pembayaran<br>PNG, JPG, PDF — maks 5MB</div>
-            <input type="file" id="f-file" style="display:none" accept="image/*,.pdf" onchange="showFile(this)">
-          </div>
-          <div id="file-preview" style="display:none;margin-top:10px;font-size:0.65rem;color:var(--accent2);letter-spacing:0.05em;"></div>
-        </div>
-
-        <!-- 06 KONTAK PREFERENSI -->
-        <div class="form-section">
-          <div class="section-header"><div class="section-num">06</div><div class="section-title">Preferensi Kontak Balasan</div><div class="section-line"></div></div>
-          <div class="contact-methods">
-            <button class="contact-btn" onclick="selectContact(this,'Discord DM')"><span class="cicon">💬</span>Discord DM</button>
-            <button class="contact-btn" onclick="selectContact(this,'WhatsApp')"><span class="cicon">🟢</span>WhatsApp</button>
-            <button class="contact-btn" onclick="selectContact(this,'Email')"><span class="cicon">✉️</span>Email</button>
-          </div>
-        </div>
-
-        <!-- SUBMIT -->
-        <div class="submit-area">
-          <button class="submit-btn" id="submitBtn" onclick="submitTicket()">
-            Kirim Tiket <span class="arrow">→</span>
-          </button>
-          <div class="submit-note">
-            Dengan mengirim tiket, kamu menyetujui<br>
-            <strong>Terms of Service</strong> OwoCash Support
-          </div>
-        </div>
-      </div>
+      </div><!-- end content -->
     </main>
   </div>
 
   <script>
-    // ⚙️ Ganti dengan URL Cloudflare Worker kamu setelah deploy
     const WORKER_URL = 'https://support.internetdnsofficial.workers.dev/';
+    const STORAGE_KEY = 'owo_tickets';
 
     let selectedCategory = null;
     let selectedPriority = '-';
     let selectedContact  = null;
+    let currentPage      = 'open';
 
+    // ── PAGE SWITCH ────────────────────────────────────────────
+    function switchPage(page) {
+      currentPage = page;
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item[id^="nav-"]').forEach(n => n.classList.remove('active'));
+
+      document.getElementById('page-' + page).classList.add('active');
+      if (document.getElementById('nav-' + page)) {
+        document.getElementById('nav-' + page).classList.add('active');
+      }
+
+      if (page === 'open') {
+        document.getElementById('topbar-title').childNodes[0].textContent = 'Open Tiket';
+        document.getElementById('topbar-sub').textContent = '// SUPPORT REQUEST FORM';
+      } else if (page === 'mytickets') {
+        document.getElementById('topbar-title').childNodes[0].textContent = 'Tiket Saya';
+        document.getElementById('topbar-sub').textContent = '// RIWAYAT TIKET KAMU';
+        renderMyTickets();
+      }
+    }
+
+    // ── TICKETS STORAGE ────────────────────────────────────────
+    function getTickets() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+    }
+
+    function saveTicket(ticket) {
+      const tickets = getTickets();
+      tickets.unshift(ticket); // terbaru di atas
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets));
+      updateBadge();
+    }
+
+    function updateBadge() {
+      const tickets = getTickets();
+      const badge   = document.getElementById('ticket-count-badge');
+      if (tickets.length > 0) {
+        badge.textContent = tickets.length;
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    function clearTickets() {
+      if (!confirm('Hapus semua riwayat tiket?')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      updateBadge();
+      renderMyTickets();
+    }
+
+    // ── RENDER TIKET SAYA ──────────────────────────────────────
+    function renderMyTickets() {
+      const tickets   = getTickets();
+      const container = document.getElementById('ticket-list-container');
+
+      if (tickets.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">🎫</div>
+            <div class="empty-text">Belum ada tiket yang pernah dibuat.<br>Buat tiket pertamamu sekarang!</div>
+            <button class="empty-cta" onclick="switchPage('open')">Open Tiket →</button>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `<div class="ticket-list">${tickets.map((t, i) => `
+        <div class="ticket-card priority-${t.prioritas}" onclick="openDetail(${i})">
+          <div class="tc-top">
+            <div class="tc-id">#${t.ticketId}</div>
+            <div class="tc-time">${t.waktu}</div>
+          </div>
+          <div class="tc-title">${escHtml(t.judul)}</div>
+          <div class="tc-desc">${escHtml(t.deskripsi)}</div>
+          <div class="tc-meta">
+            <span class="tc-tag cat">${escHtml(t.kategori)}</span>
+            <span class="tc-tag ${t.prioritas === 'TINGGI' ? 'high' : t.prioritas === 'SEDANG' ? 'mid' : 'low'}">${t.prioritas}</span>
+            <span class="tc-tag user">👤 ${escHtml(t.username)}</span>
+            <span class="tc-status open">Open</span>
+          </div>
+        </div>`).join('')}
+      </div>`;
+    }
+
+    // ── DETAIL MODAL ───────────────────────────────────────────
+    function openDetail(index) {
+      const tickets = getTickets();
+      const t       = tickets[index];
+      if (!t) return;
+
+      document.getElementById('modal-ticket-id').textContent = '#' + t.ticketId;
+      document.getElementById('modal-body-content').innerHTML = `
+        <div class="detail-row"><div class="detail-key">Ticket ID</div><div class="detail-val">#${t.ticketId}</div></div>
+        <div class="detail-row"><div class="detail-key">Waktu</div><div class="detail-val">${t.waktu}</div></div>
+        <div class="detail-row"><div class="detail-key">Kategori</div><div class="detail-val">${escHtml(t.kategori)}</div></div>
+        <div class="detail-row"><div class="detail-key">Prioritas</div><div class="detail-val">${t.prioritas}</div></div>
+        <div class="detail-row"><div class="detail-key">Username</div><div class="detail-val">${escHtml(t.username)}</div></div>
+        <div class="detail-row"><div class="detail-key">Discord</div><div class="detail-val">${escHtml(t.discord)}</div></div>
+        ${t.order ? `<div class="detail-row"><div class="detail-key">No. Order</div><div class="detail-val">${escHtml(t.order)}</div></div>` : ''}
+        <div class="detail-row"><div class="detail-key">Judul</div><div class="detail-val">${escHtml(t.judul)}</div></div>
+        <div class="detail-row"><div class="detail-key">Preferensi</div><div class="detail-val">${escHtml(t.kontakPref || '-')}</div></div>
+        <div class="detail-row"><div class="detail-key">Deskripsi</div><div class="detail-val"><div class="detail-desc">${escHtml(t.deskripsi)}</div></div></div>
+      `;
+      document.getElementById('detailModal').classList.add('show');
+    }
+
+    function closeDetail() {
+      document.getElementById('detailModal').classList.remove('show');
+    }
+
+    // Tutup modal klik di luar
+    document.getElementById('detailModal').addEventListener('click', function(e) {
+      if (e.target === this) closeDetail();
+    });
+
+    // ── FORM HELPERS ───────────────────────────────────────────
     function selectCat(el, cat) {
       document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
       el.classList.add('selected');
@@ -369,6 +567,11 @@
       return id;
     }
 
+    function escHtml(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── SUBMIT ─────────────────────────────────────────────────
     async function submitTicket() {
       const username = document.getElementById('f-username').value.trim();
       const discord  = document.getElementById('f-discord').value.trim();
@@ -389,7 +592,6 @@
       const ticketId = generateTicketId();
       const waktu    = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
 
-      // Pesan teks untuk WhatsApp
       const pesan =
 `🎫 *TIKET BARU — #${ticketId}*
 ━━━━━━━━━━━━━━━━━━━━
@@ -412,57 +614,32 @@ _Dikirim via OwoCash Support Form_`;
         const res  = await fetch(WORKER_URL, {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({
-            pesan,
-            kontakPref: selectedContact,
-            ticketId,
-            kategori:   selectedCategory,
-            prioritas:  selectedPriority,
-            username,
-            discord,
-            order,
-            judul:      title,
-            deskripsi:  desc,
-            waktu,
-          }),
+          body:    JSON.stringify({ pesan, kontakPref: selectedContact, ticketId, kategori: selectedCategory, prioritas: selectedPriority, username, discord, order, judul: title, deskripsi: desc, waktu }),
         });
         const json = await res.json();
         results    = json.results ?? results;
-      } catch (e) {
-        // network error — tetap tampilkan overlay
-      }
+      } catch (e) {}
 
-      // Update step
+      // Simpan ke localStorage
+      saveTicket({ ticketId, waktu, kategori: selectedCategory, prioritas: selectedPriority, username, discord, order, judul: title, deskripsi: desc, kontakPref: selectedContact || '-' });
+
       document.getElementById('step3').classList.add('active');
       document.getElementById('ticketIdDisplay').textContent = '#' + ticketId;
 
-      // Tampilkan status notifikasi
       const list = document.getElementById('notifStatusList');
       list.innerHTML = '';
-
       const kontakPref = selectedContact;
 
-      // WhatsApp status
       if (kontakPref === 'WhatsApp' || !kontakPref) {
         const el = document.createElement('div');
         el.className = 'notif-status ' + (results.wa === true ? 'ok' : results.wa === false ? 'fail' : 'skip');
-        el.textContent = results.wa === true
-          ? '✅ Notifikasi WhatsApp berhasil dikirim'
-          : results.wa === false
-            ? '⚠️ Notifikasi WhatsApp gagal — cek token Fonnte'
-            : '— WhatsApp dilewati';
+        el.textContent = results.wa === true ? '✅ Notifikasi WhatsApp berhasil dikirim' : results.wa === false ? '⚠️ Notifikasi WhatsApp gagal — cek token Fonnte' : '— WhatsApp dilewati';
         list.appendChild(el);
       }
-
-      // Discord status
       if (kontakPref === 'Discord DM' || kontakPref === 'Email' || !kontakPref) {
         const el = document.createElement('div');
         el.className = 'notif-status ' + (results.discord === true ? 'ok' : results.discord === false ? 'fail' : 'skip');
-        el.textContent = results.discord === true
-          ? '✅ Notifikasi Discord berhasil dikirim'
-          : results.discord === false
-            ? '⚠️ Notifikasi Discord gagal — cek webhook URL'
-            : '— Discord dilewati';
+        el.textContent = results.discord === true ? '✅ Notifikasi Discord berhasil dikirim' : results.discord === false ? '⚠️ Notifikasi Discord gagal — cek webhook URL' : '— Discord dilewati';
         list.appendChild(el);
       }
 
@@ -471,6 +648,13 @@ _Dikirim via OwoCash Support Form_`;
       btn.innerHTML = 'Kirim Tiket <span class="arrow">→</span>';
     }
 
+    // ── NAVIGATE TO MY TICKETS ─────────────────────────────────
+    function goToMyTickets() {
+      document.getElementById('successOverlay').classList.remove('show');
+      switchPage('mytickets');
+    }
+
+    // ── RESET FORM ─────────────────────────────────────────────
     function resetForm() {
       document.getElementById('successOverlay').classList.remove('show');
       document.querySelectorAll('.cat-btn, .priority-btn, .contact-btn').forEach(b => b.classList.remove('selected'));
@@ -485,7 +669,11 @@ _Dikirim via OwoCash Support Form_`;
       selectedCategory = null;
       selectedPriority = '-';
       selectedContact  = null;
+      switchPage('open');
     }
+
+    // ── INIT ───────────────────────────────────────────────────
+    updateBadge();
   </script>
 
 </body>
