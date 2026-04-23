@@ -4769,23 +4769,28 @@ if (cmd === 'gacha') {
 // CMD: saham — sistem saham virtual
 // ══════════════════════════════════════════════
 if (cmd === 'saham') {
-  console.log('[SAHAM] sub:', getOption(options, 'aksi'));
-  console.log('[SAHAM] discordId:', discordId);
-  console.log('[SAHAM] user exists:', !!user);
-
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const AV_KEY = env.ALPHA_VANTAGE_KEY;
   const sub = getOption(options, 'aksi');
 
-  // ── Helper: fetch harga saham dari Alpha Vantage ──
+  // ── Helper: fetch harga saham dari Alpha Vantage + KV Cache 5 menit ──
   const fetchHarga = async (ticker) => {
     try {
+      // Cek cache KV dulu (TTL 5 menit = 300 detik)
+      const cacheKey = `saham_cache:${ticker}`;
+      const cached = await env.USERS_KV.get(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.ts < 5 * 60 * 1000) return parsed.data;
+      }
+
       const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${AV_KEY}`;
       const res = await fetch(url);
-      const data = await res.json();
-      const q = data['Global Quote'];
+      const json = await res.json();
+      const q = json['Global Quote'];
       if (!q || !q['05. price']) return null;
-      return {
+
+      const data = {
         ticker:    q['01. symbol'],
         harga:     parseFloat(q['05. price']),
         open:      parseFloat(q['02. open']),
@@ -4797,6 +4802,10 @@ if (cmd === 'saham') {
         volume:    parseInt(q['06. volume']),
         latest:    q['07. latest trading day'],
       };
+
+      // Simpan ke cache KV dengan TTL 5 menit
+      await env.USERS_KV.put(cacheKey, JSON.stringify({ data, ts: Date.now() }), { expirationTtl: 300 });
+      return data;
     } catch (e) {
       return null;
     }
@@ -4823,12 +4832,10 @@ if (cmd === 'saham') {
     }
   };
 
-  // ── Aksi yang butuh defer ──
-  const DEFER_ACTIONS = ['cek', 'beli', 'jual', 'portofolio', 'top'];
+  // ── Aksi yang butuh defer (termasuk info karena konten panjang) ──
+  const DEFER_ACTIONS = ['cek', 'beli', 'jual', 'portofolio', 'top', 'info'];
 
   if (DEFER_ACTIONS.includes(sub)) {
-    // ✅ Langsung ACK ke Discord supaya tidak timeout 3 detik
-    // HARUS di-return SEBELUM waitUntil selesai
     waitUntil((async () => {
       try {
 
@@ -5178,8 +5185,41 @@ if (cmd === 'saham') {
           ].join('\n'));
         }
 
+        // ══════════════════════════════════════════
+        // AKSI: info — daftar semua saham (pakai defer karena konten panjang)
+        // ══════════════════════════════════════════
+        if (sub === 'info') {
+          return editFollowup([
+            `${EMOJI} 📋 **Daftar Saham Tersedia** — OwoBim Stock Engine`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━ 💻 TEKNOLOGI ━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;36m AAPL MSFT GOOGL AMZN NVDA TSLA META NFLX AMD INTC\u001b[0m',
+            '\u001b[1;36m ORCL CRM ADBE QCOM AVGO CSCO IBM UBER LYFT SNAP\u001b[0m',
+            '\u001b[1;36m PINS RDDT SPOT SHOP SQ PYPL TWLO ZOOM DOCU\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━ 💰 KEUANGAN ━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;36m JPM BAC GS MS WFC C V MA AXP BRK.B\u001b[0m',
+            '\u001b[1;36m COIN MSTR RIOT MARA\u001b[0m',
+            '\u001b[1;35m━━━━━━━━━━━ 🛒 CONSUMER & RETAIL ━━━━━\u001b[0m',
+            '\u001b[1;36m WMT COST TGT MCD SBUX NKE KO PEP PG DIS ABNB BKNG LULU AMGN\u001b[0m',
+            '\u001b[1;31m━━━━━━━━━━━ ⚡ ENERGI & INDUSTRI ━━━━━\u001b[0m',
+            '\u001b[1;36m XOM CVX COP NEE BA CAT GE MMM HON LMT\u001b[0m',
+            '\u001b[1;34m━━━━━━━━━━━ 🏥 KESEHATAN ━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;36m JNJ PFE MRNA ABBV UNH CVS LLY BMY\u001b[0m',
+            '\u001b[1;33m━━━━━━━━━━━ 🚗 OTOMOTIF ━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;36m TSLA F GM TM HMC RIVN LCID\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━ ✈️ TRAVEL & TRANSPORTASI ━\u001b[0m',
+            '\u001b[1;36m DAL UAL AAL LUV MAR HLT CCL\u001b[0m',
+            '\u001b[1;35m━━━━━━━━━━━ 🎮 GAMING & HIBURAN ━━━━━\u001b[0m',
+            '\u001b[1;36m ATVI EA TTWO RBLX SONO IMAX\u001b[0m',
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 💡 \`/saham cek ticker:AAPL\` — \`/saham beli ticker:TSLA jumlah:5\``,
+            `> ⚠️ Ticker diluar list juga bisa dicoba!`,
+            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+          ].join('\n'));
+        }
+
       } catch (err) {
-        // ⚠️ Catch semua error di dalam waitUntil agar tidak silent fail
         await editFollowup(`${EMOJI} ❌ Terjadi error internal: \`${err.message}\`\nCoba lagi atau hubungi admin!`);
       }
     })());
@@ -5230,149 +5270,6 @@ if (cmd === 'saham') {
       '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
       '```',
       `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
-    ].join('\n'));
-  }
-
-  // ══════════════════════════════════════════
-  // AKSI: info — daftar semua saham (no defer)
-  // ══════════════════════════════════════════
-  if (sub === 'info') {
-    return respond([
-      '```ansi',
-      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-      '\u001b[2;34m║  \u001b[1;33m📋  DAFTAR SAHAM TERSEDIA  📋\u001b[0m  \u001b[2;34m║\u001b[0m',
-      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-      '```',
-      '```ansi',
-      '\u001b[1;33m━━━━━━━━━━━ 💻 TEKNOLOGI ━━━━━━━━━━━━\u001b[0m',
-      '\u001b[1;36m AAPL  \u001b[0m\u001b[0;37m Apple Inc.\u001b[0m',
-      '\u001b[1;36m MSFT  \u001b[0m\u001b[0;37m Microsoft Corporation\u001b[0m',
-      '\u001b[1;36m GOOGL \u001b[0m\u001b[0;37m Alphabet (Google)\u001b[0m',
-      '\u001b[1;36m AMZN  \u001b[0m\u001b[0;37m Amazon.com Inc.\u001b[0m',
-      '\u001b[1;36m NVDA  \u001b[0m\u001b[0;37m NVIDIA Corporation\u001b[0m',
-      '\u001b[1;36m TSLA  \u001b[0m\u001b[0;37m Tesla Inc.\u001b[0m',
-      '\u001b[1;36m META  \u001b[0m\u001b[0;37m Meta Platforms (Facebook)\u001b[0m',
-      '\u001b[1;36m NFLX  \u001b[0m\u001b[0;37m Netflix Inc.\u001b[0m',
-      '\u001b[1;36m AMD   \u001b[0m\u001b[0;37m Advanced Micro Devices\u001b[0m',
-      '\u001b[1;36m INTC  \u001b[0m\u001b[0;37m Intel Corporation\u001b[0m',
-      '\u001b[1;36m ORCL  \u001b[0m\u001b[0;37m Oracle Corporation\u001b[0m',
-      '\u001b[1;36m CRM   \u001b[0m\u001b[0;37m Salesforce Inc.\u001b[0m',
-      '\u001b[1;36m ADBE  \u001b[0m\u001b[0;37m Adobe Inc.\u001b[0m',
-      '\u001b[1;36m QCOM  \u001b[0m\u001b[0;37m Qualcomm Inc.\u001b[0m',
-      '\u001b[1;36m AVGO  \u001b[0m\u001b[0;37m Broadcom Inc.\u001b[0m',
-      '\u001b[1;36m CSCO  \u001b[0m\u001b[0;37m Cisco Systems\u001b[0m',
-      '\u001b[1;36m IBM   \u001b[0m\u001b[0;37m IBM Corporation\u001b[0m',
-      '\u001b[1;36m UBER  \u001b[0m\u001b[0;37m Uber Technologies\u001b[0m',
-      '\u001b[1;36m LYFT  \u001b[0m\u001b[0;37m Lyft Inc.\u001b[0m',
-      '\u001b[1;36m SNAP  \u001b[0m\u001b[0;37m Snap Inc. (Snapchat)\u001b[0m',
-      '\u001b[1;36m PINS  \u001b[0m\u001b[0;37m Pinterest Inc.\u001b[0m',
-      '\u001b[1;36m RDDT  \u001b[0m\u001b[0;37m Reddit Inc.\u001b[0m',
-      '\u001b[1;36m SPOT  \u001b[0m\u001b[0;37m Spotify Technology\u001b[0m',
-      '\u001b[1;36m SHOP  \u001b[0m\u001b[0;37m Shopify Inc.\u001b[0m',
-      '\u001b[1;36m SQ    \u001b[0m\u001b[0;37m Block Inc. (Square)\u001b[0m',
-      '\u001b[1;36m PYPL  \u001b[0m\u001b[0;37m PayPal Holdings\u001b[0m',
-      '\u001b[1;36m TWLO  \u001b[0m\u001b[0;37m Twilio Inc.\u001b[0m',
-      '\u001b[1;36m ZOOM  \u001b[0m\u001b[0;37m Zoom Video Communications\u001b[0m',
-      '\u001b[1;36m DOCU  \u001b[0m\u001b[0;37m DocuSign Inc.\u001b[0m',
-      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```',
-      '```ansi',
-      '\u001b[1;32m━━━━━━━━━━━ 💰 KEUANGAN ━━━━━━━━━━━━━\u001b[0m',
-      '\u001b[1;36m JPM   \u001b[0m\u001b[0;37m JPMorgan Chase & Co.\u001b[0m',
-      '\u001b[1;36m BAC   \u001b[0m\u001b[0;37m Bank of America\u001b[0m',
-      '\u001b[1;36m GS    \u001b[0m\u001b[0;37m Goldman Sachs Group\u001b[0m',
-      '\u001b[1;36m MS    \u001b[0m\u001b[0;37m Morgan Stanley\u001b[0m',
-      '\u001b[1;36m WFC   \u001b[0m\u001b[0;37m Wells Fargo & Co.\u001b[0m',
-      '\u001b[1;36m C     \u001b[0m\u001b[0;37m Citigroup Inc.\u001b[0m',
-      '\u001b[1;36m V     \u001b[0m\u001b[0;37m Visa Inc.\u001b[0m',
-      '\u001b[1;36m MA    \u001b[0m\u001b[0;37m Mastercard Inc.\u001b[0m',
-      '\u001b[1;36m AXP   \u001b[0m\u001b[0;37m American Express\u001b[0m',
-      '\u001b[1;36m BRK.B \u001b[0m\u001b[0;37m Berkshire Hathaway\u001b[0m',
-      '\u001b[1;36m COIN  \u001b[0m\u001b[0;37m Coinbase Global\u001b[0m',
-      '\u001b[1;36m MSTR  \u001b[0m\u001b[0;37m MicroStrategy (Bitcoin)\u001b[0m',
-      '\u001b[1;36m RIOT  \u001b[0m\u001b[0;37m Riot Platforms (Crypto Mining)\u001b[0m',
-      '\u001b[1;36m MARA  \u001b[0m\u001b[0;37m Marathon Digital (Crypto Mining)\u001b[0m',
-      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```',
-      '```ansi',
-      '\u001b[1;35m━━━━━━━━━━━ 🛒 CONSUMER & RETAIL ━━━━━\u001b[0m',
-      '\u001b[1;36m WMT   \u001b[0m\u001b[0;37m Walmart Inc.\u001b[0m',
-      '\u001b[1;36m COST  \u001b[0m\u001b[0;37m Costco Wholesale\u001b[0m',
-      '\u001b[1;36m TGT   \u001b[0m\u001b[0;37m Target Corporation\u001b[0m',
-      '\u001b[1;36m MCD   \u001b[0m\u001b[0;37m McDonald\'s Corporation\u001b[0m',
-      '\u001b[1;36m SBUX  \u001b[0m\u001b[0;37m Starbucks Corporation\u001b[0m',
-      '\u001b[1;36m NKE   \u001b[0m\u001b[0;37m Nike Inc.\u001b[0m',
-      '\u001b[1;36m KO    \u001b[0m\u001b[0;37m Coca-Cola Company\u001b[0m',
-      '\u001b[1;36m PEP   \u001b[0m\u001b[0;37m PepsiCo Inc.\u001b[0m',
-      '\u001b[1;36m PG    \u001b[0m\u001b[0;37m Procter & Gamble\u001b[0m',
-      '\u001b[1;36m DIS   \u001b[0m\u001b[0;37m The Walt Disney Company\u001b[0m',
-      '\u001b[1;36m ABNB  \u001b[0m\u001b[0;37m Airbnb Inc.\u001b[0m',
-      '\u001b[1;36m BKNG  \u001b[0m\u001b[0;37m Booking Holdings\u001b[0m',
-      '\u001b[1;36m LULU  \u001b[0m\u001b[0;37m Lululemon Athletica\u001b[0m',
-      '\u001b[1;36m AMGN  \u001b[0m\u001b[0;37m Amgen Inc.\u001b[0m',
-      '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```',
-      '```ansi',
-      '\u001b[1;31m━━━━━━━━━━━ ⚡ ENERGI & INDUSTRI ━━━━━\u001b[0m',
-      '\u001b[1;36m XOM   \u001b[0m\u001b[0;37m ExxonMobil Corporation\u001b[0m',
-      '\u001b[1;36m CVX   \u001b[0m\u001b[0;37m Chevron Corporation\u001b[0m',
-      '\u001b[1;36m COP   \u001b[0m\u001b[0;37m ConocoPhillips\u001b[0m',
-      '\u001b[1;36m NEE   \u001b[0m\u001b[0;37m NextEra Energy\u001b[0m',
-      '\u001b[1;36m BA    \u001b[0m\u001b[0;37m Boeing Company\u001b[0m',
-      '\u001b[1;36m CAT   \u001b[0m\u001b[0;37m Caterpillar Inc.\u001b[0m',
-      '\u001b[1;36m GE    \u001b[0m\u001b[0;37m GE Aerospace\u001b[0m',
-      '\u001b[1;36m MMM   \u001b[0m\u001b[0;37m 3M Company\u001b[0m',
-      '\u001b[1;36m HON   \u001b[0m\u001b[0;37m Honeywell International\u001b[0m',
-      '\u001b[1;36m LMT   \u001b[0m\u001b[0;37m Lockheed Martin\u001b[0m',
-      '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```',
-      '```ansi',
-      '\u001b[1;34m━━━━━━━━━━━ 🏥 KESEHATAN ━━━━━━━━━━━━\u001b[0m',
-      '\u001b[1;36m JNJ   \u001b[0m\u001b[0;37m Johnson & Johnson\u001b[0m',
-      '\u001b[1;36m PFE   \u001b[0m\u001b[0;37m Pfizer Inc.\u001b[0m',
-      '\u001b[1;36m MRNA  \u001b[0m\u001b[0;37m Moderna Inc.\u001b[0m',
-      '\u001b[1;36m ABBV  \u001b[0m\u001b[0;37m AbbVie Inc.\u001b[0m',
-      '\u001b[1;36m UNH   \u001b[0m\u001b[0;37m UnitedHealth Group\u001b[0m',
-      '\u001b[1;36m CVS   \u001b[0m\u001b[0;37m CVS Health Corporation\u001b[0m',
-      '\u001b[1;36m LLY   \u001b[0m\u001b[0;37m Eli Lilly and Company\u001b[0m',
-      '\u001b[1;36m BMY   \u001b[0m\u001b[0;37m Bristol-Myers Squibb\u001b[0m',
-      '\u001b[1;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```',
-      '```ansi',
-      '\u001b[1;33m━━━━━━━━━━━ 🚗 OTOMOTIF ━━━━━━━━━━━━━\u001b[0m',
-      '\u001b[1;36m TSLA  \u001b[0m\u001b[0;37m Tesla Inc.\u001b[0m',
-      '\u001b[1;36m F     \u001b[0m\u001b[0;37m Ford Motor Company\u001b[0m',
-      '\u001b[1;36m GM    \u001b[0m\u001b[0;37m General Motors\u001b[0m',
-      '\u001b[1;36m TM    \u001b[0m\u001b[0;37m Toyota Motor Corporation\u001b[0m',
-      '\u001b[1;36m HMC   \u001b[0m\u001b[0;37m Honda Motor Co.\u001b[0m',
-      '\u001b[1;36m RIVN  \u001b[0m\u001b[0;37m Rivian Automotive\u001b[0m',
-      '\u001b[1;36m LCID  \u001b[0m\u001b[0;37m Lucid Group\u001b[0m',
-      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```',
-      '```ansi',
-      '\u001b[1;32m━━━━━━━━━━━ ✈️ TRAVEL & TRANSPORTASI ━\u001b[0m',
-      '\u001b[1;36m DAL   \u001b[0m\u001b[0;37m Delta Air Lines\u001b[0m',
-      '\u001b[1;36m UAL   \u001b[0m\u001b[0;37m United Airlines\u001b[0m',
-      '\u001b[1;36m AAL   \u001b[0m\u001b[0;37m American Airlines\u001b[0m',
-      '\u001b[1;36m LUV   \u001b[0m\u001b[0;37m Southwest Airlines\u001b[0m',
-      '\u001b[1;36m MAR   \u001b[0m\u001b[0;37m Marriott International\u001b[0m',
-      '\u001b[1;36m HLT   \u001b[0m\u001b[0;37m Hilton Worldwide\u001b[0m',
-      '\u001b[1;36m CCL   \u001b[0m\u001b[0;37m Carnival Corporation\u001b[0m',
-      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```',
-      '```ansi',
-      '\u001b[1;35m━━━━━━━━━━━ 🎮 GAMING & HIBURAN ━━━━━\u001b[0m',
-      '\u001b[1;36m ATVI  \u001b[0m\u001b[0;37m Activision Blizzard\u001b[0m',
-      '\u001b[1;36m EA    \u001b[0m\u001b[0;37m Electronic Arts\u001b[0m',
-      '\u001b[1;36m TTWO  \u001b[0m\u001b[0;37m Take-Two Interactive\u001b[0m',
-      '\u001b[1;36m RBLX  \u001b[0m\u001b[0;37m Roblox Corporation\u001b[0m',
-      '\u001b[1;36m SONO  \u001b[0m\u001b[0;37m Sonos Inc.\u001b[0m',
-      '\u001b[1;36m IMAX  \u001b[0m\u001b[0;37m IMAX Corporation\u001b[0m',
-      '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```',
-      `> 💡 Cara pakai: \`/saham cek ticker:AAPL\` — \`/saham beli ticker:TSLA jumlah:5\``,
-      `> ⚠️ Ticker lain diluar list juga bisa dicoba pakai \`/saham cek\`!`,
-      `> 🤖 *Powered by OwoBim Stock Engine* <a:GifOwoBim:1492599199038967878>`
     ].join('\n'));
   }
 
