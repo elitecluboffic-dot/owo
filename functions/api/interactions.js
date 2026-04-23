@@ -4497,6 +4497,55 @@ if (cmd === 'pokedex') {
 
 
 
+    // ══════════════════════════════════════════════
+// CMD: pokemon — lihat detail 1 pokemon di koleksi
+// ══════════════════════════════════════════════
+if (cmd === 'pokemon') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const namaInput = getOption(options, 'nama')?.toLowerCase().trim();
+
+  const collRaw = await env.USERS_KV.get(`pokemon:${discordId}`);
+  const coll    = collRaw ? JSON.parse(collRaw) : [];
+
+  if (coll.length === 0) return respond(`> ${EMOJI} ❌ Kamu belum punya Pokémon!`);
+
+  const found = coll.find(p => p.name.toLowerCase() === namaInput);
+  if (!found) return respond(`> ${EMOJI} ❌ Pokémon **${namaInput}** tidak ada di koleksimu!\n> 💡 Cek \`/pokedex\` untuk lihat daftar koleksi.`);
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      embeds: [{
+        color: found.rarity === '🔴 Legendary' ? 0xFF0000
+          : found.rarity === '🟠 Epic' ? 0xFF6600
+          : found.rarity === '🟡 Rare' ? 0xFFD700
+          : found.rarity === '🟢 Uncommon' ? 0x00FF00 : 0xAAAAAA,
+        title: `📋 ${found.name.toUpperCase()} — Detail`,
+        description: [
+          '```ansi',
+          '\u001b[1;33m━━━━━━━━━━━━ 📋 INFO ━━━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  🏷️  Nama    :\u001b[0m \u001b[1;37m${found.name}\u001b[0m`,
+          `\u001b[1;36m  🌀  Tipe    :\u001b[0m \u001b[0;37m${found.types}\u001b[0m`,
+          `\u001b[1;36m  ⭐  Rarity  :\u001b[0m \u001b[0;37m${found.rarity}\u001b[0m`,
+          `\u001b[1;36m  ❤️  HP      :\u001b[0m \u001b[0;37m${found.hp}\u001b[0m`,
+          `\u001b[1;36m  ⚔️  ATK     :\u001b[0m \u001b[0;37m${found.atk}\u001b[0m`,
+          `\u001b[1;36m  🛡️  DEF     :\u001b[0m \u001b[0;37m${found.def}\u001b[0m`,
+          `\u001b[1;36m  💨  SPD     :\u001b[0m \u001b[0;37m${found.spd}\u001b[0m`,
+          `\u001b[1;36m  🔄  Jumlah  :\u001b[0m \u001b[0;37m${found.count || 1}x\u001b[0m`,
+          `\u001b[1;36m  #️⃣  ID      :\u001b[0m \u001b[0;37m#${String(found.id).padStart(4,'0')}\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```'
+        ].join('\n'),
+        image: { url: found.sprite },  // ← gambar full size di bawah
+        footer: { text: `OwoBim Pokémon System • Koleksi kamu` },
+        timestamp: new Date().toISOString()
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+
+
+
 
 
     // ══════════════════════════════════════════════
