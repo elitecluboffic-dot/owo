@@ -521,6 +521,18 @@ const commands = [
       ]
     }
   ]
+},
+  {
+  name: 'pokemon',
+  description: '🔍 Lihat detail & gambar Pokémon di koleksimu!',
+  options: [
+    {
+      name: 'nama',
+      description: 'Nama Pokémon yang mau dilihat',
+      type: 3,
+      required: true
+    }
+  ]
 }
 
   
