@@ -5123,7 +5123,7 @@ if (cmd === 'saham') {
         
 
         // ══════════════════════════════════════════
-        // AKSI: portofolio — lihat semua saham (FINAL FIX)
+        // AKSI: portofolio — lihat semua saham (ULTIMATE FIX)
         // ══════════════════════════════════════════
         if (sub === 'portofolio') {
           const portoKey = `saham:${discordId}`;
@@ -5147,25 +5147,37 @@ if (cmd === 'saham') {
           const hargaMap = {};
           const symbols  = tickers.join(',');
 
-          // --- LOGIKA BATCH FETCH (MENGGUNAKAN NAMA VARIABLE DASHBOARD) ---
+          // --- LOGIKA BATCH FETCH (FIXED ENV NAMES) ---
           let batchData = null;
+          // Menggunakan nama variabel sesuai dashboard kamu
           const TD_KEYS = [
             env.TWELVE_DATA_KEY_1, 
             env.TWELVE_DATA_KEY_2, 
             env.TWELVE_DATA_KEY_3
           ].filter(Boolean); 
 
+          // Jika kunci tidak terbaca sama sekali dari env
+          if (TD_KEYS.length === 0) {
+            return editFollowup(`> ❌ **Error:** API Keys tidak terbaca. Pastikan sudah input Secret di Dashboard Cloudflare dan sudah di-Deploy ulang.`);
+          }
+
           for (const key of TD_KEYS) {
             try {
               const url = `https://api.twelvedata.com/quote?symbol=${symbols}&apikey=${key}`;
               const res = await fetch(url);
+              
+              if (!res.ok) continue;
+
               const json = await res.json();
 
-              // Jika Twelve Data balas error (limit/apikey salah)
-              if (json.status === 'error' || json.code === 429) continue; 
+              // Jika Twelve Data balas error (limit habis atau apikey salah)
+              if (json.status === 'error' || json.code === 429) {
+                console.log(`API Key Limit/Error, mencoba key selanjutnya...`);
+                continue; 
+              }
               
               batchData = json;
-              break; 
+              break; // Berhasil, keluar dari loop key
             } catch (e) {
               continue;
             }
@@ -5173,7 +5185,7 @@ if (cmd === 'saham') {
 
           // Mapping hasil batch ke hargaMap
           tickers.forEach(t => {
-            // Logika struktur: Jika > 1 ticker, Twelve Data bungkus dalam property ticker-nya
+            // Struktur Twelve Data: Jika > 1 ticker, data dibungkus dalam key [ticker]
             const q = tickers.length > 1 ? batchData?.[t] : batchData;
             
             if (q && q.close && !q.status?.includes('error')) {
@@ -5182,7 +5194,7 @@ if (cmd === 'saham') {
                 nama: q.name || t
               };
             } else {
-              hargaMap[t] = null; // Mark as failed
+              hargaMap[t] = null; // Gagal fetch harga terbaru
             }
           });
           // ----------------------------------------------------------------
@@ -5196,7 +5208,6 @@ if (cmd === 'saham') {
             const modal = porto[t].avgBeli * porto[t].lot;
             
             if (!q) {
-              // Jika gagal, total nilai pakai harga modal (biar gak jantungan liat $0)
               totalModalUSD += modal;
               totalNilaiUSD += modal; 
               rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — \u001b[1;31mGagal muat harga\u001b[0m`);
@@ -5251,6 +5262,8 @@ if (cmd === 'saham') {
           ].join('\n'));
         }
 
+
+        
         // ══════════════════════════════════════════
         // AKSI: info — daftar saham tersedia
         // ══════════════════════════════════════════
