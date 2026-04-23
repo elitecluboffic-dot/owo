@@ -631,6 +631,19 @@ if (isSpamming) {
 • \`/deposit jumlah:10000\` atau \`/deposit jumlah:all\` → Masukkan uang ke bank
 • \`/withdraw jumlah:5000\` atau \`/withdraw jumlah:all\` → Ambil uang dari bank
 
+
+**🎰 Games:**
+- \`/slots jumlah:1000\` → Slot machine jackpot
+- \`/rps pilihan:batu\` → Rock Paper Scissors vs bot/user
+
+**⚡ Pokémon System:**
+- \`/spawn\` → Munculkan Pokémon liar (cooldown 1 menit)
+- \`/catch nama:pikachu\` → Tangkap Pokémon yang muncul
+- \`/pokedex\` → Lihat daftar koleksi Pokémon kamu
+- \`/pokemon nama:pikachu\` → Lihat detail + gambar 1 Pokémon
+- \`/gacha tier:basic\` → Beli Pokémon pakai coins
+  - ⚪ Basic: 25.000 coins | 🟡 Premium: 75.000 coins | 🔴 Legendary: 200.000 coins
+
 **Sosial & Fun:**
 • \`/marry target:@user\` → Melamar seseorang
 • \`/accept-marry\` → Terima lamaran
