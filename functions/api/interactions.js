@@ -4767,52 +4767,15 @@ if (cmd === 'gacha') {
 
 // ══════════════════════════════════════════════
 // CMD: saham — sistem saham virtual
+// Provider: Twelve Data API (800 req/hari, 8 req/menit free tier)
 // ══════════════════════════════════════════════
 if (cmd === 'saham') {
-  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
-  const AV_KEY = env.ALPHA_VANTAGE_KEY;
-  const sub = getOption(options, 'aksi');
-
-  // ── Helper: fetch harga saham dari Alpha Vantage + KV Cache 5 menit ──
-  const fetchHarga = async (ticker) => {
-    try {
-      // Cek cache KV dulu (TTL 5 menit = 300 detik)
-      const cacheKey = `saham_cache:${ticker}`;
-      const cached = await env.USERS_KV.get(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Date.now() - parsed.ts < 5 * 60 * 1000) return parsed.data;
-      }
-
-      const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${AV_KEY}`;
-      const res = await fetch(url);
-      const json = await res.json();
-      const q = json['Global Quote'];
-      if (!q || !q['05. price']) return null;
-
-      const data = {
-        ticker:    q['01. symbol'],
-        harga:     parseFloat(q['05. price']),
-        open:      parseFloat(q['02. open']),
-        high:      parseFloat(q['03. high']),
-        low:       parseFloat(q['04. low']),
-        prev:      parseFloat(q['08. previous close']),
-        change:    parseFloat(q['09. change']),
-        changePct: q['10. change percent'],
-        volume:    parseInt(q['06. volume']),
-        latest:    q['07. latest trading day'],
-      };
-
-      // Simpan ke cache KV dengan TTL 5 menit
-      await env.USERS_KV.put(cacheKey, JSON.stringify({ data, ts: Date.now() }), { expirationTtl: 300 });
-      return data;
-    } catch (e) {
-      return null;
-    }
-  };
+  const EMOJI   = '<a:GifOwoBim:1492599199038967878>';
+  const TD_KEY  = env.TWELVE_DATA_KEY; // ganti env var dari ALPHA_VANTAGE_KEY → TWELVE_DATA_KEY
+  const sub     = getOption(options, 'aksi');
 
   // ── Helper: format angka ──
-  const fmt    = (n) => n.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+  const fmt    = (n) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: 2 });
   const fmtUSD = (n) => `$${fmt(n)}`;
 
   // ── Helper: edit deferred message ──
@@ -4823,16 +4786,86 @@ if (cmd === 'saham') {
   const editFollowup = async (content) => {
     try {
       await fetch(`${DISCORD_API}/webhooks/${appId}/${iToken}/messages/@original`, {
-        method: 'PATCH',
+        method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body:    JSON.stringify({ content }),
       });
-    } catch (e) {
-      // silent fail
+    } catch (_) { /* silent fail */ }
+  };
+
+  // ══════════════════════════════════════════════
+  // Helper: fetch harga saham dari Twelve Data + KV Cache 15 menit
+  // Twelve Data /quote response fields:
+  //   symbol, name, exchange, open, high, low, close, previous_close,
+  //   change, percent_change, volume, fifty_two_week.{low,high}
+  // ══════════════════════════════════════════════
+  const fetchHarga = async (ticker) => {
+    try {
+      // 1. Cek global rate-limit flag (dipasang saat kena 429 / limit)
+      const rlFlag = await env.USERS_KV.get('saham_ratelimit');
+      if (rlFlag) return { rateLimited: true };
+
+      // 2. Cek cache per-ticker (TTL 15 menit)
+      const cacheKey = `saham_cache:${ticker}`;
+      const cached   = await env.USERS_KV.get(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.ts < 15 * 60 * 1000) return parsed.data;
+      }
+
+      // 3. Fetch ke Twelve Data
+      const url = `https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${TD_KEY}`;
+      const res  = await fetch(url);
+      const json = await res.json();
+
+      // 4. Deteksi rate limit / API error
+      if (json.status === 'error') {
+        // code 429 = too many requests, code 400 = bad symbol
+        if (json.code === 429) {
+          await env.USERS_KV.put('saham_ratelimit', '1', { expirationTtl: 65 });
+          return { rateLimited: true };
+        }
+        // ticker tidak valid
+        return null;
+      }
+
+      // 5. Validasi data
+      if (!json.close || json.close === 'N/A') return null;
+
+      const changePct = parseFloat(json.percent_change || 0);
+
+      const data = {
+        ticker:      json.symbol,
+        nama:        json.name || json.symbol,
+        exchange:    json.exchange || '',
+        harga:       parseFloat(json.close),
+        open:        parseFloat(json.open),
+        high:        parseFloat(json.high),
+        low:         parseFloat(json.low),
+        prev:        parseFloat(json.previous_close),
+        change:      parseFloat(json.change),
+        changePct:   changePct.toFixed(2) + '%',
+        changePctRaw: changePct,
+        volume:      parseInt(json.volume || 0),
+        latest:      json.datetime || '',
+        high52:      parseFloat(json.fifty_two_week?.high || 0),
+        low52:       parseFloat(json.fifty_two_week?.low || 0),
+      };
+
+      // 6. Simpan cache 15 menit
+      await env.USERS_KV.put(
+        cacheKey,
+        JSON.stringify({ data, ts: Date.now() }),
+        { expirationTtl: 900 }
+      );
+      return data;
+
+    } catch (_) {
+      return null;
     }
   };
 
-  // ── Aksi yang butuh defer (termasuk info karena konten panjang) ──
+  // ── Aksi yang butuh defer ──
   const DEFER_ACTIONS = ['cek', 'beli', 'jual', 'portofolio', 'top', 'info'];
 
   if (DEFER_ACTIONS.includes(sub)) {
@@ -4847,38 +4880,47 @@ if (cmd === 'saham') {
           if (!ticker) return editFollowup(`${EMOJI} ❌ Masukkan ticker saham! Contoh: \`AAPL\`, \`GOOGL\`, \`TSLA\``);
 
           const q = await fetchHarga(ticker);
-          if (!q) return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan atau API limit tercapai!`);
+          if (!q)              return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan! Cek kode sahamnya.`);
+          if (q.rateLimited)   return editFollowup(`${EMOJI} ⏳ API limit tercapai! Coba lagi dalam **1 menit**.\n> 💡 Free tier Twelve Data: 800 req/hari & 8 req/menit.`);
 
           const naik   = q.change >= 0;
           const arrow  = naik ? '📈' : '📉';
           const color  = naik ? '\u001b[1;32m' : '\u001b[1;31m';
-          const pct    = Math.abs(parseFloat(q.changePct));
+          const pct    = Math.abs(q.changePctRaw);
           const barLen = Math.min(Math.round(pct * 2), 10);
           const bar    = (naik ? '█' : '▓').repeat(barLen) + '░'.repeat(10 - barLen);
+
+          // 52-week position bar (0–10 scale)
+          const range52  = q.high52 - q.low52;
+          const pos52    = range52 > 0 ? Math.round(((q.harga - q.low52) / range52) * 10) : 5;
+          const bar52    = '─'.repeat(Math.max(0, pos52 - 1)) + '◆' + '─'.repeat(Math.max(0, 10 - pos52));
 
           return editFollowup([
             '```ansi',
             '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-            `\u001b[2;34m║  \u001b[1;33m${arrow}  STOCK QUOTE  ${arrow}\u001b[0m  \u001b[2;34m║\u001b[0m`,
+            `\u001b[2;34m║  \u001b[1;33m${arrow}  STOCK QUOTE  ${arrow}\u001b[0m             \u001b[2;34m║\u001b[0m`,
             '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
             '```',
-            `${EMOJI} 🏷️ **${q.ticker}** — Harga Saham Real-Time`,
+            `${EMOJI} 🏷️ **${q.ticker}** — ${q.nama} (${q.exchange})`,
             '```ansi',
             '\u001b[1;33m━━━━━━━━━━━ 💰 HARGA INFO ━━━━━━━━━━━\u001b[0m',
-            `\u001b[1;36m 💵  Harga Saat Ini:\u001b[0m ${color}${fmtUSD(q.harga)}\u001b[0m`,
-            `\u001b[1;36m 🔓  Open          :\u001b[0m \u001b[0;37m${fmtUSD(q.open)}\u001b[0m`,
-            `\u001b[1;36m 🔺  High          :\u001b[0m \u001b[0;37m${fmtUSD(q.high)}\u001b[0m`,
-            `\u001b[1;36m 🔻  Low           :\u001b[0m \u001b[0;37m${fmtUSD(q.low)}\u001b[0m`,
-            `\u001b[1;36m 🔒  Prev Close    :\u001b[0m \u001b[0;37m${fmtUSD(q.prev)}\u001b[0m`,
+            `\u001b[1;36m 💵  Harga Saat Ini :\u001b[0m ${color}${fmtUSD(q.harga)}\u001b[0m`,
+            `\u001b[1;36m 🔓  Open           :\u001b[0m \u001b[0;37m${fmtUSD(q.open)}\u001b[0m`,
+            `\u001b[1;36m 🔺  High           :\u001b[0m \u001b[0;37m${fmtUSD(q.high)}\u001b[0m`,
+            `\u001b[1;36m 🔻  Low            :\u001b[0m \u001b[0;37m${fmtUSD(q.low)}\u001b[0m`,
+            `\u001b[1;36m 🔒  Prev Close     :\u001b[0m \u001b[0;37m${fmtUSD(q.prev)}\u001b[0m`,
             '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '\u001b[1;32m━━━━━━━━━━━ 📊 PERUBAHAN ━━━━━━━━━━━━\u001b[0m',
-            `\u001b[1;36m ${arrow}  Perubahan    :\u001b[0m ${color}${naik ? '+' : ''}${fmtUSD(q.change)} (${q.changePct})\u001b[0m`,
-            `\u001b[1;36m 📊  Grafik       :\u001b[0m ${color}\`${bar}\`\u001b[0m`,
-            `\u001b[1;36m 📦  Volume       :\u001b[0m \u001b[0;37m${q.volume.toLocaleString()}\u001b[0m`,
-            `\u001b[1;36m 📅  Trading Day  :\u001b[0m \u001b[0;37m${q.latest}\u001b[0m`,
-            '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m ${arrow}  Perubahan     :\u001b[0m ${color}${naik ? '+' : ''}${fmtUSD(q.change)} (${q.changePct})\u001b[0m`,
+            `\u001b[1;36m 📊  Grafik        :\u001b[0m ${color}\`${bar}\`\u001b[0m`,
+            `\u001b[1;36m 📦  Volume        :\u001b[0m \u001b[0;37m${q.volume.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m 📅  Tanggal       :\u001b[0m \u001b[0;37m${q.latest}\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;35m━━━━━━━━━━━ 📆 52-WEEK RANGE ━━━━━━━━\u001b[0m',
+            `\u001b[0;37m ${fmtUSD(q.low52)} \u001b[1;33m[${bar52}]\u001b[0m \u001b[0;37m${fmtUSD(q.high52)}\u001b[0m`,
+            '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
-            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+            `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
           ].join('\n'));
         }
 
@@ -4889,12 +4931,13 @@ if (cmd === 'saham') {
           const ticker = getOption(options, 'ticker')?.toUpperCase();
           const jumlah = parseInt(getOption(options, 'jumlah') || '1');
 
-          if (!ticker) return editFollowup(`${EMOJI} ❌ Masukkan ticker saham!`);
-          if (!jumlah || jumlah <= 0) return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
-          if (jumlah > 10000) return editFollowup(`${EMOJI} ❌ Maksimal beli **10.000 lot** sekaligus!`);
+          if (!ticker)                 return editFollowup(`${EMOJI} ❌ Masukkan ticker saham!`);
+          if (!jumlah || jumlah <= 0)  return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
+          if (jumlah > 10000)          return editFollowup(`${EMOJI} ❌ Maksimal beli **10.000 lot** sekaligus!`);
 
           const q = await fetchHarga(ticker);
-          if (!q) return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan atau API limit!`);
+          if (!q)            return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan!`);
+          if (q.rateLimited) return editFollowup(`${EMOJI} ⏳ API limit tercapai! Coba lagi dalam **1 menit**.`);
 
           const RATE         = 16000;
           const hargaPerLot  = q.harga;
@@ -4925,7 +4968,7 @@ if (cmd === 'saham') {
             const avgBeli  = ((porto[ticker].avgBeli * porto[ticker].lot) + (hargaPerLot * jumlah)) / totalLot;
             porto[ticker]  = { ...porto[ticker], lot: totalLot, avgBeli };
           } else {
-            porto[ticker] = { ticker, lot: jumlah, avgBeli: hargaPerLot, beliAt: Date.now() };
+            porto[ticker] = { ticker, nama: q.nama, lot: jumlah, avgBeli: hargaPerLot, beliAt: Date.now() };
           }
 
           user.balance -= totalCowoncy;
@@ -4947,10 +4990,11 @@ if (cmd === 'saham') {
             '\u001b[1;32m║  ✅  PEMBELIAN BERHASIL!  ✅        ║\u001b[0m',
             '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
             '```',
-            `${EMOJI} 📈 Berhasil beli **${jumlah} lot** saham **${ticker}**!`,
+            `${EMOJI} 📈 Berhasil beli **${jumlah} lot** saham **${ticker}** (${q.nama})!`,
             '```ansi',
             '\u001b[1;33m━━━━━━━━━━━ 📋 DETAIL BELI ━━━━━━━━━━\u001b[0m',
             `\u001b[1;36m 🏷️  Ticker      :\u001b[0m \u001b[1;37m${ticker}\u001b[0m`,
+            `\u001b[1;36m 🏢  Perusahaan  :\u001b[0m \u001b[0;37m${q.nama}\u001b[0m`,
             `\u001b[1;36m 📦  Jumlah Lot  :\u001b[0m \u001b[0;37m${jumlah} lot\u001b[0m`,
             `\u001b[1;36m 💵  Harga/Lot   :\u001b[0m \u001b[0;37m${fmtUSD(hargaPerLot)}\u001b[0m`,
             `\u001b[1;36m 💰  Total USD   :\u001b[0m \u001b[0;37m${fmtUSD(totalUSD)}\u001b[0m`,
@@ -4960,7 +5004,7 @@ if (cmd === 'saham') {
             '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
             `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
-            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+            `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
           ].join('\n'));
         }
 
@@ -4985,13 +5029,12 @@ if (cmd === 'saham') {
           }
 
           const jumlah = jumlahRaw === 'all' ? porto[ticker].lot : parseInt(jumlahRaw || '1');
-          if (!jumlah || jumlah <= 0) return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
-          if (jumlah > porto[ticker].lot) {
-            return editFollowup(`${EMOJI} ❌ Kamu cuma punya **${porto[ticker].lot} lot** saham **${ticker}**!`);
-          }
+          if (!jumlah || jumlah <= 0)         return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
+          if (jumlah > porto[ticker].lot)     return editFollowup(`${EMOJI} ❌ Kamu cuma punya **${porto[ticker].lot} lot** saham **${ticker}**!`);
 
           const q = await fetchHarga(ticker);
-          if (!q) return editFollowup(`${EMOJI} ❌ Gagal ambil harga **${ticker}**!`);
+          if (!q)            return editFollowup(`${EMOJI} ❌ Gagal ambil harga **${ticker}**! Ticker mungkin tidak valid.`);
+          if (q.rateLimited) return editFollowup(`${EMOJI} ⏳ API limit tercapai! Coba lagi dalam **1 menit**.`);
 
           const RATE          = 16000;
           const hargaJual     = q.harga;
@@ -5052,7 +5095,7 @@ if (cmd === 'saham') {
             `\u001b[1;36m 💳  Saldo Baru  :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
             '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
-            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+            `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
           ].join('\n'));
         }
 
@@ -5077,10 +5120,12 @@ if (cmd === 'saham') {
             ].join('\n'));
           }
 
-          const RATE     = 16000;
-          const fetched  = await Promise.all(tickers.map(t => fetchHarga(t)));
+          const RATE    = 16000;
+          // Fetch satu per satu secara serial untuk hindari burst rate limit
           const hargaMap = {};
-          tickers.forEach((t, i) => { hargaMap[t] = fetched[i]; });
+          for (const t of tickers) {
+            hargaMap[t] = await fetchHarga(t);
+          }
 
           let totalModalUSD = 0;
           let totalNilaiUSD = 0;
@@ -5088,8 +5133,14 @@ if (cmd === 'saham') {
 
           for (const t of tickers) {
             const q = hargaMap[t];
-            if (!q) {
-              rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — Gagal fetch harga\u001b[0m`);
+            if (!q || q.rateLimited) {
+              const label = q?.rateLimited ? 'API limit — coba lagi' : 'Gagal fetch harga';
+              rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — ${label}\u001b[0m`);
+              // Gunakan avgBeli sebagai estimasi harga jika rata-limit
+              if (q?.rateLimited) {
+                totalModalUSD += porto[t].avgBeli * porto[t].lot;
+                totalNilaiUSD += porto[t].avgBeli * porto[t].lot;
+              }
               continue;
             }
             const modal  = porto[t].avgBeli * porto[t].lot;
@@ -5104,7 +5155,7 @@ if (cmd === 'saham') {
             totalNilaiUSD += nilai;
 
             rows.push(
-              `\u001b[1;33m 📌 ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot @ ${fmtUSD(porto[t].avgBeli)}\u001b[0m`,
+              `\u001b[1;33m 📌 ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot @ ${fmtUSD(porto[t].avgBeli)}\u001b[0m \u001b[2;37m(${q.nama})\u001b[0m`,
               `\u001b[1;36m    Harga Kini : \u001b[0m\u001b[0;37m${fmtUSD(q.harga)}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
               `\u001b[1;36m    P/L       : \u001b[0m${clr}${sign}${fmtUSD(profit)} (${sign}🪙${Math.floor(profit * RATE).toLocaleString()})\u001b[0m`,
               ''
@@ -5120,7 +5171,7 @@ if (cmd === 'saham') {
           return editFollowup([
             '```ansi',
             '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-            `\u001b[2;34m║  \u001b[1;33m📊  PORTOFOLIO SAHAM  📊\u001b[0m  \u001b[2;34m║\u001b[0m`,
+            `\u001b[2;34m║  \u001b[1;33m📊  PORTOFOLIO SAHAM  📊\u001b[0m           \u001b[2;34m║\u001b[0m`,
             '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
             '```',
             `${EMOJI} 💼 **${username}** — Portofolio Saham`,
@@ -5137,12 +5188,13 @@ if (cmd === 'saham') {
             '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
             `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
-            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+            `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
           ].join('\n'));
         }
 
         // ══════════════════════════════════════════
         // AKSI: top — top saham populer
+        // Cache hasil keseluruhan 15 menit (hemat 10 request sekaligus)
         // ══════════════════════════════════════════
         if (sub === 'top') {
           const TOP_TICKERS = [
@@ -5150,10 +5202,37 @@ if (cmd === 'saham') {
             'TSLA', 'META', 'NFLX', 'AMD', 'INTC'
           ];
 
-          const fetched = await Promise.all(TOP_TICKERS.map(t => fetchHarga(t)));
-          const results = fetched.filter(Boolean);
+          // Cek cache top dulu (15 menit)
+          const topCacheKey = 'saham_top_cache';
+          const topCached   = await env.USERS_KV.get(topCacheKey);
+          let results;
 
-          results.sort((a, b) => parseFloat(b.changePct) - parseFloat(a.changePct));
+          if (topCached) {
+            const parsed = JSON.parse(topCached);
+            if (Date.now() - parsed.ts < 15 * 60 * 1000) {
+              results = parsed.data;
+            }
+          }
+
+          if (!results) {
+            // Fetch serial (bukan parallel) untuk hindari burst 8 req/menit
+            const fetched = [];
+            for (const t of TOP_TICKERS) {
+              const q = await fetchHarga(t);
+              if (q && !q.rateLimited) fetched.push(q);
+              else if (q?.rateLimited) break; // stop kalau kena limit
+            }
+            results = fetched;
+            if (results.length > 0) {
+              await env.USERS_KV.put(topCacheKey, JSON.stringify({ data: results, ts: Date.now() }), { expirationTtl: 900 });
+            }
+          }
+
+          if (results.length === 0) {
+            return editFollowup(`${EMOJI} ⏳ API limit tercapai! Data top saham tidak tersedia saat ini. Coba lagi dalam **1 menit**.`);
+          }
+
+          results.sort((a, b) => b.changePctRaw - a.changePctRaw);
 
           const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
           const rows = results.map((q, i) => {
@@ -5170,10 +5249,10 @@ if (cmd === 'saham') {
           return editFollowup([
             '```ansi',
             '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-            `\u001b[2;34m║  \u001b[1;33m🏆  TOP SAHAM HARI INI  🏆\u001b[0m  \u001b[2;34m║\u001b[0m`,
+            `\u001b[2;34m║  \u001b[1;33m🏆  TOP SAHAM HARI INI  🏆\u001b[0m         \u001b[2;34m║\u001b[0m`,
             '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
             '```',
-            `${EMOJI} 📊 **Top 10 Saham** — Sorted by Performance`,
+            `${EMOJI} 📊 **Top ${results.length} Saham** — Sorted by Performance`,
             '```ansi',
             '\u001b[1;33m━━━━ TICKER ━━ HARGA ━━━━━━ CHANGE ━━━━\u001b[0m',
             ...rows,
@@ -5181,12 +5260,12 @@ if (cmd === 'saham') {
             `\u001b[1;32m 📈 Naik: ${gainers}\u001b[0m  \u001b[1;31m📉 Turun: ${losers}\u001b[0m`,
             '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
-            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+            `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
           ].join('\n'));
         }
 
         // ══════════════════════════════════════════
-        // AKSI: info — daftar semua saham (pakai defer karena konten panjang)
+        // AKSI: info — daftar saham tersedia
         // ══════════════════════════════════════════
         if (sub === 'info') {
           return editFollowup([
@@ -5214,8 +5293,8 @@ if (cmd === 'saham') {
             '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
             `> 💡 \`/saham cek ticker:AAPL\` — \`/saham beli ticker:TSLA jumlah:5\``,
-            `> ⚠️ Ticker diluar list juga bisa dicoba!`,
-            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+            `> ⚠️ Ticker di luar list juga bisa dicoba selama ada di bursa US!`,
+            `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
           ].join('\n'));
         }
 
@@ -5242,8 +5321,11 @@ if (cmd === 'saham') {
       return respond(`${EMOJI} 📭 Belum ada riwayat transaksi saham!`);
     }
 
+    const fmt    = (n) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: 2 });
+    const fmtUSD = (n) => `$${fmt(n)}`;
+
     const rows = hist.slice(0, 15).map((h, i) => {
-      const tgl     = new Date(h.at).toLocaleDateString('id-ID', {
+      const tgl    = new Date(h.at).toLocaleDateString('id-ID', {
         day: '2-digit', month: 'short', year: '2-digit',
         hour: '2-digit', minute: '2-digit'
       });
@@ -5260,7 +5342,7 @@ if (cmd === 'saham') {
     return respond([
       '```ansi',
       '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-      `\u001b[2;34m║  \u001b[1;33m📜  HISTORY TRANSAKSI  📜\u001b[0m  \u001b[2;34m║\u001b[0m`,
+      `\u001b[2;34m║  \u001b[1;33m📜  HISTORY TRANSAKSI  📜\u001b[0m          \u001b[2;34m║\u001b[0m`,
       '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
       '```',
       `${EMOJI} 📋 **${username}** — 15 Transaksi Terakhir`,
@@ -5269,7 +5351,7 @@ if (cmd === 'saham') {
       rows.join('\n\n'),
       '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
       '```',
-      `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+      `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
     ].join('\n'));
   }
 
