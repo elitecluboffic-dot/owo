@@ -766,6 +766,7 @@ if (warningStr) {
         msg = `**${username}** taruh 🪙 ${bet.toLocaleString()} → **KALAH** :c\nSisa: 🪙 **${user.balance.toLocaleString()}**`;
       }
       await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+      waitUntil(pushLinkedRole(env, discordId, null, user));
       return respond(msg);
     }
 
@@ -800,6 +801,7 @@ if (warningStr) {
       user.totalEarned = (user.totalEarned || 0) + 15000;
       user.lastDaily = now;
       await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+      waitUntil(pushLinkedRole(env, discordId, null, user));
       return respond(`✅ Daily berhasil! +🪙 **15.000**\nSaldo: 🪙 **${user.balance.toLocaleString()}**`);
     }
 
@@ -817,6 +819,7 @@ if (warningStr) {
       user.totalEarned = (user.totalEarned || 0) + 25000;
       user.lastKerja = now;
       await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+      waitUntil(pushLinkedRole(env, discordId, null, user));
       return respond(`✅ Kamu sudah bekerja keras! +🪙 **25.000**\nSaldo: 🪙 **${user.balance.toLocaleString()}**`);
     }
 
@@ -4119,6 +4122,7 @@ if (cmd === 'slots') {
   }
   user.slotStats = slotStats;
   await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+  waitUntil(pushLinkedRole(env, discordId, null, user));
 
   const isJackpot = maxMatch === 5;
   const winRate   = slotStats.spin > 0 ? ((slotStats.wins / slotStats.spin) * 100).toFixed(1) : '0.0';
@@ -4426,6 +4430,7 @@ if (cmd === 'catch') {
   if (spawnData.rarity === '🟡 Rare') pokeStats.rare++;
   user.pokeStats = pokeStats;
   await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+  waitUntil(pushLinkedRole(env, discordId, null, user));
 
   const waktu = new Date().toLocaleString('id-ID', {
     timeZone: 'Asia/Jakarta', day: '2-digit',
@@ -4712,6 +4717,7 @@ if (cmd === 'gacha') {
   if (rarity === '🟡 Rare') pokeStats.rare++;
   user.pokeStats = pokeStats;
   await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+  waitUntil(pushLinkedRole(env, discordId, null, user));
 
   return new Response(JSON.stringify({
     type: 4,
@@ -4897,4 +4903,81 @@ async function checkSpam(env, discordId, username, guildId, channelId, cmdName, 
   }
 
   return isSpam;
+}
+
+
+// ==================== LINKED ROLE HELPER ====================
+async function pushLinkedRole(env, discordId, accessToken, user) {
+  try {
+    // Cek & refresh token kalau expired
+    const oauthRaw = await env.USERS_KV.get(`oauth:${discordId}`);
+    if (!oauthRaw) return; // User belum connect linked role
+
+    const oauth = JSON.parse(oauthRaw);
+    let token = accessToken || oauth.access_token;
+
+    // Refresh kalau expired
+    if (!accessToken && Date.now() > oauth.expires_at - 60000) {
+      const refreshRes = await fetch('https://discord.com/api/v10/oauth2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: env.APP_ID,
+          client_secret: env.DISCORD_CLIENT_SECRET,
+          grant_type: 'refresh_token',
+          refresh_token: oauth.refresh_token,
+        }),
+      });
+      const newTokens = await refreshRes.json();
+      if (!newTokens.access_token) return;
+
+      token = newTokens.access_token;
+      await env.USERS_KV.put(`oauth:${discordId}`, JSON.stringify({
+        access_token: newTokens.access_token,
+        refresh_token: newTokens.refresh_token,
+        expires_at: Date.now() + (newTokens.expires_in * 1000)
+      }), { expirationTtl: 86400 * 30 });
+    }
+
+    // Hitung data
+    const collRaw = await env.USERS_KV.get(`pokemon:${discordId}`);
+    const coll = collRaw ? JSON.parse(collRaw) : [];
+    const totalPokemon = coll.length;
+    const level = user ? getLevelNumber(user.totalEarned || 0) : 0;
+    const saldo = user ? (user.balance || 0) : 0;
+    const isRegistered = user ? 1 : 0;
+
+    // Push ke Discord
+    await fetch(`https://discord.com/api/v10/users/@me/applications/${env.APP_ID}/role-connection`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        platform_name: 'OWO BIM',
+        metadata: {
+          is_registered: isRegistered,
+          balance: saldo,
+          level: level,
+          total_pokemon: totalPokemon,
+        },
+      }),
+    });
+  } catch (e) {
+    console.error('[LINKED ROLE] Error:', e.message);
+  }
+}
+
+function getLevelNumber(totalEarned) {
+  if (totalEarned >= 1000000) return 10;
+  if (totalEarned >= 500000)  return 9;
+  if (totalEarned >= 250000)  return 8;
+  if (totalEarned >= 100000)  return 7;
+  if (totalEarned >= 50000)   return 6;
+  if (totalEarned >= 25000)   return 5;
+  if (totalEarned >= 10000)   return 4;
+  if (totalEarned >= 5000)    return 3;
+  if (totalEarned >= 2000)    return 2;
+  return 1;
 }
