@@ -5123,7 +5123,7 @@ if (cmd === 'saham') {
         
 
         // ══════════════════════════════════════════
-        // AKSI: portofolio — lihat semua saham (OPTIMIZED)
+        // AKSI: portofolio — lihat semua saham (FINAL FIX)
         // ══════════════════════════════════════════
         if (sub === 'portofolio') {
           const portoKey = `saham:${discordId}`;
@@ -5147,9 +5147,13 @@ if (cmd === 'saham') {
           const hargaMap = {};
           const symbols  = tickers.join(',');
 
-          // --- LOGIKA BATCH FETCH (OPTIMASI UTAMA) ---
+          // --- LOGIKA BATCH FETCH (MENGGUNAKAN NAMA VARIABLE DASHBOARD) ---
           let batchData = null;
-          const TD_KEYS = [env.TD_KEY1, env.TD_KEY2, env.TD_KEY3].filter(Boolean); // Sesuaikan nama variabel env kamu
+          const TD_KEYS = [
+            env.TWELVE_DATA_KEY_1, 
+            env.TWELVE_DATA_KEY_2, 
+            env.TWELVE_DATA_KEY_3
+          ].filter(Boolean); 
 
           for (const key of TD_KEYS) {
             try {
@@ -5157,7 +5161,9 @@ if (cmd === 'saham') {
               const res = await fetch(url);
               const json = await res.json();
 
-              if (json.status === 'error' && json.code === 429) continue; // Limit, coba key berikutnya
+              // Jika Twelve Data balas error (limit/apikey salah)
+              if (json.status === 'error' || json.code === 429) continue; 
+              
               batchData = json;
               break; 
             } catch (e) {
@@ -5167,8 +5173,7 @@ if (cmd === 'saham') {
 
           // Mapping hasil batch ke hargaMap
           tickers.forEach(t => {
-            // Twelve Data balikin object langsung kalau cuma 1 ticker, 
-            // atau nested object kalau banyak ticker.
+            // Logika struktur: Jika > 1 ticker, Twelve Data bungkus dalam property ticker-nya
             const q = tickers.length > 1 ? batchData?.[t] : batchData;
             
             if (q && q.close && !q.status?.includes('error')) {
@@ -5177,10 +5182,10 @@ if (cmd === 'saham') {
                 nama: q.name || t
               };
             } else {
-              hargaMap[t] = null; // Gagal fetch
+              hargaMap[t] = null; // Mark as failed
             }
           });
-          // -------------------------------------------
+          // ----------------------------------------------------------------
 
           let totalModalUSD = 0;
           let totalNilaiUSD = 0;
@@ -5191,7 +5196,7 @@ if (cmd === 'saham') {
             const modal = porto[t].avgBeli * porto[t].lot;
             
             if (!q) {
-              // Jika gagal fetch, pakai harga modal supaya total tidak kacau
+              // Jika gagal, total nilai pakai harga modal (biar gak jantungan liat $0)
               totalModalUSD += modal;
               totalNilaiUSD += modal; 
               rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — \u001b[1;31mGagal muat harga\u001b[0m`);
