@@ -5142,9 +5142,14 @@ if (cmd === 'saham') {
 
           const RATE     = 16000;
           const hargaMap = {};
-          for (const t of tickers) {
-            hargaMap[t] = await fetchHarga(t);
-          }
+const results = await Promise.all(
+  tickers.map(t => fetchHarga(t))
+);
+
+tickers.forEach((t, i) => {
+  hargaMap[t] = results[i];
+});
+          
 
           let totalModalUSD = 0;
           let totalNilaiUSD = 0;
