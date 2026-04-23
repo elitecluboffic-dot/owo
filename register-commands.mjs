@@ -537,7 +537,7 @@ const commands = [
 
 
 
-  {
+{
   "name": "saham",
   "description": "Sistem saham virtual",
   "options": [
@@ -547,7 +547,8 @@ const commands = [
       {"name": "jual", "value": "jual"},
       {"name": "portofolio", "value": "portofolio"},
       {"name": "history", "value": "history"},
-      {"name": "top", "value": "top"}
+      {"name": "top", "value": "top"},
+      {"name": "info", "value": "info"}
     ]},
     { "name": "ticker", "type": 3, "required": false, "description": "Kode saham (contoh: AAPL, TSLA)" },
     { "name": "jumlah", "type": 3, "required": false, "description": "Jumlah lot (atau 'all' untuk jual semua)" }
