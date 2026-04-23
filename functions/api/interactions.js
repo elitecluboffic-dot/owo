@@ -5121,14 +5121,15 @@ if (cmd === 'saham') {
 
         
         
+
 // ══════════════════════════════════════════
 // AKSI: portofolio — lihat semua saham
 // ══════════════════════════════════════════
 if (sub === 'portofolio') {
   const portoKey = `saham:${discordId}`;
-  const cacheKey = `cache:porto:${discordId}`; // Key untuk cache render
+  const cacheKey = `cache:porto:${discordId}`;
 
-  // 1. CEK CACHE DULU (Supaya API aman dari rate limit)
+  // 1. CEK CACHE DULU
   const cachedRender = await env.USERS_KV.get(cacheKey);
   if (cachedRender) {
     const data = JSON.parse(cachedRender);
@@ -5140,31 +5141,27 @@ if (sub === 'portofolio') {
   const tickers  = Object.keys(porto);
 
   if (tickers.length === 0) {
-    return editFollowup([
-      '```ansi',
-      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-      '\u001b[2;34m║  \u001b[1;31m📭  PORTOFOLIO KOSONG  📭\u001b[0m  \u001b[2;34m║\u001b[0m',
-      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-      '```',
-      `> ${EMOJI} Kamu belum punya saham!`,
-      `> 💡 Gunakan \`/saham beli ticker:AAPL jumlah:1\` untuk mulai.`
-    ].join('\n'));
+    return editFollowup('```ansi\n\u001b[1;31m📭 PORTOFOLIO KOSONG\u001b[0m\n```');
   }
 
   const RATE     = 16000;
   const hargaMap = {};
 
-  // 2. FETCH HARGA (Tetap menggunakan Promise.allSettled agar cepat)
-  const results = await Promise.allSettled(tickers.map(t => fetchHarga(t)));
-
-  tickers.forEach((t, i) => {
-    const res = results[i];
-    if (res.status !== 'fulfilled' || !res.value || res.value.rateLimited) {
+  // 2. SEQUENTIAL FETCH (Fix Utama: Ambil satu-satu dengan jeda agar tidak loading/stuck)
+  for (const t of tickers) {
+    try {
+      const q = await fetchHarga(t);
+      if (q && !q.rateLimited) {
+        hargaMap[t] = q;
+      } else {
+        hargaMap[t] = null;
+      }
+      // Tambahkan sedikit delay 100ms antar request agar API tidak kaget
+      await new Promise(r => setTimeout(r, 100)); 
+    } catch (e) {
       hargaMap[t] = null;
-    } else {
-      hargaMap[t] = res.value;
     }
-  });
+  }
 
   let totalModalUSD = 0;
   let totalNilaiUSD = 0;
@@ -5175,10 +5172,10 @@ if (sub === 'portofolio') {
     const modal = porto[t].avgBeli * porto[t].lot;
     totalModalUSD += modal;
 
-    if (!q || q.rateLimited) {
-      const label = q?.rateLimited ? 'Semua API key limit — coba lagi' : 'Gagal fetch harga';
-      rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — ${label}\u001b[0m`);
-      totalNilaiUSD += modal; // Anggap harga tetap jika gagal
+    if (!q) {
+      // Jika fetch gagal, tampilkan harga modal agar total tidak kacau
+      rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — API Busy/Limit\u001b[0m`);
+      totalNilaiUSD += modal; 
       continue;
     }
 
@@ -5205,7 +5202,7 @@ if (sub === 'portofolio') {
   const totalClr       = totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
   const totalSign      = totalUntung ? '+' : '';
 
-  // 3. GENERATE FINAL MESSAGE (Gaya visual asli kamu)
+  // 3. GENERATE FINAL MESSAGE
   const finalContent = [
     '```ansi',
     '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
@@ -5226,10 +5223,10 @@ if (sub === 'portofolio') {
     '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
     '```',
     `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
-    `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
+    `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
   ].join('\n');
 
-  // 4. SIMPAN KE CACHE (Selama 5 menit / 300 detik)
+  // 4. SIMPAN KE CACHE
   await env.USERS_KV.put(cacheKey, JSON.stringify({
     content: finalContent,
     ts: Date.now()
