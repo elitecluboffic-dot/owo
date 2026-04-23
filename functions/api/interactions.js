@@ -4014,7 +4014,6 @@ if (cmd === 'slots') {
   };
 
   const reels = Array.from({ length: 5 }, () => spinOne());
-  const syms  = reels.map(r => r.s);
 
   const freq = {};
   for (const r of reels) freq[r.name] = (freq[r.name] || 0) + 1;
@@ -4022,28 +4021,25 @@ if (cmd === 'slots') {
   const topSym   = reels.find(r => freq[r.name] === maxMatch);
 
   const MULT = {
-    // 5 sama — jackpot, tetap langka & worth it
     'Diamond-5': 300, 'Lucky7-5': 150, 'Clover-5': 80,
     'Star-5': 40,     'Bell-5': 25,    'Grape-5': 15,
     'Lemon-5': 10,    'Cherry-5': 8,
-    // 4 sama — lumayan
     'Diamond-4': 30,  'Lucky7-4': 18,  'Clover-4': 10,
     'Star-4': 7,      'Bell-4': 5,     'Grape-4': 4,
     'Lemon-4': 3,     'Cherry-4': 2.5,
-    // 3 sama — sering terjadi, hadiahnya kecil tapi ada
     'Diamond-3': 6,   'Lucky7-3': 4,   'Clover-3': 2.5,
     'Star-3': 2,      'Bell-3': 1.8,   'Grape-3': 1.5,
     'Lemon-3': 1.3,   'Cherry-3': 1.2,
-    // 2 sama — modal balik dikit biar ga sakit
     'Diamond-2': 0.8, 'Lucky7-2': 0.6,
     'Clover-2':  0.4, 'Star-2':   0.3,
   };
 
-  const multKey = `${topSym.name}-${maxMatch}`;
-  const mult    = MULT[multKey] || 0;
-  const isWin   = mult > 0;
-  const prize   = isWin ? Math.floor(bet * mult) : 0;
-  const profit  = prize - bet;
+  const multKey  = `${topSym.name}-${maxMatch}`;
+  const mult     = MULT[multKey] || 0;
+  const isWin    = mult > 0;
+  const prize    = isWin ? Math.floor(bet * mult) : 0;
+  // Profit sejati = prize dikurangi modal
+  const netProfit = prize - bet;
 
   user.balance = isWin ? user.balance - bet + prize : user.balance - bet;
   if (isWin) user.totalEarned = (user.totalEarned || 0) + prize;
@@ -4084,19 +4080,23 @@ if (cmd === 'slots') {
     ? '\u001b[1;32m'
     : '\u001b[1;37m';
 
-  const profitStr = profit >= 0
-    ? `\u001b[1;32m+${prize.toLocaleString()}\u001b[0m`
+  // Profit string — selalu positif kalau menang, negatif kalau kalah
+  const profitStr = isWin
+    ? (netProfit >= 0
+        ? `\u001b[1;32m+${netProfit.toLocaleString()}\u001b[0m`
+        : `\u001b[1;33m${netProfit.toLocaleString()} (dapat 🪙${prize.toLocaleString()})\u001b[0m`)
     : `\u001b[1;31m-${bet.toLocaleString()}\u001b[0m`;
 
   const contentLine = isJackpot
     ? `🎊 **JACKPOT!!!** **${username}** meledak dengan **5x ${topSym.s} ${topSym.name}**! 🎊`
     : isWin
-    ? `🎉 **${username}** menang! **${maxMatch}x ${topSym.s}** - 🪙 **+${prize.toLocaleString()}**!`
-    : `💀 **${username}** kalah! Tidak ada kombinasi. 🪙 -${bet.toLocaleString()}`;
+    ? `🎉 **${username}** menang! **${maxMatch}x ${topSym.s}** - dapat 🪙 **${prize.toLocaleString()}**!`
+    : `💀 **${username}** kalah! Tidak ada kombinasi. -🪙 ${bet.toLocaleString()}`;
 
-  const multDisplay = mult > 0
-    ? `x${mult} (🪙 ${prize.toLocaleString()})`
-    : '—';
+  const multDisplay = mult > 0 ? `x${mult} (dapat 🪙 ${prize.toLocaleString()})` : '—';
+
+  // Gulungan — render satu per satu biar emoji tidak hilang
+  const reelDisplay = `${reels[0].s}  ${reels[1].s}  ${reels[2].s}  ${reels[3].s}  ${reels[4].s}`;
 
   const desc = [
     '```ansi',
@@ -4104,10 +4104,9 @@ if (cmd === 'slots') {
     headerColor + '║  🎰  S L O T  M A C H I N E  🎰  ║\u001b[0m',
     '\u001b[2;34m╚══════════════════════════════════════════╝\u001b[0m',
     '```',
-    '┌─────────────────────────────┐',
-    `│  ${syms.join('  ')}  │`,
-    '└─────────────────────────────┘',
-    '',
+    '```',
+    `  ${reelDisplay}`,
+    '```',
     '```ansi',
     '\u001b[1;33m━━━━━━━━━━━ 💰 HASIL SPIN ━━━━━━━━━━━\u001b[0m',
     `\u001b[1;36m 🎯  Kombinasi  :\u001b[0m \u001b[0;37m${maxMatch}x ${topSym.s} ${topSym.name}\u001b[0m`,
@@ -4149,7 +4148,6 @@ if (cmd === 'slots') {
     }
   }), { headers: { 'Content-Type': 'application/json' } });
 }
-
 
 
     
