@@ -4767,12 +4767,12 @@ if (cmd === 'gacha') {
 
 // ══════════════════════════════════════════════
 // CMD: saham — sistem saham virtual
-// Provider: Twelve Data API (800 req/hari, 8 req/menit free tier)
+// Provider: Twelve Data API (multi-key fallback)
+// Env vars: TWELVE_DATA_KEY_1, TWELVE_DATA_KEY_2, TWELVE_DATA_KEY_3
 // ══════════════════════════════════════════════
 if (cmd === 'saham') {
-  const EMOJI   = '<a:GifOwoBim:1492599199038967878>';
-  const TD_KEY  = env.TWELVE_DATA_KEY; // ganti env var dari ALPHA_VANTAGE_KEY → TWELVE_DATA_KEY
-  const sub     = getOption(options, 'aksi');
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const sub   = getOption(options, 'aksi');
 
   // ── Helper: format angka ──
   const fmt    = (n) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: 2 });
@@ -4794,18 +4794,24 @@ if (cmd === 'saham') {
   };
 
   // ══════════════════════════════════════════════
-  // Helper: fetch harga saham dari Twelve Data + KV Cache 15 menit
-  // Twelve Data /quote response fields:
-  //   symbol, name, exchange, open, high, low, close, previous_close,
-  //   change, percent_change, volume, fifty_two_week.{low,high}
+  // Multi-Key Fallback — Twelve Data
+  // Tambahkan di Cloudflare env:
+  //   TWELVE_DATA_KEY_1 = "key_utama"
+  //   TWELVE_DATA_KEY_2 = "key_cadangan_1"
+  //   TWELVE_DATA_KEY_3 = "key_cadangan_2"
+  // ══════════════════════════════════════════════
+  const TD_KEYS = [
+    env.TWELVE_DATA_KEY_1,
+    env.TWELVE_DATA_KEY_2,
+    env.TWELVE_DATA_KEY_3,
+  ].filter(Boolean);
+
+  // ══════════════════════════════════════════════
+  // fetchHarga — multi-key rotation fallback
   // ══════════════════════════════════════════════
   const fetchHarga = async (ticker) => {
     try {
-      // 1. Cek global rate-limit flag (dipasang saat kena 429 / limit)
-      const rlFlag = await env.USERS_KV.get('saham_ratelimit');
-      if (rlFlag) return { rateLimited: true };
-
-      // 2. Cek cache per-ticker (TTL 15 menit)
+      // 1. Cek cache per-ticker (TTL 15 menit)
       const cacheKey = `saham_cache:${ticker}`;
       const cached   = await env.USERS_KV.get(cacheKey);
       if (cached) {
@@ -4813,52 +4819,67 @@ if (cmd === 'saham') {
         if (Date.now() - parsed.ts < 15 * 60 * 1000) return parsed.data;
       }
 
-      // 3. Fetch ke Twelve Data
-      const url = `https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${TD_KEY}`;
-      const res  = await fetch(url);
-      const json = await res.json();
+      // 2. Loop semua key, skip yang lagi kena rate limit
+      for (let i = 0; i < TD_KEYS.length; i++) {
+        const key   = TD_KEYS[i];
+        const rlKey = `saham_rl:key${i}`;
 
-      // 4. Deteksi rate limit / API error
-      if (json.status === 'error') {
-        // code 429 = too many requests, code 400 = bad symbol
-        if (json.code === 429) {
-          await env.USERS_KV.put('saham_ratelimit', '1', { expirationTtl: 65 });
-          return { rateLimited: true };
+        const isRL = await env.USERS_KV.get(rlKey);
+        if (isRL) continue;
+
+        try {
+          const url  = `https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${key}`;
+          const res  = await fetch(url);
+          const json = await res.json();
+
+          // Kena rate limit → tandai key ini 65 detik, coba key berikutnya
+          if (json.status === 'error' && json.code === 429) {
+            await env.USERS_KV.put(rlKey, '1', { expirationTtl: 65 });
+            continue;
+          }
+
+          // Error lain (ticker invalid, dll) → langsung return null
+          if (json.status === 'error') return null;
+
+          // Validasi data
+          if (!json.close || json.close === 'N/A') return null;
+
+          const changePct = parseFloat(json.percent_change || 0);
+
+          const data = {
+            ticker:       json.symbol,
+            nama:         json.name || json.symbol,
+            exchange:     json.exchange || '',
+            harga:        parseFloat(json.close),
+            open:         parseFloat(json.open),
+            high:         parseFloat(json.high),
+            low:          parseFloat(json.low),
+            prev:         parseFloat(json.previous_close),
+            change:       parseFloat(json.change),
+            changePct:    changePct.toFixed(2) + '%',
+            changePctRaw: changePct,
+            volume:       parseInt(json.volume || 0),
+            latest:       json.datetime || '',
+            high52:       parseFloat(json.fifty_two_week?.high || 0),
+            low52:        parseFloat(json.fifty_two_week?.low  || 0),
+          };
+
+          // Simpan cache 15 menit
+          await env.USERS_KV.put(
+            cacheKey,
+            JSON.stringify({ data, ts: Date.now() }),
+            { expirationTtl: 900 }
+          );
+
+          return data;
+
+        } catch (_) {
+          continue; // error jaringan → coba key berikutnya
         }
-        // ticker tidak valid
-        return null;
       }
 
-      // 5. Validasi data
-      if (!json.close || json.close === 'N/A') return null;
-
-      const changePct = parseFloat(json.percent_change || 0);
-
-      const data = {
-        ticker:      json.symbol,
-        nama:        json.name || json.symbol,
-        exchange:    json.exchange || '',
-        harga:       parseFloat(json.close),
-        open:        parseFloat(json.open),
-        high:        parseFloat(json.high),
-        low:         parseFloat(json.low),
-        prev:        parseFloat(json.previous_close),
-        change:      parseFloat(json.change),
-        changePct:   changePct.toFixed(2) + '%',
-        changePctRaw: changePct,
-        volume:      parseInt(json.volume || 0),
-        latest:      json.datetime || '',
-        high52:      parseFloat(json.fifty_two_week?.high || 0),
-        low52:       parseFloat(json.fifty_two_week?.low || 0),
-      };
-
-      // 6. Simpan cache 15 menit
-      await env.USERS_KV.put(
-        cacheKey,
-        JSON.stringify({ data, ts: Date.now() }),
-        { expirationTtl: 900 }
-      );
-      return data;
+      // Semua key kena rate limit
+      return { rateLimited: true };
 
     } catch (_) {
       return null;
@@ -4880,8 +4901,8 @@ if (cmd === 'saham') {
           if (!ticker) return editFollowup(`${EMOJI} ❌ Masukkan ticker saham! Contoh: \`AAPL\`, \`GOOGL\`, \`TSLA\``);
 
           const q = await fetchHarga(ticker);
-          if (!q)              return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan! Cek kode sahamnya.`);
-          if (q.rateLimited)   return editFollowup(`${EMOJI} ⏳ API limit tercapai! Coba lagi dalam **1 menit**.\n> 💡 Free tier Twelve Data: 800 req/hari & 8 req/menit.`);
+          if (!q)            return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan! Cek kode sahamnya.`);
+          if (q.rateLimited) return editFollowup(`${EMOJI} ⏳ Semua API key lagi limit! Coba lagi dalam **1 menit**.\n> 💡 Free tier Twelve Data: 800 req/hari & 8 req/menit per key.`);
 
           const naik   = q.change >= 0;
           const arrow  = naik ? '📈' : '📉';
@@ -4890,10 +4911,9 @@ if (cmd === 'saham') {
           const barLen = Math.min(Math.round(pct * 2), 10);
           const bar    = (naik ? '█' : '▓').repeat(barLen) + '░'.repeat(10 - barLen);
 
-          // 52-week position bar (0–10 scale)
-          const range52  = q.high52 - q.low52;
-          const pos52    = range52 > 0 ? Math.round(((q.harga - q.low52) / range52) * 10) : 5;
-          const bar52    = '─'.repeat(Math.max(0, pos52 - 1)) + '◆' + '─'.repeat(Math.max(0, 10 - pos52));
+          const range52 = q.high52 - q.low52;
+          const pos52   = range52 > 0 ? Math.round(((q.harga - q.low52) / range52) * 10) : 5;
+          const bar52   = '─'.repeat(Math.max(0, pos52 - 1)) + '◆' + '─'.repeat(Math.max(0, 10 - pos52));
 
           return editFollowup([
             '```ansi',
@@ -4931,13 +4951,13 @@ if (cmd === 'saham') {
           const ticker = getOption(options, 'ticker')?.toUpperCase();
           const jumlah = parseInt(getOption(options, 'jumlah') || '1');
 
-          if (!ticker)                 return editFollowup(`${EMOJI} ❌ Masukkan ticker saham!`);
-          if (!jumlah || jumlah <= 0)  return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
-          if (jumlah > 1000000) return editFollowup(`${EMOJI} ❌ Maksimal beli **1.000.000 lot** sekaligus!`);
+          if (!ticker)                return editFollowup(`${EMOJI} ❌ Masukkan ticker saham!`);
+          if (!jumlah || jumlah <= 0) return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
+          if (jumlah > 10000)         return editFollowup(`${EMOJI} ❌ Maksimal beli **10.000 lot** sekaligus!`);
 
           const q = await fetchHarga(ticker);
           if (!q)            return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan!`);
-          if (q.rateLimited) return editFollowup(`${EMOJI} ⏳ API limit tercapai! Coba lagi dalam **1 menit**.`);
+          if (q.rateLimited) return editFollowup(`${EMOJI} ⏳ Semua API key lagi limit! Coba lagi dalam **1 menit**.`);
 
           const RATE         = 16000;
           const hargaPerLot  = q.harga;
@@ -5029,12 +5049,12 @@ if (cmd === 'saham') {
           }
 
           const jumlah = jumlahRaw === 'all' ? porto[ticker].lot : parseInt(jumlahRaw || '1');
-          if (!jumlah || jumlah <= 0)         return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
-          if (jumlah > porto[ticker].lot)     return editFollowup(`${EMOJI} ❌ Kamu cuma punya **${porto[ticker].lot} lot** saham **${ticker}**!`);
+          if (!jumlah || jumlah <= 0)     return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
+          if (jumlah > porto[ticker].lot) return editFollowup(`${EMOJI} ❌ Kamu cuma punya **${porto[ticker].lot} lot** saham **${ticker}**!`);
 
           const q = await fetchHarga(ticker);
           if (!q)            return editFollowup(`${EMOJI} ❌ Gagal ambil harga **${ticker}**! Ticker mungkin tidak valid.`);
-          if (q.rateLimited) return editFollowup(`${EMOJI} ⏳ API limit tercapai! Coba lagi dalam **1 menit**.`);
+          if (q.rateLimited) return editFollowup(`${EMOJI} ⏳ Semua API key lagi limit! Coba lagi dalam **1 menit**.`);
 
           const RATE          = 16000;
           const hargaJual     = q.harga;
@@ -5120,8 +5140,7 @@ if (cmd === 'saham') {
             ].join('\n'));
           }
 
-          const RATE    = 16000;
-          // Fetch satu per satu secara serial untuk hindari burst rate limit
+          const RATE     = 16000;
           const hargaMap = {};
           for (const t of tickers) {
             hargaMap[t] = await fetchHarga(t);
@@ -5134,15 +5153,15 @@ if (cmd === 'saham') {
           for (const t of tickers) {
             const q = hargaMap[t];
             if (!q || q.rateLimited) {
-              const label = q?.rateLimited ? 'API limit — coba lagi' : 'Gagal fetch harga';
+              const label = q?.rateLimited ? 'Semua API key limit — coba lagi' : 'Gagal fetch harga';
               rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — ${label}\u001b[0m`);
-              // Gunakan avgBeli sebagai estimasi harga jika rata-limit
               if (q?.rateLimited) {
                 totalModalUSD += porto[t].avgBeli * porto[t].lot;
                 totalNilaiUSD += porto[t].avgBeli * porto[t].lot;
               }
               continue;
             }
+
             const modal  = porto[t].avgBeli * porto[t].lot;
             const nilai  = q.harga * porto[t].lot;
             const profit = nilai - modal;
@@ -5194,7 +5213,6 @@ if (cmd === 'saham') {
 
         // ══════════════════════════════════════════
         // AKSI: top — top saham populer
-        // Cache hasil keseluruhan 15 menit (hemat 10 request sekaligus)
         // ══════════════════════════════════════════
         if (sub === 'top') {
           const TOP_TICKERS = [
@@ -5202,25 +5220,21 @@ if (cmd === 'saham') {
             'TSLA', 'META', 'NFLX', 'AMD', 'INTC'
           ];
 
-          // Cek cache top dulu (15 menit)
           const topCacheKey = 'saham_top_cache';
           const topCached   = await env.USERS_KV.get(topCacheKey);
           let results;
 
           if (topCached) {
             const parsed = JSON.parse(topCached);
-            if (Date.now() - parsed.ts < 15 * 60 * 1000) {
-              results = parsed.data;
-            }
+            if (Date.now() - parsed.ts < 15 * 60 * 1000) results = parsed.data;
           }
 
           if (!results) {
-            // Fetch serial (bukan parallel) untuk hindari burst 8 req/menit
             const fetched = [];
             for (const t of TOP_TICKERS) {
               const q = await fetchHarga(t);
               if (q && !q.rateLimited) fetched.push(q);
-              else if (q?.rateLimited) break; // stop kalau kena limit
+              else if (q?.rateLimited) break;
             }
             results = fetched;
             if (results.length > 0) {
@@ -5229,7 +5243,7 @@ if (cmd === 'saham') {
           }
 
           if (results.length === 0) {
-            return editFollowup(`${EMOJI} ⏳ API limit tercapai! Data top saham tidak tersedia saat ini. Coba lagi dalam **1 menit**.`);
+            return editFollowup(`${EMOJI} ⏳ Semua API key lagi limit! Data top saham tidak tersedia. Coba lagi dalam **1 menit**.`);
           }
 
           results.sort((a, b) => b.changePctRaw - a.changePctRaw);
@@ -5303,7 +5317,6 @@ if (cmd === 'saham') {
       }
     })());
 
-    // ✅ Langsung ACK ke Discord supaya tidak timeout 3 detik
     return new Response(JSON.stringify({ type: 5 }), {
       headers: { 'Content-Type': 'application/json' }
     });
@@ -5321,11 +5334,8 @@ if (cmd === 'saham') {
       return respond(`${EMOJI} 📭 Belum ada riwayat transaksi saham!`);
     }
 
-    const fmt    = (n) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: 2 });
-    const fmtUSD = (n) => `$${fmt(n)}`;
-
     const rows = hist.slice(0, 15).map((h, i) => {
-      const tgl    = new Date(h.at).toLocaleDateString('id-ID', {
+      const tgl = new Date(h.at).toLocaleDateString('id-ID', {
         day: '2-digit', month: 'short', year: '2-digit',
         hour: '2-digit', minute: '2-digit'
       });
