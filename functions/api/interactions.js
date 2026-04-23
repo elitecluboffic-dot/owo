@@ -5147,11 +5147,17 @@ if (sub === 'portofolio') {
   const RATE     = 16000;
   const hargaMap = {};
 
-  // 2. SEQUENTIAL FETCH (Fix Utama: Ambil satu-satu dengan jeda agar tidak loading/stuck)
-// 2. PARALLEL FETCH — semua ticker diambil barengan
+// ↓ TAMBAH DI SINI
+const t0 = Date.now();
+
+// 2. PARALLEL FETCH
 const results = await Promise.all(
   tickers.map(t => fetchHarga(t).catch(() => null))
 );
+
+// ↓ DAN INI
+console.log(`Fetch ${tickers.length} ticker selesai dalam ${Date.now() - t0}ms`);
+
 results.forEach((q, i) => {
   hargaMap[tickers[i]] = q && !q.rateLimited ? q : null;
 });
