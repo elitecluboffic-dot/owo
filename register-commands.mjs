@@ -463,6 +463,44 @@ const commands = [
       "required": true
     }
   ]
+},
+
+  
+
+
+  {
+  name: 'spawn',
+  description: '⚡ Munculkan Pokémon liar di channel ini!'
+},
+{
+  name: 'catch',
+  description: '🎯 Tangkap Pokémon yang sedang muncul!',
+  options: [
+    {
+      name: 'nama',
+      description: 'Nama Pokémon yang mau ditangkap',
+      type: 3,
+      required: true
+    }
+  ]
+},
+{
+  name: 'pokedex',
+  description: '📖 Lihat koleksi Pokémon kamu atau orang lain!',
+  options: [
+    {
+      name: 'user',
+      description: 'Lihat koleksi user lain (kosongkan untuk diri sendiri)',
+      type: 6,
+      required: false
+    },
+    {
+      name: 'page',
+      description: 'Halaman koleksi (default: 1)',
+      type: 4,
+      required: false
+    }
+  ]
 }
 
   
