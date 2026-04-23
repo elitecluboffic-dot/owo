@@ -3989,7 +3989,7 @@ if (cmd === 'slots') {
 
   if (!bet || bet <= 0)           return respond('❌ Jumlah taruhan tidak valid.');
   if (bet < 100)                  return respond('❌ Taruhan minimum **🪙 100**!');
-  if (bet > 500000)               return respond('❌ Taruhan maksimum **🪙 500.000**!');
+  if (bet > 5000000000)               return respond('❌ Taruhan maksimum **🪙 5.000.000.000**!');
   if (bet > user.balance)         return respond(`❌ Saldo tidak cukup! Kamu punya 🪙 **${user.balance.toLocaleString()}**`);
 
   const SYMBOLS = [
