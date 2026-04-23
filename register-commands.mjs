@@ -541,17 +541,33 @@ const commands = [
   "name": "saham",
   "description": "Sistem saham virtual",
   "options": [
-    { "name": "aksi", "type": 3, "required": true, "description": "Pilih aksi", "choices": [
-      {"name": "cek", "value": "cek"},
-      {"name": "beli", "value": "beli"},
-      {"name": "jual", "value": "jual"},
-      {"name": "portofolio", "value": "portofolio"},
-      {"name": "history", "value": "history"},
-      {"name": "top", "value": "top"},
-      {"name": "info", "value": "info"}
-    ]},
-    { "name": "ticker", "type": 3, "required": false, "description": "Kode saham (contoh: AAPL, TSLA)" },
-    { "name": "jumlah", "type": 3, "required": false, "description": "Jumlah lot (atau 'all' untuk jual semua)" }
+    {
+      "name": "aksi",
+      "type": 3,
+      "required": true,
+      "description": "Pilih aksi",
+      "choices": [
+        {"name": "cek", "value": "cek"},
+        {"name": "beli", "value": "beli"},
+        {"name": "jual", "value": "jual"},
+        {"name": "portofolio", "value": "portofolio"},
+        {"name": "history", "value": "history"},
+        {"name": "top", "value": "top"},
+        {"name": "info", "value": "info"}
+      ]
+    },
+    {
+      "name": "ticker",
+      "type": 3,
+      "required": false,
+      "description": "Kode saham (contoh: AAPL, TSLA)"
+    },
+    {
+      "name": "jumlah",
+      "type": 3,
+      "required": false,
+      "description": "Jumlah lot (atau 'all' untuk jual semua)"
+    }
   ]
 }
 
