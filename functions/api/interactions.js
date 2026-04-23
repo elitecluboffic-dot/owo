@@ -4496,6 +4496,152 @@ if (cmd === 'pokedex') {
 }
 
 
+
+
+
+    // ══════════════════════════════════════════════
+// CMD: gacha — beli Pokemon random pakai coins
+// ══════════════════════════════════════════════
+if (cmd === 'gacha') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+
+  // Harga gacha per tier
+  const GACHA_TIERS = [
+    { name: '⚪ Basic',    price: 25000,   pool: ['⚪ Common', '🟢 Uncommon'],                      label: 'Basic Roll'    },
+    { name: '🟡 Premium',  price: 75000,  pool: ['🟢 Uncommon', '🟡 Rare', '🟠 Epic'],             label: 'Premium Roll'  },
+    { name: '🔴 Legendary',price: 200000,  pool: ['🟡 Rare', '🟠 Epic', '🔴 Legendary'],            label: 'Legend Roll'   },
+  ];
+
+  const tierInput = getOption(options, 'tier') || 'basic'; // basic / premium / legendary
+  const tier = GACHA_TIERS.find(t => t.name.toLowerCase().includes(tierInput.toLowerCase()))
+    || GACHA_TIERS[0];
+
+  // Cek saldo user
+  const balance = user.balance || 0;
+  if (balance < tier.price) {
+    return respond([
+      '```ansi',
+      '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;31m║  💸  SALDO TIDAK CUKUP!  💸         ║\u001b[0m',
+      '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ❌ Saldo kamu: **${balance.toLocaleString('id-ID')} coins**`,
+      `> 💰 Harga **${tier.name}**: **${tier.price.toLocaleString('id-ID')} coins**`,
+      `> 💡 Cari coins dulu ya!`
+    ].join('\n'));
+  }
+
+  // Ambil Pokemon random dari pool rarity yang sesuai
+  // Looping sampai dapat Pokemon dengan rarity yang masuk pool
+  let pokeData, attempts = 0;
+  while (attempts < 20) {
+    const randomId = Math.floor(Math.random() * 1025) + 1;
+    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
+    if (!res.ok) { attempts++; continue; }
+    const data = await res.json();
+
+    const baseExp = data.base_experience || 100;
+    const rarity  = baseExp >= 250 ? '🔴 Legendary'
+      : baseExp >= 180 ? '🟠 Epic'
+      : baseExp >= 120 ? '🟡 Rare'
+      : baseExp >= 70  ? '🟢 Uncommon'
+      : '⚪ Common';
+
+    if (tier.pool.includes(rarity)) {
+      pokeData = { data, rarity };
+      break;
+    }
+    attempts++;
+  }
+
+  if (!pokeData) return respond('❌ Gagal gacha, coba lagi!');
+
+  const { data, rarity } = pokeData;
+  const pokeName   = data.name;
+  const pokeSprite = data.sprites.other['official-artwork'].front_default || data.sprites.front_default;
+  const pokeTypes  = data.types.map(t => t.type.name).join(', ');
+  const pokeHp     = data.stats.find(s => s.stat.name === 'hp').base_stat;
+  const pokeAtk    = data.stats.find(s => s.stat.name === 'attack').base_stat;
+  const pokeDef    = data.stats.find(s => s.stat.name === 'defense').base_stat;
+  const pokeSpd    = data.stats.find(s => s.stat.name === 'speed').base_stat;
+
+  // Kurangi saldo
+  user.balance = balance - tier.price;
+
+  // Simpan ke koleksi
+  const collKey = `pokemon:${discordId}`;
+  const collRaw = await env.USERS_KV.get(collKey);
+  const coll    = collRaw ? JSON.parse(collRaw) : [];
+
+  const isDupe = coll.some(p => p.id === data.id);
+  const pokeEntry = {
+    id: data.id, name: pokeName, types: pokeTypes,
+    rarity, hp: pokeHp, atk: pokeAtk, def: pokeDef, spd: pokeSpd,
+    sprite: pokeSprite, caughtAt: Date.now(), caughtBy: username,
+    count: isDupe ? (coll.find(p => p.id === data.id).count || 1) + 1 : 1
+  };
+
+  if (isDupe) {
+    const idx = coll.findIndex(p => p.id === data.id);
+    coll[idx] = pokeEntry;
+  } else {
+    coll.push(pokeEntry);
+  }
+
+  await env.USERS_KV.put(collKey, JSON.stringify(coll));
+
+  // Update stats & simpan user
+  const pokeStats = user.pokeStats || { caught: 0, legendary: 0, epic: 0, rare: 0, dupes: 0 };
+  pokeStats.caught++;
+  if (isDupe) pokeStats.dupes++;
+  if (rarity === '🔴 Legendary') pokeStats.legendary++;
+  if (rarity === '🟠 Epic') pokeStats.epic++;
+  if (rarity === '🟡 Rare') pokeStats.rare++;
+  user.pokeStats = pokeStats;
+  await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: isDupe
+        ? `🔄 **${username}** gacha duplikat **${pokeName}**! (${pokeEntry.count}x)`
+        : `🎰 **${username}** gacha dapat **${pokeName}**! ${rarity}`,
+      embeds: [{
+        color: rarity === '🔴 Legendary' ? 0xFF0000
+          : rarity === '🟠 Epic' ? 0xFF6600
+          : rarity === '🟡 Rare' ? 0xFFD700 : 0x00FF00,
+        title: `🎰 Gacha Result — ${tier.name}`,
+        description: [
+          '```ansi',
+          '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+          `\u001b[1;33m║  🎰  GACHA ${tier.label.toUpperCase().padEnd(22)}║\u001b[0m`,
+          '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;33m━━━━━━━━━━━━ 🎁 HASIL ━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  🏷️  Nama    :\u001b[0m \u001b[1;37m${pokeName}\u001b[0m`,
+          `\u001b[1;36m  🌀  Tipe    :\u001b[0m \u001b[0;37m${pokeTypes}\u001b[0m`,
+          `\u001b[1;36m  ⭐  Rarity  :\u001b[0m \u001b[0;37m${rarity}\u001b[0m`,
+          `\u001b[1;36m  ❤️  HP      :\u001b[0m \u001b[0;37m${pokeHp}\u001b[0m`,
+          `\u001b[1;36m  ⚔️  ATK     :\u001b[0m \u001b[0;37m${pokeAtk}\u001b[0m`,
+          `\u001b[1;36m  🛡️  DEF     :\u001b[0m \u001b[0;37m${pokeDef}\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '\u001b[1;31m━━━━━━━━━━━━ 💰 TRANSAKSI ━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  💸  Bayar   :\u001b[0m \u001b[0;37m-${tier.price.toLocaleString('id-ID')} coins\u001b[0m`,
+          `\u001b[1;36m  💰  Sisa    :\u001b[0m \u001b[0;37m${user.balance.toLocaleString('id-ID')} coins\u001b[0m`,
+          `\u001b[1;36m  🔄  Duplikat:\u001b[0m \u001b[0;37m${isDupe ? 'Ya ('+pokeEntry.count+'x)' : 'Tidak — Baru!'}\u001b[0m`,
+          '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```'
+        ].join('\n'),
+        thumbnail: { url: pokeSprite },
+        footer: { text: `OwoBim Pokémon System • Gacha` },
+        timestamp: new Date().toISOString()
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+
+
     
     
     
