@@ -4765,7 +4765,7 @@ if (cmd === 'gacha') {
 
 
 
-    // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
 // CMD: saham — sistem saham virtual
 // ══════════════════════════════════════════════
 if (cmd === 'saham') {
@@ -4775,23 +4775,27 @@ if (cmd === 'saham') {
 
   // ── Helper: fetch harga saham dari Alpha Vantage ──
   const fetchHarga = async (ticker) => {
-    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${AV_KEY}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const q = data['Global Quote'];
-    if (!q || !q['05. price']) return null;
-    return {
-      ticker:    q['01. symbol'],
-      harga:     parseFloat(q['05. price']),
-      open:      parseFloat(q['02. open']),
-      high:      parseFloat(q['03. high']),
-      low:       parseFloat(q['04. low']),
-      prev:      parseFloat(q['08. previous close']),
-      change:    parseFloat(q['09. change']),
-      changePct: q['10. change percent'],
-      volume:    parseInt(q['06. volume']),
-      latest:    q['07. latest trading day'],
-    };
+    try {
+      const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${AV_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const q = data['Global Quote'];
+      if (!q || !q['05. price']) return null;
+      return {
+        ticker:    q['01. symbol'],
+        harga:     parseFloat(q['05. price']),
+        open:      parseFloat(q['02. open']),
+        high:      parseFloat(q['03. high']),
+        low:       parseFloat(q['04. low']),
+        prev:      parseFloat(q['08. previous close']),
+        change:    parseFloat(q['09. change']),
+        changePct: q['10. change percent'],
+        volume:    parseInt(q['06. volume']),
+        latest:    q['07. latest trading day'],
+      };
+    } catch (e) {
+      return null;
+    }
   };
 
   // ── Helper: format angka ──
@@ -4804,372 +4808,383 @@ if (cmd === 'saham') {
   const iToken      = interaction.token;
 
   const editFollowup = async (content) => {
-    await fetch(`${DISCORD_API}/webhooks/${appId}/${iToken}/messages/@original`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
-    });
+    try {
+      await fetch(`${DISCORD_API}/webhooks/${appId}/${iToken}/messages/@original`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+    } catch (e) {
+      // silent fail
+    }
   };
 
   // ── Aksi yang butuh defer ──
   const DEFER_ACTIONS = ['cek', 'beli', 'jual', 'portofolio', 'top'];
 
   if (DEFER_ACTIONS.includes(sub)) {
+    // ✅ Langsung ACK ke Discord supaya tidak timeout 3 detik
+    // HARUS di-return SEBELUM waitUntil selesai
     waitUntil((async () => {
+      try {
 
-      // ══════════════════════════════════════════
-      // AKSI: cek — cek harga saham real-time
-      // ══════════════════════════════════════════
-      if (sub === 'cek') {
-        const ticker = getOption(options, 'ticker')?.toUpperCase();
-        if (!ticker) return editFollowup(`${EMOJI} ❌ Masukkan ticker saham! Contoh: \`AAPL\`, \`GOOGL\`, \`TSLA\``);
+        // ══════════════════════════════════════════
+        // AKSI: cek — cek harga saham real-time
+        // ══════════════════════════════════════════
+        if (sub === 'cek') {
+          const ticker = getOption(options, 'ticker')?.toUpperCase();
+          if (!ticker) return editFollowup(`${EMOJI} ❌ Masukkan ticker saham! Contoh: \`AAPL\`, \`GOOGL\`, \`TSLA\``);
 
-        const q = await fetchHarga(ticker);
-        if (!q) return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan atau API limit tercapai!`);
+          const q = await fetchHarga(ticker);
+          if (!q) return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan atau API limit tercapai!`);
 
-        const naik   = q.change >= 0;
-        const arrow  = naik ? '📈' : '📉';
-        const color  = naik ? '\u001b[1;32m' : '\u001b[1;31m';
-        const pct    = Math.abs(parseFloat(q.changePct));
-        const barLen = Math.min(Math.round(pct * 2), 10);
-        const bar    = (naik ? '█' : '▓').repeat(barLen) + '░'.repeat(10 - barLen);
+          const naik   = q.change >= 0;
+          const arrow  = naik ? '📈' : '📉';
+          const color  = naik ? '\u001b[1;32m' : '\u001b[1;31m';
+          const pct    = Math.abs(parseFloat(q.changePct));
+          const barLen = Math.min(Math.round(pct * 2), 10);
+          const bar    = (naik ? '█' : '▓').repeat(barLen) + '░'.repeat(10 - barLen);
 
-        return editFollowup([
-          '```ansi',
-          '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-          `\u001b[2;34m║  \u001b[1;33m${arrow}  STOCK QUOTE  ${arrow}\u001b[0m  \u001b[2;34m║\u001b[0m`,
-          '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-          '```',
-          `${EMOJI} 🏷️ **${q.ticker}** — Harga Saham Real-Time`,
-          '```ansi',
-          '\u001b[1;33m━━━━━━━━━━━ 💰 HARGA INFO ━━━━━━━━━━━\u001b[0m',
-          `\u001b[1;36m 💵  Harga Saat Ini:\u001b[0m ${color}${fmtUSD(q.harga)}\u001b[0m`,
-          `\u001b[1;36m 🔓  Open          :\u001b[0m \u001b[0;37m${fmtUSD(q.open)}\u001b[0m`,
-          `\u001b[1;36m 🔺  High          :\u001b[0m \u001b[0;37m${fmtUSD(q.high)}\u001b[0m`,
-          `\u001b[1;36m 🔻  Low           :\u001b[0m \u001b[0;37m${fmtUSD(q.low)}\u001b[0m`,
-          `\u001b[1;36m 🔒  Prev Close    :\u001b[0m \u001b[0;37m${fmtUSD(q.prev)}\u001b[0m`,
-          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '\u001b[1;32m━━━━━━━━━━━ 📊 PERUBAHAN ━━━━━━━━━━━━\u001b[0m',
-          `\u001b[1;36m ${arrow}  Perubahan    :\u001b[0m ${color}${naik ? '+' : ''}${fmtUSD(q.change)} (${q.changePct})\u001b[0m`,
-          `\u001b[1;36m 📊  Grafik       :\u001b[0m ${color}\`${bar}\`\u001b[0m`,
-          `\u001b[1;36m 📦  Volume       :\u001b[0m \u001b[0;37m${q.volume.toLocaleString()}\u001b[0m`,
-          `\u001b[1;36m 📅  Trading Day  :\u001b[0m \u001b[0;37m${q.latest}\u001b[0m`,
-          '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '```',
-          `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
-        ].join('\n'));
-      }
-
-      // ══════════════════════════════════════════
-      // AKSI: beli — beli saham pakai cowoncy
-      // ══════════════════════════════════════════
-      if (sub === 'beli') {
-        const ticker = getOption(options, 'ticker')?.toUpperCase();
-        const jumlah = parseInt(getOption(options, 'jumlah') || '1');
-
-        if (!ticker) return editFollowup(`${EMOJI} ❌ Masukkan ticker saham!`);
-        if (!jumlah || jumlah <= 0) return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
-        if (jumlah > 10000) return editFollowup(`${EMOJI} ❌ Maksimal beli **10.000 lot** sekaligus!`);
-
-        const q = await fetchHarga(ticker);
-        if (!q) return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan atau API limit!`);
-
-        const RATE         = 16000;
-        const hargaPerLot  = q.harga;
-        const totalUSD     = hargaPerLot * jumlah;
-        const totalCowoncy = Math.ceil(totalUSD * RATE);
-
-        if (user.balance < totalCowoncy) {
-          return editFollowup([
-            '```ansi',
-            '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
-            '\u001b[1;31m║  💸  SALDO TIDAK CUKUP!  💸         ║\u001b[0m',
-            '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
-            '```',
-            `> ${EMOJI} ❌ Kamu butuh 🪙 **${totalCowoncy.toLocaleString()}** tapi cuma punya 🪙 **${user.balance.toLocaleString()}**`,
-            `> 💡 Kurangi jumlah lot atau cari cowoncy dulu!`
-          ].join('\n'));
-        }
-
-        const portoKey = `saham:${discordId}`;
-        const [portoRaw, histRaw] = await Promise.all([
-          env.USERS_KV.get(portoKey),
-          env.USERS_KV.get(`saham_history:${discordId}`)
-        ]);
-        const porto = portoRaw ? JSON.parse(portoRaw) : {};
-
-        if (porto[ticker]) {
-          const totalLot = porto[ticker].lot + jumlah;
-          const avgBeli  = ((porto[ticker].avgBeli * porto[ticker].lot) + (hargaPerLot * jumlah)) / totalLot;
-          porto[ticker]  = { ...porto[ticker], lot: totalLot, avgBeli };
-        } else {
-          porto[ticker] = { ticker, lot: jumlah, avgBeli: hargaPerLot, beliAt: Date.now() };
-        }
-
-        user.balance -= totalCowoncy;
-
-        const hist = histRaw ? JSON.parse(histRaw) : [];
-        hist.unshift({ aksi: 'BELI', ticker, lot: jumlah, harga: hargaPerLot, totalUSD, totalCowoncy, at: Date.now() });
-        if (hist.length > 50) hist.splice(50);
-
-        await Promise.all([
-          env.USERS_KV.put(portoKey, JSON.stringify(porto)),
-          env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user)),
-          env.USERS_KV.put(`saham_history:${discordId}`, JSON.stringify(hist))
-        ]);
-        waitUntil(pushLinkedRole(env, discordId, null, user));
-
-        return editFollowup([
-          '```ansi',
-          '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
-          '\u001b[1;32m║  ✅  PEMBELIAN BERHASIL!  ✅        ║\u001b[0m',
-          '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
-          '```',
-          `${EMOJI} 📈 Berhasil beli **${jumlah} lot** saham **${ticker}**!`,
-          '```ansi',
-          '\u001b[1;33m━━━━━━━━━━━ 📋 DETAIL BELI ━━━━━━━━━━\u001b[0m',
-          `\u001b[1;36m 🏷️  Ticker      :\u001b[0m \u001b[1;37m${ticker}\u001b[0m`,
-          `\u001b[1;36m 📦  Jumlah Lot  :\u001b[0m \u001b[0;37m${jumlah} lot\u001b[0m`,
-          `\u001b[1;36m 💵  Harga/Lot   :\u001b[0m \u001b[0;37m${fmtUSD(hargaPerLot)}\u001b[0m`,
-          `\u001b[1;36m 💰  Total USD   :\u001b[0m \u001b[0;37m${fmtUSD(totalUSD)}\u001b[0m`,
-          `\u001b[1;36m 🪙  Total Bayar :\u001b[0m \u001b[1;31m-${totalCowoncy.toLocaleString()} cowoncy\u001b[0m`,
-          `\u001b[1;36m 💳  Sisa Saldo  :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
-          `\u001b[1;36m 📊  Total Porto :\u001b[0m \u001b[0;37m${porto[ticker].lot} lot @ avg ${fmtUSD(porto[ticker].avgBeli)}\u001b[0m`,
-          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '```',
-          `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
-          `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
-        ].join('\n'));
-      }
-
-      // ══════════════════════════════════════════
-      // AKSI: jual — jual saham
-      // ══════════════════════════════════════════
-      if (sub === 'jual') {
-        const ticker    = getOption(options, 'ticker')?.toUpperCase();
-        const jumlahRaw = getOption(options, 'jumlah');
-
-        if (!ticker) return editFollowup(`${EMOJI} ❌ Masukkan ticker saham!`);
-
-        const portoKey = `saham:${discordId}`;
-        const [portoRaw, histRaw] = await Promise.all([
-          env.USERS_KV.get(portoKey),
-          env.USERS_KV.get(`saham_history:${discordId}`)
-        ]);
-        const porto = portoRaw ? JSON.parse(portoRaw) : {};
-
-        if (!porto[ticker] || porto[ticker].lot <= 0) {
-          return editFollowup(`${EMOJI} ❌ Kamu tidak punya saham **${ticker}**!`);
-        }
-
-        const jumlah = jumlahRaw === 'all' ? porto[ticker].lot : parseInt(jumlahRaw || '1');
-        if (!jumlah || jumlah <= 0) return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
-        if (jumlah > porto[ticker].lot) {
-          return editFollowup(`${EMOJI} ❌ Kamu cuma punya **${porto[ticker].lot} lot** saham **${ticker}**!`);
-        }
-
-        const q = await fetchHarga(ticker);
-        if (!q) return editFollowup(`${EMOJI} ❌ Gagal ambil harga **${ticker}**!`);
-
-        const RATE          = 16000;
-        const hargaJual     = q.harga;
-        const avgBeli       = porto[ticker].avgBeli;
-        const totalUSD      = hargaJual * jumlah;
-        const totalCowoncy  = Math.floor(totalUSD * RATE);
-        const modalUSD      = avgBeli * jumlah;
-        const profitUSD     = totalUSD - modalUSD;
-        const profitCowoncy = Math.floor(profitUSD * RATE);
-        const profitPct     = ((profitUSD / modalUSD) * 100).toFixed(2);
-        const untung        = profitUSD >= 0;
-
-        porto[ticker].lot -= jumlah;
-        if (porto[ticker].lot <= 0) delete porto[ticker];
-
-        user.balance += totalCowoncy;
-        if (untung) user.totalEarned = (user.totalEarned || 0) + totalCowoncy;
-
-        const hist = histRaw ? JSON.parse(histRaw) : [];
-        hist.unshift({ aksi: 'JUAL', ticker, lot: jumlah, harga: hargaJual, avgBeli, profitUSD, profitCowoncy, totalUSD, totalCowoncy, at: Date.now() });
-        if (hist.length > 50) hist.splice(50);
-
-        await Promise.all([
-          env.USERS_KV.put(portoKey, JSON.stringify(porto)),
-          env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user)),
-          env.USERS_KV.put(`saham_history:${discordId}`, JSON.stringify(hist))
-        ]);
-        waitUntil(pushLinkedRole(env, discordId, null, user));
-
-        const profitColor = untung ? '\u001b[1;32m' : '\u001b[1;31m';
-        const profitSign  = untung ? '+' : '';
-
-        return editFollowup([
-          '```ansi',
-          untung
-            ? '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m'
-            : '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
-          untung
-            ? '\u001b[1;32m║  💰  JUAL BERHASIL — PROFIT!  💰   ║\u001b[0m'
-            : '\u001b[1;31m║  📉  JUAL BERHASIL — RUGI!  📉    ║\u001b[0m',
-          untung
-            ? '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m'
-            : '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
-          '```',
-          `${EMOJI} ${untung ? '🤑' : '😢'} Berhasil jual **${jumlah} lot** saham **${ticker}**!`,
-          '```ansi',
-          '\u001b[1;33m━━━━━━━━━━━ 📋 DETAIL JUAL ━━━━━━━━━━\u001b[0m',
-          `\u001b[1;36m 🏷️  Ticker      :\u001b[0m \u001b[1;37m${ticker}\u001b[0m`,
-          `\u001b[1;36m 📦  Jumlah Lot  :\u001b[0m \u001b[0;37m${jumlah} lot\u001b[0m`,
-          `\u001b[1;36m 💵  Harga Jual  :\u001b[0m \u001b[0;37m${fmtUSD(hargaJual)}\u001b[0m`,
-          `\u001b[1;36m 📊  Avg Beli    :\u001b[0m \u001b[0;37m${fmtUSD(avgBeli)}\u001b[0m`,
-          `\u001b[1;36m 💰  Total Dapat :\u001b[0m \u001b[1;32m+${totalCowoncy.toLocaleString()} cowoncy\u001b[0m`,
-          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '\u001b[1;32m━━━━━━━━━━━ 📈 PROFIT/LOSS ━━━━━━━━━━\u001b[0m',
-          `\u001b[1;36m 💸  Profit USD  :\u001b[0m ${profitColor}${profitSign}${fmtUSD(profitUSD)}\u001b[0m`,
-          `\u001b[1;36m 🪙  Profit Coin :\u001b[0m ${profitColor}${profitSign}${profitCowoncy.toLocaleString()}\u001b[0m`,
-          `\u001b[1;36m 📊  Return      :\u001b[0m ${profitColor}${profitSign}${profitPct}%\u001b[0m`,
-          `\u001b[1;36m 💳  Saldo Baru  :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
-          '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '```',
-          `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
-        ].join('\n'));
-      }
-
-      // ══════════════════════════════════════════
-      // AKSI: portofolio — lihat semua saham
-      // ══════════════════════════════════════════
-      if (sub === 'portofolio') {
-        const portoKey = `saham:${discordId}`;
-        const portoRaw = await env.USERS_KV.get(portoKey);
-        const porto    = portoRaw ? JSON.parse(portoRaw) : {};
-        const tickers  = Object.keys(porto);
-
-        if (tickers.length === 0) {
           return editFollowup([
             '```ansi',
             '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-            '\u001b[2;34m║  \u001b[1;31m📭  PORTOFOLIO KOSONG  📭\u001b[0m  \u001b[2;34m║\u001b[0m',
+            `\u001b[2;34m║  \u001b[1;33m${arrow}  STOCK QUOTE  ${arrow}\u001b[0m  \u001b[2;34m║\u001b[0m`,
             '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
             '```',
-            `> ${EMOJI} Kamu belum punya saham!`,
-            `> 💡 Gunakan \`/saham beli ticker:AAPL jumlah:1\` untuk mulai.`
+            `${EMOJI} 🏷️ **${q.ticker}** — Harga Saham Real-Time`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━ 💰 HARGA INFO ━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 💵  Harga Saat Ini:\u001b[0m ${color}${fmtUSD(q.harga)}\u001b[0m`,
+            `\u001b[1;36m 🔓  Open          :\u001b[0m \u001b[0;37m${fmtUSD(q.open)}\u001b[0m`,
+            `\u001b[1;36m 🔺  High          :\u001b[0m \u001b[0;37m${fmtUSD(q.high)}\u001b[0m`,
+            `\u001b[1;36m 🔻  Low           :\u001b[0m \u001b[0;37m${fmtUSD(q.low)}\u001b[0m`,
+            `\u001b[1;36m 🔒  Prev Close    :\u001b[0m \u001b[0;37m${fmtUSD(q.prev)}\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━ 📊 PERUBAHAN ━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m ${arrow}  Perubahan    :\u001b[0m ${color}${naik ? '+' : ''}${fmtUSD(q.change)} (${q.changePct})\u001b[0m`,
+            `\u001b[1;36m 📊  Grafik       :\u001b[0m ${color}\`${bar}\`\u001b[0m`,
+            `\u001b[1;36m 📦  Volume       :\u001b[0m \u001b[0;37m${q.volume.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m 📅  Trading Day  :\u001b[0m \u001b[0;37m${q.latest}\u001b[0m`,
+            '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
           ].join('\n'));
         }
 
-        const RATE     = 16000;
-        const fetched  = await Promise.all(tickers.map(t => fetchHarga(t)));
-        const hargaMap = {};
-        tickers.forEach((t, i) => { hargaMap[t] = fetched[i]; });
+        // ══════════════════════════════════════════
+        // AKSI: beli — beli saham pakai cowoncy
+        // ══════════════════════════════════════════
+        if (sub === 'beli') {
+          const ticker = getOption(options, 'ticker')?.toUpperCase();
+          const jumlah = parseInt(getOption(options, 'jumlah') || '1');
 
-        let totalModalUSD = 0;
-        let totalNilaiUSD = 0;
-        const rows = [];
+          if (!ticker) return editFollowup(`${EMOJI} ❌ Masukkan ticker saham!`);
+          if (!jumlah || jumlah <= 0) return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
+          if (jumlah > 10000) return editFollowup(`${EMOJI} ❌ Maksimal beli **10.000 lot** sekaligus!`);
 
-        for (const t of tickers) {
-          const q = hargaMap[t];
-          if (!q) {
-            rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — Gagal fetch harga\u001b[0m`);
-            continue;
+          const q = await fetchHarga(ticker);
+          if (!q) return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan atau API limit!`);
+
+          const RATE         = 16000;
+          const hargaPerLot  = q.harga;
+          const totalUSD     = hargaPerLot * jumlah;
+          const totalCowoncy = Math.ceil(totalUSD * RATE);
+
+          if (user.balance < totalCowoncy) {
+            return editFollowup([
+              '```ansi',
+              '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+              '\u001b[1;31m║  💸  SALDO TIDAK CUKUP!  💸         ║\u001b[0m',
+              '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+              '```',
+              `> ${EMOJI} ❌ Kamu butuh 🪙 **${totalCowoncy.toLocaleString()}** tapi cuma punya 🪙 **${user.balance.toLocaleString()}**`,
+              `> 💡 Kurangi jumlah lot atau cari cowoncy dulu!`
+            ].join('\n'));
           }
-          const modal  = porto[t].avgBeli * porto[t].lot;
-          const nilai  = q.harga * porto[t].lot;
-          const profit = nilai - modal;
-          const pct    = ((profit / modal) * 100).toFixed(1);
-          const naik   = profit >= 0;
-          const clr    = naik ? '\u001b[1;32m' : '\u001b[1;31m';
-          const sign   = naik ? '+' : '';
 
-          totalModalUSD += modal;
-          totalNilaiUSD += nilai;
+          const portoKey = `saham:${discordId}`;
+          const [portoRaw, histRaw] = await Promise.all([
+            env.USERS_KV.get(portoKey),
+            env.USERS_KV.get(`saham_history:${discordId}`)
+          ]);
+          const porto = portoRaw ? JSON.parse(portoRaw) : {};
 
-          rows.push(
-            `\u001b[1;33m 📌 ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot @ ${fmtUSD(porto[t].avgBeli)}\u001b[0m`,
-            `\u001b[1;36m    Harga Kini : \u001b[0m\u001b[0;37m${fmtUSD(q.harga)}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
-            `\u001b[1;36m    P/L       : \u001b[0m${clr}${sign}${fmtUSD(profit)} (${sign}🪙${Math.floor(profit * RATE).toLocaleString()})\u001b[0m`,
-            ''
-          );
+          if (porto[ticker]) {
+            const totalLot = porto[ticker].lot + jumlah;
+            const avgBeli  = ((porto[ticker].avgBeli * porto[ticker].lot) + (hargaPerLot * jumlah)) / totalLot;
+            porto[ticker]  = { ...porto[ticker], lot: totalLot, avgBeli };
+          } else {
+            porto[ticker] = { ticker, lot: jumlah, avgBeli: hargaPerLot, beliAt: Date.now() };
+          }
+
+          user.balance -= totalCowoncy;
+
+          const hist = histRaw ? JSON.parse(histRaw) : [];
+          hist.unshift({ aksi: 'BELI', ticker, lot: jumlah, harga: hargaPerLot, totalUSD, totalCowoncy, at: Date.now() });
+          if (hist.length > 50) hist.splice(50);
+
+          await Promise.all([
+            env.USERS_KV.put(portoKey, JSON.stringify(porto)),
+            env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user)),
+            env.USERS_KV.put(`saham_history:${discordId}`, JSON.stringify(hist))
+          ]);
+          waitUntil(pushLinkedRole(env, discordId, null, user));
+
+          return editFollowup([
+            '```ansi',
+            '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;32m║  ✅  PEMBELIAN BERHASIL!  ✅        ║\u001b[0m',
+            '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `${EMOJI} 📈 Berhasil beli **${jumlah} lot** saham **${ticker}**!`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━ 📋 DETAIL BELI ━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 🏷️  Ticker      :\u001b[0m \u001b[1;37m${ticker}\u001b[0m`,
+            `\u001b[1;36m 📦  Jumlah Lot  :\u001b[0m \u001b[0;37m${jumlah} lot\u001b[0m`,
+            `\u001b[1;36m 💵  Harga/Lot   :\u001b[0m \u001b[0;37m${fmtUSD(hargaPerLot)}\u001b[0m`,
+            `\u001b[1;36m 💰  Total USD   :\u001b[0m \u001b[0;37m${fmtUSD(totalUSD)}\u001b[0m`,
+            `\u001b[1;36m 🪙  Total Bayar :\u001b[0m \u001b[1;31m-${totalCowoncy.toLocaleString()} cowoncy\u001b[0m`,
+            `\u001b[1;36m 💳  Sisa Saldo  :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m 📊  Total Porto :\u001b[0m \u001b[0;37m${porto[ticker].lot} lot @ avg ${fmtUSD(porto[ticker].avgBeli)}\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
+            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+          ].join('\n'));
         }
 
-        const totalProfit    = totalNilaiUSD - totalModalUSD;
-        const totalProfitPct = totalModalUSD > 0 ? ((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
-        const totalUntung    = totalProfit >= 0;
-        const totalClr       = totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
-        const totalSign      = totalUntung ? '+' : '';
+        // ══════════════════════════════════════════
+        // AKSI: jual — jual saham
+        // ══════════════════════════════════════════
+        if (sub === 'jual') {
+          const ticker    = getOption(options, 'ticker')?.toUpperCase();
+          const jumlahRaw = getOption(options, 'jumlah');
 
-        return editFollowup([
-          '```ansi',
-          '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-          `\u001b[2;34m║  \u001b[1;33m📊  PORTOFOLIO SAHAM  📊\u001b[0m  \u001b[2;34m║\u001b[0m`,
-          '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-          '```',
-          `${EMOJI} 💼 **${username}** — Portofolio Saham`,
-          '```ansi',
-          '\u001b[1;33m━━━━━━━━━━━ 📋 DAFTAR SAHAM ━━━━━━━━━━\u001b[0m',
-          ...rows,
-          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '\u001b[1;32m━━━━━━━━━━━ 💰 RINGKASAN ━━━━━━━━━━━━\u001b[0m',
-          `\u001b[1;36m 💵  Total Modal  :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
-          `\u001b[1;36m 📈  Total Nilai  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
-          `\u001b[1;36m 💸  Total P/L    :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfit)} (${totalSign}${totalProfitPct}%)\u001b[0m`,
-          `\u001b[1;36m 🪙  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${Math.floor(totalProfit * RATE).toLocaleString()}\u001b[0m`,
-          `\u001b[1;36m 💳  Saldo Kamu   :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
-          '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '```',
-          `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
-          `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
-        ].join('\n'));
+          if (!ticker) return editFollowup(`${EMOJI} ❌ Masukkan ticker saham!`);
+
+          const portoKey = `saham:${discordId}`;
+          const [portoRaw, histRaw] = await Promise.all([
+            env.USERS_KV.get(portoKey),
+            env.USERS_KV.get(`saham_history:${discordId}`)
+          ]);
+          const porto = portoRaw ? JSON.parse(portoRaw) : {};
+
+          if (!porto[ticker] || porto[ticker].lot <= 0) {
+            return editFollowup(`${EMOJI} ❌ Kamu tidak punya saham **${ticker}**!`);
+          }
+
+          const jumlah = jumlahRaw === 'all' ? porto[ticker].lot : parseInt(jumlahRaw || '1');
+          if (!jumlah || jumlah <= 0) return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
+          if (jumlah > porto[ticker].lot) {
+            return editFollowup(`${EMOJI} ❌ Kamu cuma punya **${porto[ticker].lot} lot** saham **${ticker}**!`);
+          }
+
+          const q = await fetchHarga(ticker);
+          if (!q) return editFollowup(`${EMOJI} ❌ Gagal ambil harga **${ticker}**!`);
+
+          const RATE          = 16000;
+          const hargaJual     = q.harga;
+          const avgBeli       = porto[ticker].avgBeli;
+          const totalUSD      = hargaJual * jumlah;
+          const totalCowoncy  = Math.floor(totalUSD * RATE);
+          const modalUSD      = avgBeli * jumlah;
+          const profitUSD     = totalUSD - modalUSD;
+          const profitCowoncy = Math.floor(profitUSD * RATE);
+          const profitPct     = ((profitUSD / modalUSD) * 100).toFixed(2);
+          const untung        = profitUSD >= 0;
+
+          porto[ticker].lot -= jumlah;
+          if (porto[ticker].lot <= 0) delete porto[ticker];
+
+          user.balance += totalCowoncy;
+          if (untung) user.totalEarned = (user.totalEarned || 0) + totalCowoncy;
+
+          const hist = histRaw ? JSON.parse(histRaw) : [];
+          hist.unshift({ aksi: 'JUAL', ticker, lot: jumlah, harga: hargaJual, avgBeli, profitUSD, profitCowoncy, totalUSD, totalCowoncy, at: Date.now() });
+          if (hist.length > 50) hist.splice(50);
+
+          await Promise.all([
+            env.USERS_KV.put(portoKey, JSON.stringify(porto)),
+            env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user)),
+            env.USERS_KV.put(`saham_history:${discordId}`, JSON.stringify(hist))
+          ]);
+          waitUntil(pushLinkedRole(env, discordId, null, user));
+
+          const profitColor = untung ? '\u001b[1;32m' : '\u001b[1;31m';
+          const profitSign  = untung ? '+' : '';
+
+          return editFollowup([
+            '```ansi',
+            untung
+              ? '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m'
+              : '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+            untung
+              ? '\u001b[1;32m║  💰  JUAL BERHASIL — PROFIT!  💰   ║\u001b[0m'
+              : '\u001b[1;31m║  📉  JUAL BERHASIL — RUGI!  📉    ║\u001b[0m',
+            untung
+              ? '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m'
+              : '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `${EMOJI} ${untung ? '🤑' : '😢'} Berhasil jual **${jumlah} lot** saham **${ticker}**!`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━ 📋 DETAIL JUAL ━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 🏷️  Ticker      :\u001b[0m \u001b[1;37m${ticker}\u001b[0m`,
+            `\u001b[1;36m 📦  Jumlah Lot  :\u001b[0m \u001b[0;37m${jumlah} lot\u001b[0m`,
+            `\u001b[1;36m 💵  Harga Jual  :\u001b[0m \u001b[0;37m${fmtUSD(hargaJual)}\u001b[0m`,
+            `\u001b[1;36m 📊  Avg Beli    :\u001b[0m \u001b[0;37m${fmtUSD(avgBeli)}\u001b[0m`,
+            `\u001b[1;36m 💰  Total Dapat :\u001b[0m \u001b[1;32m+${totalCowoncy.toLocaleString()} cowoncy\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━ 📈 PROFIT/LOSS ━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 💸  Profit USD  :\u001b[0m ${profitColor}${profitSign}${fmtUSD(profitUSD)}\u001b[0m`,
+            `\u001b[1;36m 🪙  Profit Coin :\u001b[0m ${profitColor}${profitSign}${profitCowoncy.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m 📊  Return      :\u001b[0m ${profitColor}${profitSign}${profitPct}%\u001b[0m`,
+            `\u001b[1;36m 💳  Saldo Baru  :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
+            '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+          ].join('\n'));
+        }
+
+        // ══════════════════════════════════════════
+        // AKSI: portofolio — lihat semua saham
+        // ══════════════════════════════════════════
+        if (sub === 'portofolio') {
+          const portoKey = `saham:${discordId}`;
+          const portoRaw = await env.USERS_KV.get(portoKey);
+          const porto    = portoRaw ? JSON.parse(portoRaw) : {};
+          const tickers  = Object.keys(porto);
+
+          if (tickers.length === 0) {
+            return editFollowup([
+              '```ansi',
+              '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+              '\u001b[2;34m║  \u001b[1;31m📭  PORTOFOLIO KOSONG  📭\u001b[0m  \u001b[2;34m║\u001b[0m',
+              '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+              '```',
+              `> ${EMOJI} Kamu belum punya saham!`,
+              `> 💡 Gunakan \`/saham beli ticker:AAPL jumlah:1\` untuk mulai.`
+            ].join('\n'));
+          }
+
+          const RATE     = 16000;
+          const fetched  = await Promise.all(tickers.map(t => fetchHarga(t)));
+          const hargaMap = {};
+          tickers.forEach((t, i) => { hargaMap[t] = fetched[i]; });
+
+          let totalModalUSD = 0;
+          let totalNilaiUSD = 0;
+          const rows = [];
+
+          for (const t of tickers) {
+            const q = hargaMap[t];
+            if (!q) {
+              rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — Gagal fetch harga\u001b[0m`);
+              continue;
+            }
+            const modal  = porto[t].avgBeli * porto[t].lot;
+            const nilai  = q.harga * porto[t].lot;
+            const profit = nilai - modal;
+            const pct    = ((profit / modal) * 100).toFixed(1);
+            const naik   = profit >= 0;
+            const clr    = naik ? '\u001b[1;32m' : '\u001b[1;31m';
+            const sign   = naik ? '+' : '';
+
+            totalModalUSD += modal;
+            totalNilaiUSD += nilai;
+
+            rows.push(
+              `\u001b[1;33m 📌 ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot @ ${fmtUSD(porto[t].avgBeli)}\u001b[0m`,
+              `\u001b[1;36m    Harga Kini : \u001b[0m\u001b[0;37m${fmtUSD(q.harga)}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
+              `\u001b[1;36m    P/L       : \u001b[0m${clr}${sign}${fmtUSD(profit)} (${sign}🪙${Math.floor(profit * RATE).toLocaleString()})\u001b[0m`,
+              ''
+            );
+          }
+
+          const totalProfit    = totalNilaiUSD - totalModalUSD;
+          const totalProfitPct = totalModalUSD > 0 ? ((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
+          const totalUntung    = totalProfit >= 0;
+          const totalClr       = totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
+          const totalSign      = totalUntung ? '+' : '';
+
+          return editFollowup([
+            '```ansi',
+            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+            `\u001b[2;34m║  \u001b[1;33m📊  PORTOFOLIO SAHAM  📊\u001b[0m  \u001b[2;34m║\u001b[0m`,
+            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `${EMOJI} 💼 **${username}** — Portofolio Saham`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━ 📋 DAFTAR SAHAM ━━━━━━━━━━\u001b[0m',
+            ...rows,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━ 💰 RINGKASAN ━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 💵  Total Modal  :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
+            `\u001b[1;36m 📈  Total Nilai  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
+            `\u001b[1;36m 💸  Total P/L    :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfit)} (${totalSign}${totalProfitPct}%)\u001b[0m`,
+            `\u001b[1;36m 🪙  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${Math.floor(totalProfit * RATE).toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m 💳  Saldo Kamu   :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
+            '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
+            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+          ].join('\n'));
+        }
+
+        // ══════════════════════════════════════════
+        // AKSI: top — top saham populer
+        // ══════════════════════════════════════════
+        if (sub === 'top') {
+          const TOP_TICKERS = [
+            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA',
+            'TSLA', 'META', 'NFLX', 'AMD', 'INTC'
+          ];
+
+          const fetched = await Promise.all(TOP_TICKERS.map(t => fetchHarga(t)));
+          const results = fetched.filter(Boolean);
+
+          results.sort((a, b) => parseFloat(b.changePct) - parseFloat(a.changePct));
+
+          const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+          const rows = results.map((q, i) => {
+            const naik  = q.change >= 0;
+            const arrow = naik ? '📈' : '📉';
+            const clr   = naik ? '\u001b[1;32m' : '\u001b[1;31m';
+            const sign  = naik ? '+' : '';
+            return `${medals[i]} \u001b[1;33m${q.ticker.padEnd(6)}\u001b[0m \u001b[0;37m${fmtUSD(q.harga).padEnd(12)}\u001b[0m ${clr}${sign}${q.changePct}\u001b[0m ${arrow}`;
+          });
+
+          const gainers = results.filter(q => q.change >= 0).length;
+          const losers  = results.length - gainers;
+
+          return editFollowup([
+            '```ansi',
+            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+            `\u001b[2;34m║  \u001b[1;33m🏆  TOP SAHAM HARI INI  🏆\u001b[0m  \u001b[2;34m║\u001b[0m`,
+            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `${EMOJI} 📊 **Top 10 Saham** — Sorted by Performance`,
+            '```ansi',
+            '\u001b[1;33m━━━━ TICKER ━━ HARGA ━━━━━━ CHANGE ━━━━\u001b[0m',
+            ...rows,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;32m 📈 Naik: ${gainers}\u001b[0m  \u001b[1;31m📉 Turun: ${losers}\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
+          ].join('\n'));
+        }
+
+      } catch (err) {
+        // ⚠️ Catch semua error di dalam waitUntil agar tidak silent fail
+        await editFollowup(`${EMOJI} ❌ Terjadi error internal: \`${err.message}\`\nCoba lagi atau hubungi admin!`);
       }
-
-      // ══════════════════════════════════════════
-      // AKSI: top — top saham populer
-      // ══════════════════════════════════════════
-      if (sub === 'top') {
-        const TOP_TICKERS = [
-          'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA',
-          'TSLA', 'META', 'NFLX', 'AMD', 'INTC'
-        ];
-
-        const fetched = await Promise.all(TOP_TICKERS.map(t => fetchHarga(t)));
-        const results = fetched.filter(Boolean);
-
-        results.sort((a, b) => parseFloat(b.changePct) - parseFloat(a.changePct));
-
-        const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
-        const rows = results.map((q, i) => {
-          const naik  = q.change >= 0;
-          const arrow = naik ? '📈' : '📉';
-          const clr   = naik ? '\u001b[1;32m' : '\u001b[1;31m';
-          const sign  = naik ? '+' : '';
-          return `${medals[i]} \u001b[1;33m${q.ticker.padEnd(6)}\u001b[0m \u001b[0;37m${fmtUSD(q.harga).padEnd(12)}\u001b[0m ${clr}${sign}${q.changePct}\u001b[0m ${arrow}`;
-        });
-
-        const gainers = results.filter(q => q.change >= 0).length;
-        const losers  = results.length - gainers;
-
-        return editFollowup([
-          '```ansi',
-          '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-          `\u001b[2;34m║  \u001b[1;33m🏆  TOP SAHAM HARI INI  🏆\u001b[0m  \u001b[2;34m║\u001b[0m`,
-          '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-          '```',
-          `${EMOJI} 📊 **Top 10 Saham** — Sorted by Performance`,
-          '```ansi',
-          '\u001b[1;33m━━━━ TICKER ━━ HARGA ━━━━━━ CHANGE ━━━━\u001b[0m',
-          ...rows,
-          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          `\u001b[1;32m 📈 Naik: ${gainers}\u001b[0m  \u001b[1;31m📉 Turun: ${losers}\u001b[0m`,
-          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '```',
-          `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
-        ].join('\n'));
-      }
-
     })());
 
     // ✅ Langsung ACK ke Discord supaya tidak timeout 3 detik
-return new Response(JSON.stringify({ type: 5 }), {
-  headers: { 'Content-Type': 'application/json' }
-  });
-}    
+    return new Response(JSON.stringify({ type: 5 }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 
   // ══════════════════════════════════════════
   // AKSI: history — riwayat transaksi (no defer)
@@ -5359,7 +5374,6 @@ return new Response(JSON.stringify({ type: 5 }), {
 
   return respond(`${EMOJI} ❌ Aksi tidak dikenal! Gunakan: \`cek\`, \`beli\`, \`jual\`, \`portofolio\`, \`history\`, \`top\`, \`info\``);
 }
-
 
   
 
