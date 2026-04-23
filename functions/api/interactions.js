@@ -3987,20 +3987,20 @@ if (cmd === 'slots') {
   const amountRaw = getOption(options, 'jumlah');
   const bet = amountRaw === 'all' ? user.balance : parseInt(amountRaw);
 
-  if (!bet || bet <= 0)           return respond('❌ Jumlah taruhan tidak valid.');
-  if (bet < 100)                  return respond('❌ Taruhan minimum **🪙 100**!');
-  if (bet > 5000000000)               return respond('❌ Taruhan maksimum **🪙 5.000.000.000**!');
-  if (bet > user.balance)         return respond(`❌ Saldo tidak cukup! Kamu punya 🪙 **${user.balance.toLocaleString()}**`);
+  if (!bet || bet <= 0)     return respond('❌ Jumlah taruhan tidak valid.');
+  if (bet < 100)            return respond('❌ Taruhan minimum **🪙 100**!');
+  if (bet > 5000000000)     return respond('❌ Taruhan maksimum **🪙 5.000.000.000**!');
+  if (bet > user.balance)   return respond(`❌ Saldo tidak cukup! Kamu punya 🪙 **${user.balance.toLocaleString()}**`);
 
   const SYMBOLS = [
-    { s: '💎', name: 'Diamond', weight: 1  },
-    { s: '7️⃣',  name: 'Lucky7',  weight: 2  },
-    { s: '🍀', name: 'Clover',  weight: 4  },
-    { s: '⭐', name: 'Star',    weight: 7  },
-    { s: '🔔', name: 'Bell',    weight: 10 },
-    { s: '🍇', name: 'Grape',   weight: 14 },
-    { s: '🍋', name: 'Lemon',   weight: 18 },
-    { s: '🍒', name: 'Cherry',  weight: 22 },
+    { s: '💎', name: 'Diamond', weight: 3  },
+    { s: '7️⃣',  name: 'Lucky7',  weight: 5  },
+    { s: '🍀', name: 'Clover',  weight: 8  },
+    { s: '⭐', name: 'Star',    weight: 12 },
+    { s: '🔔', name: 'Bell',    weight: 16 },
+    { s: '🍇', name: 'Grape',   weight: 18 },
+    { s: '🍋', name: 'Lemon',   weight: 19 },
+    { s: '🍒', name: 'Cherry',  weight: 19 },
   ];
   const TOTAL_WEIGHT = SYMBOLS.reduce((a, b) => a + b.weight, 0);
 
@@ -4022,16 +4022,21 @@ if (cmd === 'slots') {
   const topSym   = reels.find(r => freq[r.name] === maxMatch);
 
   const MULT = {
-    'Diamond-5': 500, 'Lucky7-5': 200, 'Clover-5': 100,
-    'Star-5': 50, 'Bell-5': 30, 'Grape-5': 20,
-    'Lemon-5': 15, 'Cherry-5': 10,
-    'Diamond-4': 50, 'Lucky7-4': 25, 'Clover-4': 15,
-    'Star-4': 10, 'Bell-4': 7, 'Grape-4': 5,
-    'Lemon-4': 4, 'Cherry-4': 3,
-    'Diamond-3': 10, 'Lucky7-3': 6, 'Clover-3': 4,
-    'Star-3': 3, 'Bell-3': 2, 'Grape-3': 1.5,
-    'Lemon-3': 1.2, 'Cherry-3': 1,
-    'Diamond-2': 0.5, 'Lucky7-2': 0.3,
+    // 5 sama — jackpot, tetap langka & worth it
+    'Diamond-5': 300, 'Lucky7-5': 150, 'Clover-5': 80,
+    'Star-5': 40,     'Bell-5': 25,    'Grape-5': 15,
+    'Lemon-5': 10,    'Cherry-5': 8,
+    // 4 sama — lumayan
+    'Diamond-4': 30,  'Lucky7-4': 18,  'Clover-4': 10,
+    'Star-4': 7,      'Bell-4': 5,     'Grape-4': 4,
+    'Lemon-4': 3,     'Cherry-4': 2.5,
+    // 3 sama — sering terjadi, hadiahnya kecil tapi ada
+    'Diamond-3': 6,   'Lucky7-3': 4,   'Clover-3': 2.5,
+    'Star-3': 2,      'Bell-3': 1.8,   'Grape-3': 1.5,
+    'Lemon-3': 1.3,   'Cherry-3': 1.2,
+    // 2 sama — modal balik dikit biar ga sakit
+    'Diamond-2': 0.8, 'Lucky7-2': 0.6,
+    'Clover-2':  0.4, 'Star-2':   0.3,
   };
 
   const multKey = `${topSym.name}-${maxMatch}`;
@@ -4122,9 +4127,10 @@ if (cmd === 'slots') {
     '```',
     '```ansi',
     '\u001b[1;34m━━━━━━━━━ 🗂️ TABEL MULTIPLIER ━━━━━━━━\u001b[0m',
-    '\u001b[0;37m 💎x5=500x | 7x5=200x | 🍀x5=100x | ⭐x5=50x\u001b[0m',
-    '\u001b[0;37m 💎x4=50x  | 7x4=25x  | 🍀x4=15x  | ⭐x4=10x\u001b[0m',
-    '\u001b[0;37m 💎x3=10x  | 7x3=6x   | 🍀x3=4x   | ⭐x3=3x \u001b[0m',
+    '\u001b[0;37m 💎x5=300x | 7x5=150x | 🍀x5=80x | ⭐x5=40x\u001b[0m',
+    '\u001b[0;37m 💎x4=30x  | 7x4=18x  | 🍀x4=10x | ⭐x4=7x \u001b[0m',
+    '\u001b[0;37m 💎x3=6x   | 7x3=4x   | 🍀x3=2.5x| ⭐x3=2x \u001b[0m',
+    '\u001b[0;37m 💎x2=0.8x | 7x2=0.6x | 🍀x2=0.4x| ⭐x2=0.3x\u001b[0m',
     '\u001b[1;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
     '```'
   ].join('\n');
