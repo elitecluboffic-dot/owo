@@ -5142,12 +5142,18 @@ if (cmd === 'saham') {
 
           const RATE     = 16000;
           const hargaMap = {};
-const results = await Promise.all(
+const results = await Promise.allSettled(
   tickers.map(t => fetchHarga(t))
 );
 
 tickers.forEach((t, i) => {
-  hargaMap[t] = results[i];
+  const res = results[i];
+
+  if (res.status !== 'fulfilled' || !res.value || res.value.rateLimited) {
+    hargaMap[t] = null;
+  } else {
+    hargaMap[t] = res.value;
+  }
 });
           
 
