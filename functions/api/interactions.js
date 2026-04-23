@@ -4769,6 +4769,10 @@ if (cmd === 'gacha') {
 // CMD: saham — sistem saham virtual
 // ══════════════════════════════════════════════
 if (cmd === 'saham') {
+  console.log('[SAHAM] sub:', getOption(options, 'aksi'));
+  console.log('[SAHAM] discordId:', discordId);
+  console.log('[SAHAM] user exists:', !!user);
+
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const AV_KEY = env.ALPHA_VANTAGE_KEY;
   const sub = getOption(options, 'aksi');
