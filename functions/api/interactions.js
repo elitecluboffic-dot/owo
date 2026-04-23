@@ -1,4 +1,4 @@
-export const onRequestPost = async ({ request, env, waitUntil }) => {
+﻿export const onRequestPost = async ({ request, env, waitUntil }) => {
   const url = new URL(request.url);
   const headers = { 'Content-Type': 'application/json' };
 
@@ -5584,3 +5584,4 @@ function getLevelNumber(totalEarned) {
   if (totalEarned >= 2000)    return 2;
   return 1;
 }
+
