@@ -5119,175 +5119,124 @@ if (cmd === 'saham') {
           ].join('\n'));
         }
 
-        // ══════════════════════════════════════════
-        // AKSI: portofolio — lihat semua saham
-        // ══════════════════════════════════════════
-        if (sub === 'portofolio') {
-          const portoKey = `saham:${discordId}`;
-          const portoRaw = await env.USERS_KV.get(portoKey);
-          const porto    = portoRaw ? JSON.parse(portoRaw) : {};
-          const tickers  = Object.keys(porto);
+        
+        
+// ══════════════════════════════════════════
+// AKSI: portofolio — lihat semua saham
+// ══════════════════════════════════════════
+if (sub === 'portofolio') {
+  const portoKey = `saham:${discordId}`;
+  const cacheKey = `cache:porto:${discordId}`; // Key untuk cache render
 
-          if (tickers.length === 0) {
-            return editFollowup([
-              '```ansi',
-              '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-              '\u001b[2;34m║  \u001b[1;31m📭  PORTOFOLIO KOSONG  📭\u001b[0m  \u001b[2;34m║\u001b[0m',
-              '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-              '```',
-              `> ${EMOJI} Kamu belum punya saham!`,
-              `> 💡 Gunakan \`/saham beli ticker:AAPL jumlah:1\` untuk mulai.`
-            ].join('\n'));
-          }
-
-          const RATE     = 16000;
-          const hargaMap = {};
-const results = await Promise.allSettled(
-  tickers.map(t => fetchHarga(t))
-);
-
-tickers.forEach((t, i) => {
-  const res = results[i];
-
-  if (res.status !== 'fulfilled' || !res.value || res.value.rateLimited) {
-    hargaMap[t] = null;
-  } else {
-    hargaMap[t] = res.value;
+  // 1. CEK CACHE DULU (Supaya API aman dari rate limit)
+  const cachedRender = await env.USERS_KV.get(cacheKey);
+  if (cachedRender) {
+    const data = JSON.parse(cachedRender);
+    return editFollowup(data.content + `\n> 🕒 *Data diperbarui ${Math.round((Date.now() - data.ts)/60000)} menit lalu.*`);
   }
-});
-          
 
-          let totalModalUSD = 0;
-          let totalNilaiUSD = 0;
-          const rows = [];
+  const portoRaw = await env.USERS_KV.get(portoKey);
+  const porto    = portoRaw ? JSON.parse(portoRaw) : {};
+  const tickers  = Object.keys(porto);
 
-          for (const t of tickers) {
-            const q = hargaMap[t];
-            if (!q || q.rateLimited) {
-              const label = q?.rateLimited ? 'Semua API key limit — coba lagi' : 'Gagal fetch harga';
-              rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — ${label}\u001b[0m`);
-              if (q?.rateLimited) {
-                totalModalUSD += porto[t].avgBeli * porto[t].lot;
-                totalNilaiUSD += porto[t].avgBeli * porto[t].lot;
-              }
-              continue;
-            }
+  if (tickers.length === 0) {
+    return editFollowup([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m📭  PORTOFOLIO KOSONG  📭\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} Kamu belum punya saham!`,
+      `> 💡 Gunakan \`/saham beli ticker:AAPL jumlah:1\` untuk mulai.`
+    ].join('\n'));
+  }
 
-            const modal  = porto[t].avgBeli * porto[t].lot;
-            const nilai  = q.harga * porto[t].lot;
-            const profit = nilai - modal;
-            const pct    = ((profit / modal) * 100).toFixed(1);
-            const naik   = profit >= 0;
-            const clr    = naik ? '\u001b[1;32m' : '\u001b[1;31m';
-            const sign   = naik ? '+' : '';
+  const RATE     = 16000;
+  const hargaMap = {};
 
-            totalModalUSD += modal;
-            totalNilaiUSD += nilai;
+  // 2. FETCH HARGA (Tetap menggunakan Promise.allSettled agar cepat)
+  const results = await Promise.allSettled(tickers.map(t => fetchHarga(t)));
 
-            rows.push(
-              `\u001b[1;33m 📌 ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot @ ${fmtUSD(porto[t].avgBeli)}\u001b[0m \u001b[2;37m(${q.nama})\u001b[0m`,
-              `\u001b[1;36m    Harga Kini : \u001b[0m\u001b[0;37m${fmtUSD(q.harga)}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
-              `\u001b[1;36m    P/L       : \u001b[0m${clr}${sign}${fmtUSD(profit)} (${sign}🪙${Math.floor(profit * RATE).toLocaleString()})\u001b[0m`,
-              ''
-            );
-          }
+  tickers.forEach((t, i) => {
+    const res = results[i];
+    if (res.status !== 'fulfilled' || !res.value || res.value.rateLimited) {
+      hargaMap[t] = null;
+    } else {
+      hargaMap[t] = res.value;
+    }
+  });
 
-          const totalProfit    = totalNilaiUSD - totalModalUSD;
-          const totalProfitPct = totalModalUSD > 0 ? ((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
-          const totalUntung    = totalProfit >= 0;
-          const totalClr       = totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
-          const totalSign      = totalUntung ? '+' : '';
+  let totalModalUSD = 0;
+  let totalNilaiUSD = 0;
+  const rows = [];
 
-          return editFollowup([
-            '```ansi',
-            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-            `\u001b[2;34m║  \u001b[1;33m📊  PORTOFOLIO SAHAM  📊\u001b[0m           \u001b[2;34m║\u001b[0m`,
-            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-            '```',
-            `${EMOJI} 💼 **${username}** — Portofolio Saham`,
-            '```ansi',
-            '\u001b[1;33m━━━━━━━━━━━ 📋 DAFTAR SAHAM ━━━━━━━━━━\u001b[0m',
-            ...rows,
-            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-            '\u001b[1;32m━━━━━━━━━━━ 💰 RINGKASAN ━━━━━━━━━━━━\u001b[0m',
-            `\u001b[1;36m 💵  Total Modal  :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
-            `\u001b[1;36m 📈  Total Nilai  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
-            `\u001b[1;36m 💸  Total P/L    :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfit)} (${totalSign}${totalProfitPct}%)\u001b[0m`,
-            `\u001b[1;36m 🪙  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${Math.floor(totalProfit * RATE).toLocaleString()}\u001b[0m`,
-            `\u001b[1;36m 💳  Saldo Kamu   :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
-            '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-            '```',
-            `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
-            `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
-          ].join('\n'));
-        }
+  for (const t of tickers) {
+    const q = hargaMap[t];
+    const modal = porto[t].avgBeli * porto[t].lot;
+    totalModalUSD += modal;
 
-        // ══════════════════════════════════════════
-        // AKSI: top — top saham populer
-        // ══════════════════════════════════════════
-        if (sub === 'top') {
-          const TOP_TICKERS = [
-            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA',
-            'TSLA', 'META', 'NFLX', 'AMD', 'INTC'
-          ];
+    if (!q || q.rateLimited) {
+      const label = q?.rateLimited ? 'Semua API key limit — coba lagi' : 'Gagal fetch harga';
+      rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — ${label}\u001b[0m`);
+      totalNilaiUSD += modal; // Anggap harga tetap jika gagal
+      continue;
+    }
 
-          const topCacheKey = 'saham_top_cache';
-          const topCached   = await env.USERS_KV.get(topCacheKey);
-          let results;
+    const nilai  = q.harga * porto[t].lot;
+    const profit = nilai - modal;
+    const pct    = ((profit / modal) * 100).toFixed(1);
+    const naik   = profit >= 0;
+    const clr    = naik ? '\u001b[1;32m' : '\u001b[1;31m';
+    const sign   = naik ? '+' : '';
 
-          if (topCached) {
-            const parsed = JSON.parse(topCached);
-            if (Date.now() - parsed.ts < 15 * 60 * 1000) results = parsed.data;
-          }
+    totalNilaiUSD += nilai;
 
-          if (!results) {
-            const fetched = [];
-            for (const t of TOP_TICKERS) {
-              const q = await fetchHarga(t);
-              if (q && !q.rateLimited) fetched.push(q);
-              else if (q?.rateLimited) break;
-            }
-            results = fetched;
-            if (results.length > 0) {
-              await env.USERS_KV.put(topCacheKey, JSON.stringify({ data: results, ts: Date.now() }), { expirationTtl: 900 });
-            }
-          }
+    rows.push(
+      `\u001b[1;33m 📌 ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot @ ${fmtUSD(porto[t].avgBeli)}\u001b[0m \u001b[2;37m(${q.nama})\u001b[0m`,
+      `\u001b[1;36m    Harga Kini : \u001b[0m\u001b[0;37m${fmtUSD(q.harga)}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
+      `\u001b[1;36m    P/L        : \u001b[0m${clr}${sign}${fmtUSD(profit)} (${sign}🪙${Math.floor(profit * RATE).toLocaleString()})\u001b[0m`,
+      ''
+    );
+  }
 
-          if (results.length === 0) {
-            return editFollowup(`${EMOJI} ⏳ Semua API key lagi limit! Data top saham tidak tersedia. Coba lagi dalam **1 menit**.`);
-          }
+  const totalProfit    = totalNilaiUSD - totalModalUSD;
+  const totalProfitPct = totalModalUSD > 0 ? ((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
+  const totalUntung    = totalProfit >= 0;
+  const totalClr       = totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
+  const totalSign      = totalUntung ? '+' : '';
 
-          results.sort((a, b) => b.changePctRaw - a.changePctRaw);
+  // 3. GENERATE FINAL MESSAGE (Gaya visual asli kamu)
+  const finalContent = [
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+    `\u001b[2;34m║  \u001b[1;33m📊  PORTOFOLIO SAHAM  📊\u001b[0m           \u001b[2;34m║\u001b[0m`,
+    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `${EMOJI} 💼 **${username}** — Portofolio Saham`,
+    '```ansi',
+    '\u001b[1;33m━━━━━━━━━━━ 📋 DAFTAR SAHAM ━━━━━━━━━━\u001b[0m',
+    ...rows,
+    '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '\u001b[1;32m━━━━━━━━━━━ 💰 RINGKASAN ━━━━━━━━━━━━\u001b[0m',
+    `\u001b[1;36m 💵  Total Modal  :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
+    `\u001b[1;36m 📈  Total Nilai  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
+    `\u001b[1;36m 💸  Total P/L    :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfit)} (${totalSign}${totalProfitPct}%)\u001b[0m`,
+    `\u001b[1;36m 🪙  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${Math.floor(totalProfit * RATE).toLocaleString()}\u001b[0m`,
+    `\u001b[1;36m 💳  Saldo Kamu   :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
+    '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '```',
+    `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
+    `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
+  ].join('\n');
 
-          const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
-          const rows = results.map((q, i) => {
-            const naik  = q.change >= 0;
-            const arrow = naik ? '📈' : '📉';
-            const clr   = naik ? '\u001b[1;32m' : '\u001b[1;31m';
-            const sign  = naik ? '+' : '';
-            return `${medals[i]} \u001b[1;33m${q.ticker.padEnd(6)}\u001b[0m \u001b[0;37m${fmtUSD(q.harga).padEnd(12)}\u001b[0m ${clr}${sign}${q.changePct}\u001b[0m ${arrow}`;
-          });
+  // 4. SIMPAN KE CACHE (Selama 5 menit / 300 detik)
+  await env.USERS_KV.put(cacheKey, JSON.stringify({
+    content: finalContent,
+    ts: Date.now()
+  }), { expirationTtl: 300 });
 
-          const gainers = results.filter(q => q.change >= 0).length;
-          const losers  = results.length - gainers;
-
-          return editFollowup([
-            '```ansi',
-            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-            `\u001b[2;34m║  \u001b[1;33m🏆  TOP SAHAM HARI INI  🏆\u001b[0m         \u001b[2;34m║\u001b[0m`,
-            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-            '```',
-            `${EMOJI} 📊 **Top ${results.length} Saham** — Sorted by Performance`,
-            '```ansi',
-            '\u001b[1;33m━━━━ TICKER ━━ HARGA ━━━━━━ CHANGE ━━━━\u001b[0m',
-            ...rows,
-            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-            `\u001b[1;32m 📈 Naik: ${gainers}\u001b[0m  \u001b[1;31m📉 Turun: ${losers}\u001b[0m`,
-            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-            '```',
-            `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
-          ].join('\n'));
-        }
+  return editFollowup(finalContent);
+}
 
         // ══════════════════════════════════════════
         // AKSI: info — daftar saham tersedia
