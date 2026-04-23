@@ -644,6 +644,19 @@ if (isSpamming) {
 - \`/gacha tier:basic\` → Beli Pokémon pakai coins
   - ⚪ Basic: 25.000 coins | 🟡 Premium: 75.000 coins | 🔴 Legendary: 200.000 coins
 
+  **Tools:**
+• \`/translate\` → Terjemahkan Bahasa Asing
+• \`/weather\` → Cek cuaca di Seluruh Dunia
+• \`/kurs\` → Cek Mata Uang Real Time
+• \`/ip\` → Lacak Lokasi Jaringan
+• \`/color\` → Cek Color Gunakan Hex
+• \`/shorten\` → Perpendek URL panjang
+• \`/makequote\` → Buat Quote dari Ucapan Seseorang
+• \`/quotesweb\` → Buat Quotes akan dikirim ke web: owo.kraxx.my.id/quotes
+• \`/confess target:@user pesan:test kategori: mood:\` → Kirim pesan Anonim ke Seseorang
+• \`/feeback\` → Kirim feedback, saran, atau laporan ke owner bot!
+• \`/explode\` → Ledakkan seseorang dengan efek api
+
 **Sosial & Fun:**
 • \`/marry target:@user\` → Melamar seseorang
 • \`/accept-marry\` → Terima lamaran
