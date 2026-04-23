@@ -501,6 +501,26 @@ const commands = [
       required: false
     }
   ]
+},
+
+
+
+  {
+  name: 'gacha',
+  description: '🎰 Beli Pokémon random pakai coins!',
+  options: [
+    {
+      name: 'tier',
+      description: 'Pilih tier gacha',
+      type: 3,
+      required: true,
+      choices: [
+        { name: '⚪ Basic — 25.000 coins (Common & Uncommon)',        value: 'basic'     },
+        { name: '🟡 Premium — 75.000 coins (Uncommon, Rare, Epic)',   value: 'premium'   },
+        { name: '🔴 Legendary — 200.000 coins (Rare, Epic, Legend)',  value: 'legendary' }
+      ]
+    }
+  ]
 }
 
   
