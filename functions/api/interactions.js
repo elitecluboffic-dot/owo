@@ -5123,7 +5123,7 @@ if (cmd === 'saham') {
         
 
         // ══════════════════════════════════════════
-        // AKSI: portofolio — lihat semua saham (ULTIMATE FIX)
+        // AKSI: portofolio — lihat semua saham (FINAL DEBUG FIX)
         // ══════════════════════════════════════════
         if (sub === 'portofolio') {
           const portoKey = `saham:${discordId}`;
@@ -5147,37 +5147,40 @@ if (cmd === 'saham') {
           const hargaMap = {};
           const symbols  = tickers.join(',');
 
-          // --- LOGIKA BATCH FETCH (FIXED ENV NAMES) ---
+          // --- LOGIKA AMBIL KEY (FORCE DETECTION) ---
           let batchData = null;
-          // Menggunakan nama variabel sesuai dashboard kamu
-          const TD_KEYS = [
+          
+          // Kita ambil langsung dari env, tambahkan pengecekan tipe data
+          const rawKeys = [
             env.TWELVE_DATA_KEY_1, 
             env.TWELVE_DATA_KEY_2, 
             env.TWELVE_DATA_KEY_3
-          ].filter(Boolean); 
+          ];
+          
+          const TD_KEYS = rawKeys.filter(k => k && typeof k === 'string' && k.length > 5); 
 
-          // Jika kunci tidak terbaca sama sekali dari env
+          // Jika array kosong, berarti script tidak bisa baca Secret di dashboard
           if (TD_KEYS.length === 0) {
-            return editFollowup(`> ❌ **Error:** API Keys tidak terbaca. Pastikan sudah input Secret di Dashboard Cloudflare dan sudah di-Deploy ulang.`);
+            return editFollowup([
+              `> ❌ **API Key Detection Failed!**`,
+              `> Status: Found **${rawKeys.filter(Boolean).length}** keys, but none are valid strings.`,
+              `> 💡 **Solusi:** Kamu harus melakukan **Redeploy** di dashboard Cloudflare agar Secret baru sinkron ke script.`
+            ].join('\n'));
           }
 
+          // Loop Fetching
           for (const key of TD_KEYS) {
             try {
-              const url = `https://api.twelvedata.com/quote?symbol=${symbols}&apikey=${key}`;
+              const url = `https://api.twelvedata.com/quote?symbol=${symbols}&apikey=${key.trim()}`;
               const res = await fetch(url);
               
               if (!res.ok) continue;
 
               const json = await res.json();
-
-              // Jika Twelve Data balas error (limit habis atau apikey salah)
-              if (json.status === 'error' || json.code === 429) {
-                console.log(`API Key Limit/Error, mencoba key selanjutnya...`);
-                continue; 
-              }
+              if (json.status === 'error' || json.code === 429) continue; 
               
               batchData = json;
-              break; // Berhasil, keluar dari loop key
+              break; 
             } catch (e) {
               continue;
             }
@@ -5185,19 +5188,16 @@ if (cmd === 'saham') {
 
           // Mapping hasil batch ke hargaMap
           tickers.forEach(t => {
-            // Struktur Twelve Data: Jika > 1 ticker, data dibungkus dalam key [ticker]
             const q = tickers.length > 1 ? batchData?.[t] : batchData;
-            
             if (q && q.close && !q.status?.includes('error')) {
               hargaMap[t] = {
                 harga: parseFloat(q.close),
                 nama: q.name || t
               };
             } else {
-              hargaMap[t] = null; // Gagal fetch harga terbaru
+              hargaMap[t] = null;
             }
           });
-          // ----------------------------------------------------------------
 
           let totalModalUSD = 0;
           let totalNilaiUSD = 0;
@@ -5225,7 +5225,7 @@ if (cmd === 'saham') {
             totalNilaiUSD += nilai;
 
             rows.push(
-              `\u001b[1;33m 📌 ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot @ ${fmtUSD(porto[t].avgBeli)}\u001b[0m \u001b[2;37m(${q.nama})\u001b[0m`,
+              `\u001b[1;33m 📌 ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot @ ${fmtUSD(porto[t].avgBeli)}\u001b[0m`,
               `\u001b[1;36m    Harga Kini : \u001b[0m\u001b[0;37m${fmtUSD(q.harga)}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
               `\u001b[1;36m    P/L       : \u001b[0m${clr}${sign}${fmtUSD(profit)} (${sign}🪙${Math.floor(profit * RATE).toLocaleString()})\u001b[0m`,
               ''
@@ -5244,7 +5244,7 @@ if (cmd === 'saham') {
             `\u001b[2;34m║  \u001b[1;33m📊  PORTOFOLIO SAHAM  📊\u001b[0m           \u001b[2;34m║\u001b[0m`,
             '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
             '```',
-            `${EMOJI} 💼 **${username}** — Portofolio Saham`,
+            `${EMOJI} 💼 **${username}** — Portofolio`,
             '```ansi',
             '\u001b[1;33m━━━━━━━━━━━ 📋 DAFTAR SAHAM ━━━━━━━━━━\u001b[0m',
             ...rows,
@@ -5254,14 +5254,11 @@ if (cmd === 'saham') {
             `\u001b[1;36m 📈  Total Nilai  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
             `\u001b[1;36m 💸  Total P/L    :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfit)} (${totalSign}${totalProfitPct}%)\u001b[0m`,
             `\u001b[1;36m 🪙  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${Math.floor(totalProfit * RATE).toLocaleString()}\u001b[0m`,
-            `\u001b[1;36m 💳  Saldo Kamu   :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
             '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
-            `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
-            `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
+            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
           ].join('\n'));
         }
-
 
         
         // ══════════════════════════════════════════
