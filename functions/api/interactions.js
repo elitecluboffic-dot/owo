@@ -5148,20 +5148,15 @@ if (sub === 'portofolio') {
   const hargaMap = {};
 
   // 2. SEQUENTIAL FETCH (Fix Utama: Ambil satu-satu dengan jeda agar tidak loading/stuck)
-  for (const t of tickers) {
-    try {
-      const q = await fetchHarga(t);
-      if (q && !q.rateLimited) {
-        hargaMap[t] = q;
-      } else {
-        hargaMap[t] = null;
-      }
-      // Tambahkan sedikit delay 100ms antar request agar API tidak kaget
-      await new Promise(r => setTimeout(r, 100)); 
-    } catch (e) {
-      hargaMap[t] = null;
-    }
-  }
+// 2. PARALLEL FETCH — semua ticker diambil barengan
+const results = await Promise.all(
+  tickers.map(t => fetchHarga(t).catch(() => null))
+);
+results.forEach((q, i) => {
+  hargaMap[tickers[i]] = q && !q.rateLimited ? q : null;
+});
+
+  
 
   let totalModalUSD = 0;
   let totalNilaiUSD = 0;
