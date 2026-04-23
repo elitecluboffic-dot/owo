@@ -5150,13 +5150,11 @@ if (sub === 'portofolio') {
 // ↓ TAMBAH DI SINI
 const t0 = Date.now();
 
-// 2. PARALLEL FETCH
 const results = await Promise.all(
   tickers.map(t => fetchHarga(t).catch(() => null))
 );
 
-// ↓ DAN INI
-console.log(`Fetch ${tickers.length} ticker selesai dalam ${Date.now() - t0}ms`);
+const fetchMs = Date.now() - t0;  // ← simpan ke variabel
 
 results.forEach((q, i) => {
   hargaMap[tickers[i]] = q && !q.rateLimited ? q : null;
@@ -5224,6 +5222,7 @@ results.forEach((q, i) => {
     '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
     '```',
     `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
+    `> ⏱️ *Fetch: ${fetchMs}ms | ${tickers.length} ticker*`,
     `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
   ].join('\n');
 
