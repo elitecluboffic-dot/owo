@@ -614,76 +614,114 @@ if (isSpamming) {
 
 
 
-    // ==================== HELP COMMAND (MUDAH DIUPDATE) ====================
-    if (cmd === 'help') {
-      const helpText = `🌟 **Bantuan Command Bot OWO BIM**
 
-**Ekonomi Utama:**
-• \`/register password:xxx\` → Buat akun baru
-• \`/wcash\` → Cek saldo cowoncy kamu
-• \`/wcf jumlah:1000\` atau \`/wcf jumlah:all\` → Coinflip (50/50)
-• \`/wsend target:@user jumlah:5000\` → Kirim cowoncy ke orang lain
-• \`/daily\` → Klaim daily reward (15.000)
-• \`/kerja\` → Kerja setiap 1 jam (25.000)
-
-**Bank:**
-• \`/bank\` → Cek saldo bank & bunga
-• \`/deposit jumlah:10000\` atau \`/deposit jumlah:all\` → Masukkan uang ke bank
-• \`/withdraw jumlah:5000\` atau \`/withdraw jumlah:all\` → Ambil uang dari bank
-
-
-**🎰 Games:**
-- \`/slots jumlah:1000\` → Slot machine jackpot
-- \`/rps pilihan:batu\` → Rock Paper Scissors vs bot/user
-
-**⚡ Pokémon System:**
-- \`/spawn\` → Munculkan Pokémon liar (cooldown 1 menit)
-- \`/catch nama:pikachu\` → Tangkap Pokémon yang muncul
-- \`/pokedex\` → Lihat daftar koleksi Pokémon kamu
-- \`/pokemon nama:pikachu\` → Lihat detail + gambar 1 Pokémon
-- \`/gacha tier:basic\` → Beli Pokémon pakai coins
-  - ⚪ Basic: 25.000 coins | 🟡 Premium: 75.000 coins | 🔴 Legendary: 200.000 coins
-
-  **Tools:**
-• \`/translate\` → Terjemahkan Bahasa Asing
-• \`/weather\` → Cek cuaca di Seluruh Dunia
-• \`/kurs\` → Cek Mata Uang Real Time
-• \`/ip\` → Lacak Lokasi Jaringan
-• \`/color\` → Cek Color Gunakan Hex
-• \`/shorten\` → Perpendek URL panjang
-• \`/makequote\` → Buat Quote dari Ucapan Seseorang
-• \`/quotesweb\` → Buat Quotes akan dikirim ke web: owo.kraxx.my.id/quotes
-• \`/confess target:@user pesan:test kategori: mood:\` → Kirim pesan Anonim ke Seseorang
-• \`/feeback\` → Kirim feedback, saran, atau laporan ke owner bot!
-• \`/explode\` → Ledakkan seseorang dengan efek api
-
-**Sosial & Fun:**
-• \`/marry target:@user\` → Melamar seseorang
-• \`/accept-marry\` → Terima lamaran
-• \`/tolak-marry\` → Tolak lamaran
-• \`/divorce\` → Cerai
-• \`/partner\` → Cek status pernikahan
-• \`/hug target:@user\` → Peluk seseorang
-• \`/slap target:@user\` → Tampar seseorang
-• \`/pat target:@user\` → Usap kepala (pat pat)
-• \`/roast target:@user\` → Roast random super pedas
-• \`/afk alasan:lagi belajar\` → Set AFK
-• \`/unafk\` → Keluar dari AFK
-
-**Lainnya:**
-• \`/ping\` → Cek latency bot
-• \`/stats\` → Statistik total pemain & cowoncy
-• \`/leaderboard\` → Top 10 saldo tertinggi
-• \`/level\` → Level leaderboard (berdasarkan total earned)
-• \`/avatar user:@user\` → Tampilkan avatar user
-• \`/infopemilikbot\` → Info pemilik bot
-
-> **Tips:** Beberapa command support \`all\` untuk jumlah (contoh: /wcf jumlah:all)
-Butuh bantuan lebih lanjut? Hubungi <@1442230317455900823> 💬`;
-
-      return respond(helpText);
+// ==================== HELP COMMAND (MUDAH DIUPDATE) ====================
+if (cmd === 'help') {
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      embeds: [
+        {
+          title: "🌟 Bantuan Command Bot OWO BIM",
+          description: "Berikut daftar semua command yang tersedia:",
+          color: 0xf1c40f
+        },
+        {
+          title: "💰 Ekonomi Utama",
+          color: 0x2ecc71,
+          description: [
+            "• `/register password:xxx` → Buat akun baru",
+            "• `/wcash` → Cek saldo cowoncy kamu",
+            "• `/wcf jumlah:1000` atau `/wcf jumlah:all` → Coinflip (50/50)",
+            "• `/wsend target:@user jumlah:5000` → Kirim cowoncy ke orang lain",
+            "• `/daily` → Klaim daily reward (15.000)",
+            "• `/kerja` → Kerja setiap 1 jam (25.000)"
+          ].join("\n")
+        },
+        {
+          title: "🏦 Bank",
+          color: 0x3498db,
+          description: [
+            "• `/bank` → Cek saldo bank & bunga",
+            "• `/deposit jumlah:10000` atau `/deposit jumlah:all` → Masukkan uang ke bank",
+            "• `/withdraw jumlah:5000` atau `/withdraw jumlah:all` → Ambil uang dari bank"
+          ].join("\n")
+        },
+        {
+          title: "🎰 Games",
+          color: 0xe74c3c,
+          description: [
+            "• `/slots jumlah:1000` → Slot machine jackpot",
+            "• `/rps pilihan:batu` → Rock Paper Scissors vs bot/user"
+          ].join("\n")
+        },
+        {
+          title: "⚡ Pokémon System",
+          color: 0xf39c12,
+          description: [
+            "• `/spawn` → Munculkan Pokémon liar (cooldown 1 menit)",
+            "• `/catch nama:pikachu` → Tangkap Pokémon yang muncul",
+            "• `/pokedex` → Lihat daftar koleksi Pokémon kamu",
+            "• `/pokemon nama:pikachu` → Lihat detail + gambar 1 Pokémon",
+            "• `/gacha tier:basic` → Beli Pokémon pakai coins",
+            "  ⚪ Basic: 25.000 | 🟡 Premium: 75.000 | 🔴 Legendary: 200.000"
+          ].join("\n")
+        },
+        {
+          title: "🛠️ Tools",
+          color: 0x9b59b6,
+          description: [
+            "• `/translate` → Terjemahkan Bahasa Asing",
+            "• `/weather` → Cek cuaca di Seluruh Dunia",
+            "• `/kurs` → Cek Mata Uang Real Time",
+            "• `/ip` → Lacak Lokasi Jaringan",
+            "• `/color` → Cek Color Gunakan Hex",
+            "• `/shorten` → Perpendek URL panjang",
+            "• `/makequote` → Buat Quote dari Ucapan Seseorang",
+            "• `/quotesweb` → Kirim Quotes ke web: owo.kraxx.my.id/quotes",
+            "• `/confess target:@user pesan:xxx` → Kirim pesan Anonim",
+            "• `/feedback` → Kirim feedback/saran/laporan ke owner",
+            "• `/explode` → Ledakkan seseorang dengan efek api 🔥"
+          ].join("\n")
+        },
+        {
+          title: "💑 Sosial & Fun",
+          color: 0xe91e63,
+          description: [
+            "• `/marry target:@user` → Melamar seseorang",
+            "• `/accept-marry` → Terima lamaran",
+            "• `/tolak-marry` → Tolak lamaran",
+            "• `/divorce` → Cerai",
+            "• `/partner` → Cek status pernikahan",
+            "• `/hug target:@user` → Peluk seseorang",
+            "• `/slap target:@user` → Tampar seseorang",
+            "• `/pat target:@user` → Usap kepala (pat pat)",
+            "• `/roast target:@user` → Roast random super pedas",
+            "• `/afk alasan:lagi belajar` → Set AFK",
+            "• `/unafk` → Keluar dari AFK"
+          ].join("\n")
+        },
+        {
+          title: "📊 Lainnya",
+          color: 0x1abc9c,
+          description: [
+            "• `/ping` → Cek latency bot",
+            "• `/stats` → Statistik total pemain & cowoncy",
+            "• `/leaderboard` → Top 10 saldo tertinggi",
+            "• `/level` → Level leaderboard (berdasarkan total earned)",
+            "• `/avatar user:@user` → Tampilkan avatar user",
+            "• `/infopemilikbot` → Info pemilik bot",
+            "",
+            "> 💡 **Tips:** Beberapa command support `all` (contoh: `/wcf jumlah:all`)",
+            "> Butuh bantuan lebih lanjut? Hubungi <@1442230317455900823> 💬"
+          ].join("\n")
+        }
+      ]
     }
-
+  }), {
+    headers: { "Content-Type": "application/json" }
+  });
+}
 
 
 
