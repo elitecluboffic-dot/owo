@@ -5168,7 +5168,8 @@ if (cmd === 'saham') {
     // ✅ Langsung ACK ke Discord supaya tidak timeout 3 detik
 return new Response(JSON.stringify({ type: 5 }), {
   headers: { 'Content-Type': 'application/json' }
-});
+  });
+}    
 
   // ══════════════════════════════════════════
   // AKSI: history — riwayat transaksi (no defer)
