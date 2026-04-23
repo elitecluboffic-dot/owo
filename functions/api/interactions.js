@@ -5122,118 +5122,129 @@ if (cmd === 'saham') {
         
         
 
-// ══════════════════════════════════════════
-// AKSI: portofolio — lihat semua saham
-// ══════════════════════════════════════════
-if (sub === 'portofolio') {
-  const portoKey = `saham:${discordId}`;
-  const cacheKey = `cache:porto:${discordId}`;
+        // ══════════════════════════════════════════
+        // AKSI: portofolio — lihat semua saham (OPTIMIZED)
+        // ══════════════════════════════════════════
+        if (sub === 'portofolio') {
+          const portoKey = `saham:${discordId}`;
+          const portoRaw = await env.USERS_KV.get(portoKey);
+          const porto    = portoRaw ? JSON.parse(portoRaw) : {};
+          const tickers  = Object.keys(porto);
 
-  // 1. CEK CACHE DULU
-  const cachedRender = await env.USERS_KV.get(cacheKey);
-  if (cachedRender) {
-    const data = JSON.parse(cachedRender);
-    return editFollowup(data.content + `\n> 🕒 *Data diperbarui ${Math.round((Date.now() - data.ts)/60000)} menit lalu.*`);
-  }
+          if (tickers.length === 0) {
+            return editFollowup([
+              '```ansi',
+              '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+              '\u001b[2;34m║  \u001b[1;31m📭  PORTOFOLIO KOSONG  📭\u001b[0m  \u001b[2;34m║\u001b[0m',
+              '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+              '```',
+              `> ${EMOJI} Kamu belum punya saham!`,
+              `> 💡 Gunakan \`/saham beli ticker:AAPL jumlah:1\` untuk mulai.`
+            ].join('\n'));
+          }
 
-  const portoRaw = await env.USERS_KV.get(portoKey);
-  const porto    = portoRaw ? JSON.parse(portoRaw) : {};
-  const tickers  = Object.keys(porto);
+          const RATE     = 16000;
+          const hargaMap = {};
+          const symbols  = tickers.join(',');
 
-  if (tickers.length === 0) {
-    return editFollowup('```ansi\n\u001b[1;31m📭 PORTOFOLIO KOSONG\u001b[0m\n```');
-  }
+          // --- LOGIKA BATCH FETCH (OPTIMASI UTAMA) ---
+          let batchData = null;
+          const TD_KEYS = [env.TD_KEY1, env.TD_KEY2, env.TD_KEY3].filter(Boolean); // Sesuaikan nama variabel env kamu
 
-  const RATE     = 16000;
-  const hargaMap = {};
+          for (const key of TD_KEYS) {
+            try {
+              const url = `https://api.twelvedata.com/quote?symbol=${symbols}&apikey=${key}`;
+              const res = await fetch(url);
+              const json = await res.json();
 
-// ↓ TAMBAH DI SINI
-const t0 = Date.now();
+              if (json.status === 'error' && json.code === 429) continue; // Limit, coba key berikutnya
+              batchData = json;
+              break; 
+            } catch (e) {
+              continue;
+            }
+          }
 
-const results = await Promise.all(
-  tickers.map(t => fetchHarga(t).catch(() => null))
-);
+          // Mapping hasil batch ke hargaMap
+          tickers.forEach(t => {
+            // Twelve Data balikin object langsung kalau cuma 1 ticker, 
+            // atau nested object kalau banyak ticker.
+            const q = tickers.length > 1 ? batchData?.[t] : batchData;
+            
+            if (q && q.close && !q.status?.includes('error')) {
+              hargaMap[t] = {
+                harga: parseFloat(q.close),
+                nama: q.name || t
+              };
+            } else {
+              hargaMap[t] = null; // Gagal fetch
+            }
+          });
+          // -------------------------------------------
 
-const fetchMs = Date.now() - t0;  // ← simpan ke variabel
+          let totalModalUSD = 0;
+          let totalNilaiUSD = 0;
+          const rows = [];
 
-results.forEach((q, i) => {
-  hargaMap[tickers[i]] = q && !q.rateLimited ? q : null;
-});
+          for (const t of tickers) {
+            const q = hargaMap[t];
+            const modal = porto[t].avgBeli * porto[t].lot;
+            
+            if (!q) {
+              // Jika gagal fetch, pakai harga modal supaya total tidak kacau
+              totalModalUSD += modal;
+              totalNilaiUSD += modal; 
+              rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — \u001b[1;31mGagal muat harga\u001b[0m`);
+              continue;
+            }
 
-  
+            const nilai  = q.harga * porto[t].lot;
+            const profit = nilai - modal;
+            const pct    = ((profit / modal) * 100).toFixed(1);
+            const naik   = profit >= 0;
+            const clr    = naik ? '\u001b[1;32m' : '\u001b[1;31m';
+            const sign   = naik ? '+' : '';
 
-  let totalModalUSD = 0;
-  let totalNilaiUSD = 0;
-  const rows = [];
+            totalModalUSD += modal;
+            totalNilaiUSD += nilai;
 
-  for (const t of tickers) {
-    const q = hargaMap[t];
-    const modal = porto[t].avgBeli * porto[t].lot;
-    totalModalUSD += modal;
+            rows.push(
+              `\u001b[1;33m 📌 ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot @ ${fmtUSD(porto[t].avgBeli)}\u001b[0m \u001b[2;37m(${q.nama})\u001b[0m`,
+              `\u001b[1;36m    Harga Kini : \u001b[0m\u001b[0;37m${fmtUSD(q.harga)}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
+              `\u001b[1;36m    P/L       : \u001b[0m${clr}${sign}${fmtUSD(profit)} (${sign}🪙${Math.floor(profit * RATE).toLocaleString()})\u001b[0m`,
+              ''
+            );
+          }
 
-    if (!q) {
-      // Jika fetch gagal, tampilkan harga modal agar total tidak kacau
-      rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — API Busy/Limit\u001b[0m`);
-      totalNilaiUSD += modal; 
-      continue;
-    }
+          const totalProfit    = totalNilaiUSD - totalModalUSD;
+          const totalProfitPct = totalModalUSD > 0 ? ((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
+          const totalUntung    = totalProfit >= 0;
+          const totalClr       = totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
+          const totalSign      = totalUntung ? '+' : '';
 
-    const nilai  = q.harga * porto[t].lot;
-    const profit = nilai - modal;
-    const pct    = ((profit / modal) * 100).toFixed(1);
-    const naik   = profit >= 0;
-    const clr    = naik ? '\u001b[1;32m' : '\u001b[1;31m';
-    const sign   = naik ? '+' : '';
-
-    totalNilaiUSD += nilai;
-
-    rows.push(
-      `\u001b[1;33m 📌 ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot @ ${fmtUSD(porto[t].avgBeli)}\u001b[0m \u001b[2;37m(${q.nama})\u001b[0m`,
-      `\u001b[1;36m    Harga Kini : \u001b[0m\u001b[0;37m${fmtUSD(q.harga)}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
-      `\u001b[1;36m    P/L        : \u001b[0m${clr}${sign}${fmtUSD(profit)} (${sign}🪙${Math.floor(profit * RATE).toLocaleString()})\u001b[0m`,
-      ''
-    );
-  }
-
-  const totalProfit    = totalNilaiUSD - totalModalUSD;
-  const totalProfitPct = totalModalUSD > 0 ? ((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
-  const totalUntung    = totalProfit >= 0;
-  const totalClr       = totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
-  const totalSign      = totalUntung ? '+' : '';
-
-  // 3. GENERATE FINAL MESSAGE
-  const finalContent = [
-    '```ansi',
-    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-    `\u001b[2;34m║  \u001b[1;33m📊  PORTOFOLIO SAHAM  📊\u001b[0m           \u001b[2;34m║\u001b[0m`,
-    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-    '```',
-    `${EMOJI} 💼 **${username}** — Portofolio Saham`,
-    '```ansi',
-    '\u001b[1;33m━━━━━━━━━━━ 📋 DAFTAR SAHAM ━━━━━━━━━━\u001b[0m',
-    ...rows,
-    '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-    '\u001b[1;32m━━━━━━━━━━━ 💰 RINGKASAN ━━━━━━━━━━━━\u001b[0m',
-    `\u001b[1;36m 💵  Total Modal  :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
-    `\u001b[1;36m 📈  Total Nilai  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
-    `\u001b[1;36m 💸  Total P/L    :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfit)} (${totalSign}${totalProfitPct}%)\u001b[0m`,
-    `\u001b[1;36m 🪙  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${Math.floor(totalProfit * RATE).toLocaleString()}\u001b[0m`,
-    `\u001b[1;36m 💳  Saldo Kamu   :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
-    '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-    '```',
-    `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
-    `> ⏱️ *Fetch: ${fetchMs}ms | ${tickers.length} ticker*`,
-    `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
-  ].join('\n');
-
-  // 4. SIMPAN KE CACHE
-  await env.USERS_KV.put(cacheKey, JSON.stringify({
-    content: finalContent,
-    ts: Date.now()
-  }), { expirationTtl: 300 });
-
-  return editFollowup(finalContent);
-}
+          return editFollowup([
+            '```ansi',
+            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+            `\u001b[2;34m║  \u001b[1;33m📊  PORTOFOLIO SAHAM  📊\u001b[0m           \u001b[2;34m║\u001b[0m`,
+            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `${EMOJI} 💼 **${username}** — Portofolio Saham`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━ 📋 DAFTAR SAHAM ━━━━━━━━━━\u001b[0m',
+            ...rows,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━ 💰 RINGKASAN ━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 💵  Total Modal  :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
+            `\u001b[1;36m 📈  Total Nilai  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
+            `\u001b[1;36m 💸  Total P/L    :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfit)} (${totalSign}${totalProfitPct}%)\u001b[0m`,
+            `\u001b[1;36m 🪙  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${Math.floor(totalProfit * RATE).toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m 💳  Saldo Kamu   :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
+            '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
+            `> 🤖 *Powered by OwoBim Stock Engine × Twelve Data* ${EMOJI}`
+          ].join('\n'));
+        }
 
         // ══════════════════════════════════════════
         // AKSI: info — daftar saham tersedia
