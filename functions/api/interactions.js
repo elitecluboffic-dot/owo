@@ -4953,7 +4953,7 @@ if (cmd === 'saham') {
 
           if (!ticker)                return editFollowup(`${EMOJI} ❌ Masukkan ticker saham!`);
           if (!jumlah || jumlah <= 0) return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
-          if (jumlah > 10000)         return editFollowup(`${EMOJI} ❌ Maksimal beli **10.000 lot** sekaligus!`);
+          if (jumlah > 1000000000) return editFollowup(`${EMOJI} ❌ Maksimal beli **1.000.000.000 lot** sekaligus!`);
 
           const q = await fetchHarga(ticker);
           if (!q)            return editFollowup(`${EMOJI} ❌ Ticker **${ticker}** tidak ditemukan!`);
