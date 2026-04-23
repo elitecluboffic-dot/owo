@@ -449,6 +449,20 @@ const commands = [
       ]
     }
   ]
+},
+
+
+  {
+  "name": "slots",
+  "description": "🎰 Main slot machine! Menangkan jackpot besar!",
+  "options": [
+    {
+      "name": "jumlah",
+      "description": "Jumlah taruhan (min 100, max 500000, atau 'all')",
+      "type": 3,
+      "required": true
+    }
+  ]
 }
 
   
