@@ -5221,7 +5221,7 @@ if (cmd === 'saham') {
     ].join('\n'));
   }
 
-  return respond(`${EMOJI} ❌ Aksi tidak dikenal! Gunakan: \`cek\`, \`beli\`, \`jual\`, \`portofolio\`, \`history\`, \`top\``);
+  return respond(`${EMOJI} ❌ Aksi tidak dikenal! Gunakan: \`cek\`, \`beli\`, \`jual\`, \`portofolio\`, \`history\`, \`top\`, \`info\``);
 }
 
 
