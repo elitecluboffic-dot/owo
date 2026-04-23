@@ -4150,6 +4150,352 @@ if (cmd === 'slots') {
 }
 
 
+
+
+
+    // ══════════════════════════════════════════════
+// CMD: spawn — munculkan Pokémon random
+// ══════════════════════════════════════════════
+if (cmd === 'spawn') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+
+  // Cek cooldown spawn (1 menit per channel)
+  const spawnCdKey = `spawn_cd:${channelId}`;
+  const lastSpawn  = await env.USERS_KV.get(spawnCdKey);
+  if (lastSpawn) {
+    const sisa = 60000 - (Date.now() - parseInt(lastSpawn));
+    if (sisa > 0) {
+      return respond(`> ${EMOJI} ⏳ Pokémon baru akan muncul dalam **${Math.ceil(sisa/1000)} detik**!`);
+    }
+  }
+
+  // Ambil Pokémon random dari PokeAPI (gen 1-9, max ID 1025)
+  const randomId = Math.floor(Math.random() * 1025) + 1;
+  const pokeRes  = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
+  if (!pokeRes.ok) return respond('❌ Gagal fetch Pokémon, coba lagi!');
+  const pokeData = await pokeRes.json();
+
+  const pokeName    = pokeData.name;
+  const pokeSprite  = pokeData.sprites.other['official-artwork'].front_default
+    || pokeData.sprites.front_default;
+  const pokeTypes   = pokeData.types.map(t => t.type.name).join(', ');
+  const pokeHp      = pokeData.stats.find(s => s.stat.name === 'hp').base_stat;
+  const pokeAtk     = pokeData.stats.find(s => s.stat.name === 'attack').base_stat;
+  const pokeDef     = pokeData.stats.find(s => s.stat.name === 'defense').base_stat;
+  const pokeSpd     = pokeData.stats.find(s => s.stat.name === 'speed').base_stat;
+
+  // Tentukan rarity berdasarkan base_experience
+  const baseExp = pokeData.base_experience || 100;
+  const rarity  = baseExp >= 250 ? '🔴 Legendary'
+    : baseExp >= 180 ? '🟠 Epic'
+    : baseExp >= 120 ? '🟡 Rare'
+    : baseExp >= 70  ? '🟢 Uncommon'
+    : '⚪ Common';
+
+  // Simpan spawn aktif ke KV (expire 5 menit)
+  const spawnData = {
+    id: randomId,
+    name: pokeName,
+    sprite: pokeSprite,
+    types: pokeTypes,
+    hp: pokeHp, atk: pokeAtk, def: pokeDef, spd: pokeSpd,
+    rarity, baseExp,
+    spawnedAt: Date.now(),
+    spawnedBy: discordId,
+    channelId, guildId
+  };
+  await env.USERS_KV.put(`spawn:${channelId}`, JSON.stringify(spawnData), { expirationTtl: 300 });
+  await env.USERS_KV.put(spawnCdKey, String(Date.now()), { expirationTtl: 60 });
+
+  const nameHint = pokeName.length <= 4
+    ? pokeName[0] + '?'.repeat(pokeName.length - 1)
+    : pokeName[0] + '?'.repeat(Math.floor(pokeName.length / 2)) + pokeName.slice(-1);
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      embeds: [{
+        color: 0xFFCB05,
+        title: '⚡ Pokémon Liar Muncul!',
+        description: [
+          '```ansi',
+          '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[1;33m║  ⚡  A WILD POKEMON APPEARED!  ⚡  ║\u001b[0m',
+          '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;33m━━━━━━━━━━━━ 🔍 HINT ━━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;37m  Nama    : \u001b[1;33m${nameHint}\u001b[0m`,
+          `\u001b[1;37m  Tipe    : \u001b[0;37m${pokeTypes}\u001b[0m`,
+          `\u001b[1;37m  Rarity  : \u001b[0;37m${rarity}\u001b[0m`,
+          `\u001b[1;37m  HP      : \u001b[0;37m${pokeHp}\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```',
+          `> 🎯 Gunakan \`/catch <nama>\` untuk menangkapnya!`,
+          `> ⏰ Pokémon akan kabur dalam **5 menit**!`
+        ].join('\n'),
+        image: { url: pokeSprite },
+        footer: { text: `OwoBim Pokémon System • ID #${randomId}` },
+        timestamp: new Date().toISOString()
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+
+
+// ══════════════════════════════════════════════
+// CMD: catch — tangkap Pokémon yang spawn
+// ══════════════════════════════════════════════
+if (cmd === 'catch') {
+  const EMOJI   = '<a:GifOwoBim:1492599199038967878>';
+  const namaInput = getOption(options, 'nama')?.toLowerCase().trim();
+
+  if (!namaInput) return respond('❌ Tulis nama Pokémon yang mau ditangkap!\nContoh: `/catch pikachu`');
+
+  // Cek ada spawn aktif di channel ini
+  const spawnRaw = await env.USERS_KV.get(`spawn:${channelId}`);
+  if (!spawnRaw) {
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m✗  TIDAK ADA POKEMON  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ❌ Tidak ada Pokémon yang muncul di channel ini!`,
+      `> 💡 Gunakan \`/spawn\` atau ketik **spawn** untuk memunculkan Pokémon.`
+    ].join('\n'));
+  }
+
+  const spawnData = JSON.parse(spawnRaw);
+
+  // Cek nama benar
+  if (namaInput !== spawnData.name.toLowerCase()) {
+    // Kasih hint kalau salah
+    const benar  = spawnData.name.toLowerCase();
+    const hints  = [];
+    let matchCount = 0;
+    for (let i = 0; i < Math.min(namaInput.length, benar.length); i++) {
+      if (namaInput[i] === benar[i]) matchCount++;
+    }
+    const pct = Math.round((matchCount / benar.length) * 100);
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m✗  NAMA SALAH!  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ❌ Nama **\`${namaInput}\`** salah!`,
+      `> 🎯 Akurasi: **${pct}%** mendekati nama yang benar`,
+      `> 💡 Hint: **${spawnData.name[0]}${'?'.repeat(Math.floor(spawnData.name.length/2))}${spawnData.name.slice(-1)}** — tipe: **${spawnData.types}**`
+    ].join('\n'));
+  }
+
+  // Nama benar — hitung catch rate berdasarkan rarity
+  const catchRates = {
+    '⚪ Common': 90, '🟢 Uncommon': 75,
+    '🟡 Rare': 55,   '🟠 Epic': 35, '🔴 Legendary': 15
+  };
+  const catchRate = catchRates[spawnData.rarity] || 70;
+  const roll      = Math.random() * 100;
+  const caught    = roll <= catchRate;
+
+  if (!caught) {
+    // Gagal tangkap — Pokemon kabur 30% chance
+    const escape = Math.random() < 0.3;
+    if (escape) await env.USERS_KV.delete(`spawn:${channelId}`);
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m💨  POKEMON KABUR!  💨\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} 💨 **${spawnData.name}** berhasil menghindari Poké Ball!`,
+      escape
+        ? `> 😭 Pokémon **kabur** dari area! Spawn ulang lagi.`
+        : `> 🎯 Coba lagi! Pokémon masih di sini.`,
+      `> 📊 Catch rate: **${catchRate}%** | Roll: **${Math.round(roll)}**`
+    ].join('\n'));
+  }
+
+  // Berhasil tangkap!
+  await env.USERS_KV.delete(`spawn:${channelId}`);
+
+  // Simpan ke koleksi user
+  const collKey  = `pokemon:${discordId}`;
+  const collRaw  = await env.USERS_KV.get(collKey);
+  const coll     = collRaw ? JSON.parse(collRaw) : [];
+
+  // Cek duplikat
+  const isDupe = coll.some(p => p.id === spawnData.id);
+  const pokeEntry = {
+    id:        spawnData.id,
+    name:      spawnData.name,
+    types:     spawnData.types,
+    rarity:    spawnData.rarity,
+    hp:        spawnData.hp,
+    atk:       spawnData.atk,
+    def:       spawnData.def,
+    spd:       spawnData.spd,
+    sprite:    spawnData.sprite,
+    caughtAt:  Date.now(),
+    caughtBy:  username,
+    count:     isDupe ? (coll.find(p => p.id === spawnData.id).count || 1) + 1 : 1
+  };
+
+  if (isDupe) {
+    const idx = coll.findIndex(p => p.id === spawnData.id);
+    coll[idx] = pokeEntry;
+  } else {
+    coll.push(pokeEntry);
+  }
+
+  await env.USERS_KV.put(collKey, JSON.stringify(coll));
+
+  // Update stats
+  const pokeStats = user.pokeStats || { caught: 0, legendary: 0, epic: 0, rare: 0, dupes: 0 };
+  pokeStats.caught++;
+  if (isDupe) pokeStats.dupes++;
+  if (spawnData.rarity === '🔴 Legendary') pokeStats.legendary++;
+  if (spawnData.rarity === '🟠 Epic') pokeStats.epic++;
+  if (spawnData.rarity === '🟡 Rare') pokeStats.rare++;
+  user.pokeStats = pokeStats;
+  await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+
+  const waktu = new Date().toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta', day: '2-digit',
+    month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: isDupe
+        ? `🔄 **${username}** dapat duplikat **${spawnData.name}**! (${pokeEntry.count}x)`
+        : `🎉 **${username}** berhasil menangkap **${spawnData.name}**! ${spawnData.rarity}`,
+      embeds: [{
+        color: isDupe ? 0xF1C40F : 0x2ECC71,
+        title: isDupe ? `🔄 Duplikat — ${spawnData.name}!` : `✅ Tertangkap — ${spawnData.name}!`,
+        description: [
+          '```ansi',
+          '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+          `\u001b[1;32m║  ✅  GOTCHA! ${spawnData.name.toUpperCase().padEnd(20)}║\u001b[0m`,
+          '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;32m━━━━━━━━━━━━ 📋 INFO ━━━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  🏷️  Nama    :\u001b[0m \u001b[1;37m${spawnData.name}\u001b[0m`,
+          `\u001b[1;36m  🌀  Tipe    :\u001b[0m \u001b[0;37m${spawnData.types}\u001b[0m`,
+          `\u001b[1;36m  ⭐  Rarity  :\u001b[0m \u001b[0;37m${spawnData.rarity}\u001b[0m`,
+          `\u001b[1;36m  ❤️  HP      :\u001b[0m \u001b[0;37m${spawnData.hp}\u001b[0m`,
+          `\u001b[1;36m  ⚔️  ATK     :\u001b[0m \u001b[0;37m${spawnData.atk}\u001b[0m`,
+          `\u001b[1;36m  🛡️  DEF     :\u001b[0m \u001b[0;37m${spawnData.def}\u001b[0m`,
+          `\u001b[1;36m  💨  SPD     :\u001b[0m \u001b[0;37m${spawnData.spd}\u001b[0m`,
+          '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '\u001b[1;33m━━━━━━━━━━━━ 🎒 KOLEKSI ━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  📦  Total   :\u001b[0m \u001b[0;37m${coll.length} Pokémon\u001b[0m`,
+          `\u001b[1;36m  🔄  Duplikat:\u001b[0m \u001b[0;37m${isDupe ? 'Ya ('+pokeEntry.count+'x)' : 'Tidak — Baru!'}\u001b[0m`,
+          `\u001b[1;36m  🏆  Caught  :\u001b[0m \u001b[0;37m${pokeStats.caught}x total\u001b[0m`,
+          `\u001b[1;36m  🔴  Legend  :\u001b[0m \u001b[0;37m${pokeStats.legendary}x\u001b[0m`,
+          `\u001b[1;36m  🕐  Waktu   :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```'
+        ].join('\n'),
+        thumbnail: { url: spawnData.sprite },
+        footer: { text: `OwoBim Pokémon System • #${spawnData.id}` },
+        timestamp: new Date().toISOString()
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+
+
+// ══════════════════════════════════════════════
+// CMD: pokedex — lihat koleksi Pokémon
+// ══════════════════════════════════════════════
+if (cmd === 'pokedex') {
+  const EMOJI    = '<a:GifOwoBim:1492599199038967878>';
+  const targetOpt = options.find(o => o.name === 'user');
+  const targetId  = targetOpt ? String(targetOpt.value) : discordId;
+  const targetUser = targetOpt
+    ? interaction.data.resolved?.users?.[targetId]
+    : (interaction.member?.user || interaction.user);
+  const targetName = targetUser?.username || 'Unknown';
+  const page = parseInt(getOption(options, 'page') || '1');
+
+  const collRaw = await env.USERS_KV.get(`pokemon:${targetId}`);
+  const coll    = collRaw ? JSON.parse(collRaw) : [];
+
+  if (coll.length === 0) {
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m📭  KOLEKSI KOSONG  📭\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} **${targetName}** belum punya Pokémon!`,
+      `> 💡 Gunakan \`/spawn\` lalu \`/catch <nama>\` untuk mulai koleksi.`
+    ].join('\n'));
+  }
+
+  // Sort by rarity then ID
+  const rarityOrder = { '🔴 Legendary': 0, '🟠 Epic': 1, '🟡 Rare': 2, '🟢 Uncommon': 3, '⚪ Common': 4 };
+  coll.sort((a, b) => (rarityOrder[a.rarity] ?? 5) - (rarityOrder[b.rarity] ?? 5) || a.id - b.id);
+
+  const PER_PAGE = 10;
+  const totalPage = Math.ceil(coll.length / PER_PAGE);
+  const curPage   = Math.min(Math.max(page, 1), totalPage);
+  const slice     = coll.slice((curPage - 1) * PER_PAGE, curPage * PER_PAGE);
+
+  // Stats koleksi
+  const legendary = coll.filter(p => p.rarity === '🔴 Legendary').length;
+  const epic      = coll.filter(p => p.rarity === '🟠 Epic').length;
+  const rare      = coll.filter(p => p.rarity === '🟡 Rare').length;
+  const pokeStats = user.pokeStats || {};
+
+  const pokeList = slice.map((p, i) => {
+    const no  = ((curPage - 1) * PER_PAGE) + i + 1;
+    const dup = p.count > 1 ? ` (x${p.count})` : '';
+    return `\u001b[1;36m ${String(no).padStart(2)}.\u001b[0m \u001b[0;37m#${String(p.id).padStart(4,'0')} ${p.name.padEnd(15)} ${p.rarity}${dup}\u001b[0m`;
+  }).join('\n');
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      embeds: [{
+        color: 0xFF0000,
+        title: `📖 Pokédex — ${targetName}`,
+        description: [
+          '```ansi',
+          '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+          `\u001b[1;31m║  📖  POKEDEX — ${targetName.slice(0,14).padEnd(14)}  ║\u001b[0m`,
+          '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;33m━━━━━━━━━━━ 📊 STATISTIK ━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  📦  Total Koleksi :\u001b[0m \u001b[0;37m${coll.length} Pokémon\u001b[0m`,
+          `\u001b[1;36m  🔴  Legendary     :\u001b[0m \u001b[0;37m${legendary}x\u001b[0m`,
+          `\u001b[1;36m  🟠  Epic          :\u001b[0m \u001b[0;37m${epic}x\u001b[0m`,
+          `\u001b[1;36m  🟡  Rare          :\u001b[0m \u001b[0;37m${rare}x\u001b[0m`,
+          `\u001b[1;36m  🏆  Total Caught  :\u001b[0m \u001b[0;37m${pokeStats.caught || 0}x\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;32m━━━━━━ 📋 DAFTAR (Hal. ${curPage}/${totalPage}) ━━━━━━\u001b[0m`,
+          pokeList,
+          '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```',
+          curPage < totalPage
+            ? `> 📄 Halaman ${curPage}/${totalPage} — gunakan \`/pokedex page:${curPage+1}\` untuk lanjut`
+            : `> ✅ Halaman terakhir (${totalPage}/${totalPage})`
+        ].join('\n'),
+        footer: { text: `OwoBim Pokémon System • ${targetName}` },
+        timestamp: new Date().toISOString()
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+
+
     
     
     
