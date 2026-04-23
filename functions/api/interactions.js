@@ -3983,7 +3983,7 @@ if (cmd === 'confess') {
 
 
 
-    if (cmd === 'slots') {
+if (cmd === 'slots') {
   const amountRaw = getOption(options, 'jumlah');
   const bet = amountRaw === 'all' ? user.balance : parseInt(amountRaw);
 
@@ -3992,7 +3992,6 @@ if (cmd === 'confess') {
   if (bet > 500000)               return respond('❌ Taruhan maksimum **🪙 500.000**!');
   if (bet > user.balance)         return respond(`❌ Saldo tidak cukup! Kamu punya 🪙 **${user.balance.toLocaleString()}**`);
 
-  // ── Simbol & bobot ──────────────────────────────
   const SYMBOLS = [
     { s: '💎', name: 'Diamond', weight: 1  },
     { s: '7️⃣',  name: 'Lucky7',  weight: 2  },
@@ -4014,32 +4013,25 @@ if (cmd === 'confess') {
     return SYMBOLS[SYMBOLS.length - 1];
   };
 
-  // ── Spin 5 gulungan ─────────────────────────────
   const reels = Array.from({ length: 5 }, () => spinOne());
   const syms  = reels.map(r => r.s);
 
-  // ── Hitung kemenangan ───────────────────────────
   const freq = {};
   for (const r of reels) freq[r.name] = (freq[r.name] || 0) + 1;
   const maxMatch = Math.max(...Object.values(freq));
   const topSym   = reels.find(r => freq[r.name] === maxMatch);
 
-  // Multiplier tabel
   const MULT = {
-    // 5 sama
-    'Diamond-5': 500, '7️⃣-5': 200, 'Clover-5': 100,
+    'Diamond-5': 500, 'Lucky7-5': 200, 'Clover-5': 100,
     'Star-5': 50, 'Bell-5': 30, 'Grape-5': 20,
     'Lemon-5': 15, 'Cherry-5': 10,
-    // 4 sama
-    'Diamond-4': 50, '7️⃣-4': 25, 'Clover-4': 15,
+    'Diamond-4': 50, 'Lucky7-4': 25, 'Clover-4': 15,
     'Star-4': 10, 'Bell-4': 7, 'Grape-4': 5,
     'Lemon-4': 4, 'Cherry-4': 3,
-    // 3 sama
-    'Diamond-3': 10, '7️⃣-3': 6, 'Clover-3': 4,
+    'Diamond-3': 10, 'Lucky7-3': 6, 'Clover-3': 4,
     'Star-3': 3, 'Bell-3': 2, 'Grape-3': 1.5,
     'Lemon-3': 1.2, 'Cherry-3': 1,
-    // 2 sama (hanya modal balik di simbol langka)
-    'Diamond-2': 0.5, '7️⃣-2': 0.3,
+    'Diamond-2': 0.5, 'Lucky7-2': 0.3,
   };
 
   const multKey = `${topSym.name}-${maxMatch}`;
@@ -4048,16 +4040,9 @@ if (cmd === 'confess') {
   const prize   = isWin ? Math.floor(bet * mult) : 0;
   const profit  = prize - bet;
 
-  // Update saldo & stats
-  user.balance = isWin
-    ? user.balance - bet + prize
-    : user.balance - bet;
+  user.balance = isWin ? user.balance - bet + prize : user.balance - bet;
+  if (isWin) user.totalEarned = (user.totalEarned || 0) + prize;
 
-  if (isWin) {
-    user.totalEarned = (user.totalEarned || 0) + prize;
-  }
-
-  // Update stats slots
   const slotStats = user.slotStats || { spin: 0, wins: 0, totalBet: 0, totalWin: 0, biggestWin: 0, jackpots: 0 };
   slotStats.spin++;
   slotStats.totalBet += bet;
@@ -4070,7 +4055,6 @@ if (cmd === 'confess') {
   user.slotStats = slotStats;
   await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
 
-  // ── Teks hasil ──────────────────────────────────
   const isJackpot = maxMatch === 5;
   const winRate   = slotStats.spin > 0 ? ((slotStats.wins / slotStats.spin) * 100).toFixed(1) : '0.0';
   const roi       = slotStats.totalBet > 0
@@ -4085,15 +4069,15 @@ if (cmd === 'confess') {
     ? `✨ ${maxMatch}x ${topSym.s} — MENANG!`
     : isWin
     ? `💫 ${maxMatch}x ${topSym.s} — BONUS!`
-    : `💀 KALAH — Tidak ada kombinasi`;
+    : '💀 KALAH — Tidak ada kombinasi';
 
   const headerColor = isJackpot
-    ? '\u001b[1;33m' // gold
+    ? '\u001b[1;33m'
     : isWin && maxMatch >= 4
-    ? '\u001b[1;31m' // red
+    ? '\u001b[1;31m'
     : isWin
-    ? '\u001b[1;32m' // green
-    : '\u001b[1;37m'; // white
+    ? '\u001b[1;32m'
+    : '\u001b[1;37m';
 
   const profitStr = profit >= 0
     ? `\u001b[1;32m+${prize.toLocaleString()}\u001b[0m`
@@ -4102,14 +4086,48 @@ if (cmd === 'confess') {
   const contentLine = isJackpot
     ? `🎊 **JACKPOT!!!** **${username}** meledak dengan **5x ${topSym.s} ${topSym.name}**! 🎊`
     : isWin
-    ? `🎉 **${username}** menang! **${maxMatch}x ${topSym.s}** → 🪙 **+${prize.toLocaleString()}**!`
+    ? `🎉 **${username}** menang! **${maxMatch}x ${topSym.s}** - 🪙 **+${prize.toLocaleString()}**!`
     : `💀 **${username}** kalah! Tidak ada kombinasi. 🪙 -${bet.toLocaleString()}`;
 
-  const multDisplay = mult >= 1
+  const multDisplay = mult > 0
     ? `x${mult} (🪙 ${prize.toLocaleString()})`
-    : mult > 0
-    ? `x${mult} (🪙 ${prize.toLocaleString()})`
-    : `—`;
+    : '—';
+
+  const desc = [
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════════╗\u001b[0m',
+    headerColor + '║  🎰  S L O T  M A C H I N E  🎰  ║\u001b[0m',
+    '\u001b[2;34m╚══════════════════════════════════════════╝\u001b[0m',
+    '```',
+    '┌─────────────────────────────┐',
+    `│  ${syms.join('  ')}  │`,
+    '└─────────────────────────────┘',
+    '',
+    '```ansi',
+    '\u001b[1;33m━━━━━━━━━━━ 💰 HASIL SPIN ━━━━━━━━━━━\u001b[0m',
+    `\u001b[1;36m 🎯  Kombinasi  :\u001b[0m \u001b[0;37m${maxMatch}x ${topSym.s} ${topSym.name}\u001b[0m`,
+    `\u001b[1;36m ✖️   Multiplier :\u001b[0m \u001b[0;37m${multDisplay}\u001b[0m`,
+    `\u001b[1;36m 💵  Taruhan    :\u001b[0m \u001b[0;37m🪙 ${bet.toLocaleString()}\u001b[0m`,
+    '\u001b[1;36m 💸  Profit     :\u001b[0m ' + profitStr,
+    `\u001b[1;36m 💰  Saldo      :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
+    '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '\u001b[1;35m━━━━━━━━━━━ 📊 STATISTIK ━━━━━━━━━━━━\u001b[0m',
+    `\u001b[1;36m 🎰  Total Spin :\u001b[0m \u001b[0;37m${slotStats.spin}x\u001b[0m`,
+    `\u001b[1;36m 🏆  Total Wins :\u001b[0m \u001b[0;37m${slotStats.wins}x\u001b[0m`,
+    `\u001b[1;36m 📈  Win Rate   :\u001b[0m \u001b[0;37m${winRate}%\u001b[0m`,
+    `\u001b[1;36m 💎  Jackpots   :\u001b[0m \u001b[0;37m${slotStats.jackpots}x\u001b[0m`,
+    `\u001b[1;36m 🏅  Biggest    :\u001b[0m \u001b[0;37m🪙 ${slotStats.biggestWin.toLocaleString()}\u001b[0m`,
+    `\u001b[1;36m 📉  ROI        :\u001b[0m \u001b[0;37m${roi}%\u001b[0m`,
+    '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '```',
+    '```ansi',
+    '\u001b[1;34m━━━━━━━━━ 🗂️ TABEL MULTIPLIER ━━━━━━━━\u001b[0m',
+    '\u001b[0;37m 💎x5=500x | 7x5=200x | 🍀x5=100x | ⭐x5=50x\u001b[0m',
+    '\u001b[0;37m 💎x4=50x  | 7x4=25x  | 🍀x4=15x  | ⭐x4=10x\u001b[0m',
+    '\u001b[0;37m 💎x3=10x  | 7x3=6x   | 🍀x3=4x   | ⭐x3=3x \u001b[0m',
+    '\u001b[1;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '```'
+  ].join('\n');
 
   return new Response(JSON.stringify({
     type: 4,
@@ -4118,44 +4136,8 @@ if (cmd === 'confess') {
       embeds: [{
         color: isJackpot ? 0xFFD700 : isWin ? 0x2ECC71 : 0xFF4444,
         title: `🎰 SLOT MACHINE — ${resultLabel}`,
-        description: [
-          '```ansi',
-          `\u001b[2;34m╔══════════════════════════════════════════╗\u001b[0m`,
-          `${headerColor}║  🎰  S L O T  M A C H I N E  🎰  ║\u001b[0m`,
-          `\u001b[2;34m╚══════════════════════════════════════════╝\u001b[0m`,
-          '```',
-          // ── Gulungan visual ──
-          `┌─────────────────────────────┐`,
-          `│  ${syms.join('  ')}  │`,
-          `└─────────────────────────────┘`,
-          '',
-          '```ansi',
-          '\u001b[1;33m━━━━━━━━━━━ 💰 HASIL SPIN ━━━━━━━━━━━\u001b[0m',
-          `\u001b[1;36m 🎯  Kombinasi  :\u001b[0m \u001b[0;37m${maxMatch}x ${topSym.s} ${topSym.name}\u001b[0m`,
-          `\u001b[1;36m ✖️   Multiplier :\u001b[0m \u001b[0;37m${multDisplay}\u001b[0m`,
-          `\u001b[1;36m 💵  Taruhan    :\u001b[0m \u001b[0;37m🪙 ${bet.toLocaleString()}\u001b[0m`,
-          `\u001b[1;36m 💸  Profit     :\u001b[0m ${profitStr}`,
-          `\u001b[1;36m 💰  Saldo      :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
-          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '\u001b[1;35m━━━━━━━━━━━ 📊 STATISTIK ━━━━━━━━━━━━\u001b[0m',
-          `\u001b[1;36m 🎰  Total Spin :\u001b[0m \u001b[0;37m${slotStats.spin}x\u001b[0m`,
-          `\u001b[1;36m 🏆  Total Wins :\u001b[0m \u001b[0;37m${slotStats.wins}x\u001b[0m`,
-          `\u001b[1;36m 📈  Win Rate   :\u001b[0m \u001b[0;37m${winRate}%\u001b[0m`,
-          `\u001b[1;36m 💎  Jackpots   :\u001b[0m \u001b[0;37m${slotStats.jackpots}x\u001b[0m`,
-          `\u001b[1;36m 🏅  Biggest    :\u001b[0m \u001b[0;37m🪙 ${slotStats.biggestWin.toLocaleString()}\u001b[0m`,
-          `\u001b[1;36m 📉  ROI        :\u001b[0m \u001b[0;37m${roi}%\u001b[0m`,
-          '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
-          '```',
-          // ── Tabel peluang ──
-          '```ansi',
-          '\u001b[1;34m━━━━━━━━━ 🗂️ TABEL MULTIPLIER ━━━━━━━━\u001b[0m',
-          '\u001b[0;37m 💎x5=500x │ 7️⃣x5=200x │ 🍀x5=100x │ ⭐x5=50x\u001b[0m',
-          '\u001b[0;37m 💎x4=50x  │ 7️⃣x4=25x  │ 🍀x4=15x  │ ⭐x4=10x\u001b[0m',
-          '\u001b[0;37m 💎x3=10x  │ 7️⃣x3=6x   │ 🍀x3=4x   │ ⭐x3=3x \u001b[0m',
-          '\u001b[1;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-          '```'
-        ].join('\n'),
-        footer: { text: `🎰 OwoBim Slot Machine • ${username}` },
+        description: desc,
+        footer: { text: `🎰 OwoBim Slot Machine - ${username}` },
         timestamp: new Date().toISOString()
       }]
     }
