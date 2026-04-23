@@ -5221,11 +5221,6 @@ if (cmd === 'saham') {
     ].join('\n'));
   }
 
-  return respond(`${EMOJI} ❌ Aksi tidak dikenal! Gunakan: \`cek\`, \`beli\`, \`jual\`, \`portofolio\`, \`history\`, \`top\`, \`info\``);
-}
-
-
-  
 
   // ══════════════════════════════════════════
   // AKSI: info — daftar semua saham tersedia
@@ -5369,6 +5364,15 @@ if (cmd === 'saham') {
       `> 🤖 *Powered by OwoBim Stock Engine* <a:GifOwoBim:1492599199038967878>`
     ].join('\n'));
   }
+  
+
+  return respond(`${EMOJI} ❌ Aksi tidak dikenal! Gunakan: \`cek\`, \`beli\`, \`jual\`, \`portofolio\`, \`history\`, \`top\`, \`info\``);
+}
+
+
+  
+
+
 
     
     
