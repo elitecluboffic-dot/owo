@@ -5841,12 +5841,12 @@ if (cmd === 'crypto') {
           ].join('\n'));
         }
 
-// ══════════════════════════════════════════
+        // ══════════════════════════════════════════
         // AKSI: portofolio
         // ══════════════════════════════════════════
         if (sub === 'portofolio') {
           const portoKey = `crypto:${discordId}`;
-          const cacheKey = `cache:crypto:v2:${discordId}`;
+          const cacheKey = `cache:crypto:v5:${discordId}`;
 
           const cachedRender = await env.USERS_KV.get(cacheKey);
           if (cachedRender) {
