@@ -5359,7 +5359,7 @@ if (cmd === 'saham') {
 
 // ══════════════════════════════════════════════
 // CMD: crypto — sistem crypto virtual
-// Provider: Binance Public API (no key needed)
+// Provider: CoinGecko Demo API (key rotation)
 // KV Prefix: crypto: | crypto_history: | cache:crypto:
 // ══════════════════════════════════════════════
 if (cmd === 'crypto') {
@@ -5370,9 +5370,10 @@ if (cmd === 'crypto') {
   // ── Helper: format angka ──
   const fmt    = (n, d = 2) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: d });
   const fmtUSD = (n) => {
-    if (n >= 1000)    return `$${fmt(n, 2)}`;
-    if (n >= 1)       return `$${fmt(n, 4)}`;
-    if (n >= 0.01)    return `$${fmt(n, 6)}`;
+    const abs = Math.abs(n);
+    if (abs >= 1000)   return `$${fmt(n, 2)}`;
+    if (abs >= 1)      return `$${fmt(n, 4)}`;
+    if (abs >= 0.01)   return `$${fmt(n, 6)}`;
     return `$${Number(n).toFixed(8)}`;
   };
 
@@ -5382,7 +5383,6 @@ if (cmd === 'crypto') {
   const iToken      = interaction.token;
 
   const editFollowup = async (content) => {
-    // Discord max message length = 2000
     if (content.length > 1980) content = content.slice(0, 1977) + '...';
     try {
       await fetch(`${DISCORD_API}/webhooks/${appId}/${iToken}/messages/@original`, {
@@ -5394,65 +5394,102 @@ if (cmd === 'crypto') {
   };
 
   // ══════════════════════════════════════════════
-  // DAFTAR COIN YANG DIDUKUNG
-  // Format: SYMBOL → { id: Binance symbol, nama: nama lengkap }
+  // API KEY ROTATION — 4 Demo keys cadangan
   // ══════════════════════════════════════════════
-  const COIN_LIST = {
-    BTC:   { id: 'BTCUSDT',  nama: 'Bitcoin' },
-    ETH:   { id: 'ETHUSDT',  nama: 'Ethereum' },
-    BNB:   { id: 'BNBUSDT',  nama: 'BNB' },
-    SOL:   { id: 'SOLUSDT',  nama: 'Solana' },
-    XRP:   { id: 'XRPUSDT',  nama: 'XRP' },
-    ADA:   { id: 'ADAUSDT',  nama: 'Cardano' },
-    DOGE:  { id: 'DOGEUSDT', nama: 'Dogecoin' },
-    DOT:   { id: 'DOTUSDT',  nama: 'Polkadot' },
-    MATIC: { id: 'MATICUSDT',nama: 'Polygon' },
-    LINK:  { id: 'LINKUSDT', nama: 'Chainlink' },
-    AVAX:  { id: 'AVAXUSDT', nama: 'Avalanche' },
-    UNI:   { id: 'UNIUSDT',  nama: 'Uniswap' },
-    LTC:   { id: 'LTCUSDT',  nama: 'Litecoin' },
-    ATOM:  { id: 'ATOMUSDT', nama: 'Cosmos' },
-    ETC:   { id: 'ETCUSDT',  nama: 'Ethereum Classic' },
-    XLM:   { id: 'XLMUSDT',  nama: 'Stellar' },
-    BCH:   { id: 'BCHUSDT',  nama: 'Bitcoin Cash' },
-    NEAR:  { id: 'NEARUSDT', nama: 'NEAR Protocol' },
-    APT:   { id: 'APTUSDT',  nama: 'Aptos' },
-    ARB:   { id: 'ARBUSDT',  nama: 'Arbitrum' },
-    OP:    { id: 'OPUSDT',   nama: 'Optimism' },
-    PEPE:  { id: 'PEPEUSDT', nama: 'Pepe' },
-    SHIB:  { id: 'SHIBUSDT', nama: 'Shiba Inu' },
-    FLOKI: { id: 'FLOKIUSDT',nama: 'Floki' },
-    WIF:   { id: 'WIFUSDT',  nama: 'dogwifhat' },
-    BONK:  { id: 'BONKUSDT', nama: 'Bonk' },
-    SUI:   { id: 'SUIUSDT',  nama: 'Sui' },
-    SEI:   { id: 'SEIUSDT',  nama: 'Sei' },
-    TRX:   { id: 'TRXUSDT',  nama: 'TRON' },
-    TON:   { id: 'TONUSDT',  nama: 'Toncoin' },
-    SAND:  { id: 'SANDUSDT', nama: 'The Sandbox' },
-    MANA:  { id: 'MANAUSDT', nama: 'Decentraland' },
-    AXS:   { id: 'AXSUSDT',  nama: 'Axie Infinity' },
-    GALA:  { id: 'GALAUSDT', nama: 'Gala' },
-    ENJ:   { id: 'ENJUSDT',  nama: 'Enjin Coin' },
-    FTM:   { id: 'FTMUSDT',  nama: 'Fantom' },
-    ALGO:  { id: 'ALGOUSDT', nama: 'Algorand' },
-    VET:   { id: 'VETUSDT',  nama: 'VeChain' },
-    HBAR:  { id: 'HBARUSDT', nama: 'Hedera' },
-    ICP:   { id: 'ICPUSDT',  nama: 'Internet Computer' },
-    FIL:   { id: 'FILUSDT',  nama: 'Filecoin' },
-    AAVE:  { id: 'AAVEUSDT', nama: 'Aave' },
-    MKR:   { id: 'MKRUSDT',  nama: 'Maker' },
-    SNX:   { id: 'SNXUSDT',  nama: 'Synthetix' },
-    CRV:   { id: 'CRVUSDT',  nama: 'Curve DAO' },
-    LDO:   { id: 'LDOUSDT',  nama: 'Lido DAO' },
-    RUNE:  { id: 'RUNEUSDT', nama: 'THORChain' },
-    INJ:   { id: 'INJUSDT',  nama: 'Injective' },
-    BLUR:  { id: 'BLURUSDT', nama: 'Blur' },
-    JTO:   { id: 'JTOUSDT',  nama: 'Jito' },
+  const API_KEYS = [
+    env.CG_KEY_1,
+    env.CG_KEY_2,
+    env.CG_KEY_3,
+    env.CG_KEY_4,
+  ].filter(Boolean); // abaikan key yang tidak diset
+
+  const fetchWithKeyRotation = async (url) => {
+    // Jika tidak ada key sama sekali, fallback ke public API
+    if (API_KEYS.length === 0) {
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
+      });
+      return res.ok ? res : null;
+    }
+
+    for (const key of API_KEYS) {
+      try {
+        const res = await fetch(`${url}&x_cg_demo_api_key=${key}`, {
+          headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (res.status === 429) continue; // rate limited, coba key berikutnya
+        if (!res.ok) return null;
+        return res;
+      } catch (_) {
+        continue;
+      }
+    }
+    return null; // semua key kena limit
   };
 
   // ══════════════════════════════════════════════
-  // fetchCrypto — Binance 24hr ticker
-  // Cache KV 2 menit per coin
+  // DAFTAR COIN — symbol → geckoId
+  // ══════════════════════════════════════════════
+  const COIN_LIST = {
+    BTC:   { geckoId: 'bitcoin',               nama: 'Bitcoin' },
+    ETH:   { geckoId: 'ethereum',              nama: 'Ethereum' },
+    BNB:   { geckoId: 'binancecoin',           nama: 'BNB' },
+    SOL:   { geckoId: 'solana',                nama: 'Solana' },
+    XRP:   { geckoId: 'ripple',                nama: 'XRP' },
+    ADA:   { geckoId: 'cardano',               nama: 'Cardano' },
+    DOGE:  { geckoId: 'dogecoin',              nama: 'Dogecoin' },
+    DOT:   { geckoId: 'polkadot',              nama: 'Polkadot' },
+    MATIC: { geckoId: 'matic-network',         nama: 'Polygon' },
+    LINK:  { geckoId: 'chainlink',             nama: 'Chainlink' },
+    AVAX:  { geckoId: 'avalanche-2',           nama: 'Avalanche' },
+    UNI:   { geckoId: 'uniswap',               nama: 'Uniswap' },
+    LTC:   { geckoId: 'litecoin',              nama: 'Litecoin' },
+    ATOM:  { geckoId: 'cosmos',                nama: 'Cosmos' },
+    ETC:   { geckoId: 'ethereum-classic',      nama: 'Ethereum Classic' },
+    XLM:   { geckoId: 'stellar',               nama: 'Stellar' },
+    BCH:   { geckoId: 'bitcoin-cash',          nama: 'Bitcoin Cash' },
+    NEAR:  { geckoId: 'near',                  nama: 'NEAR Protocol' },
+    APT:   { geckoId: 'aptos',                 nama: 'Aptos' },
+    ARB:   { geckoId: 'arbitrum',              nama: 'Arbitrum' },
+    OP:    { geckoId: 'optimism',              nama: 'Optimism' },
+    PEPE:  { geckoId: 'pepe',                  nama: 'Pepe' },
+    SHIB:  { geckoId: 'shiba-inu',             nama: 'Shiba Inu' },
+    FLOKI: { geckoId: 'floki',                 nama: 'Floki' },
+    WIF:   { geckoId: 'dogwifcoin',            nama: 'dogwifhat' },
+    BONK:  { geckoId: 'bonk',                  nama: 'Bonk' },
+    SUI:   { geckoId: 'sui',                   nama: 'Sui' },
+    SEI:   { geckoId: 'sei-network',           nama: 'Sei' },
+    TRX:   { geckoId: 'tron',                  nama: 'TRON' },
+    TON:   { geckoId: 'the-open-network',      nama: 'Toncoin' },
+    SAND:  { geckoId: 'the-sandbox',           nama: 'The Sandbox' },
+    MANA:  { geckoId: 'decentraland',          nama: 'Decentraland' },
+    AXS:   { geckoId: 'axie-infinity',         nama: 'Axie Infinity' },
+    GALA:  { geckoId: 'gala',                  nama: 'Gala' },
+    ENJ:   { geckoId: 'enjincoin',             nama: 'Enjin Coin' },
+    FTM:   { geckoId: 'fantom',                nama: 'Fantom' },
+    ALGO:  { geckoId: 'algorand',              nama: 'Algorand' },
+    VET:   { geckoId: 'vechain',               nama: 'VeChain' },
+    HBAR:  { geckoId: 'hedera-hashgraph',      nama: 'Hedera' },
+    ICP:   { geckoId: 'internet-computer',     nama: 'Internet Computer' },
+    FIL:   { geckoId: 'filecoin',              nama: 'Filecoin' },
+    AAVE:  { geckoId: 'aave',                  nama: 'Aave' },
+    MKR:   { geckoId: 'maker',                 nama: 'Maker' },
+    SNX:   { geckoId: 'havven',                nama: 'Synthetix' },
+    CRV:   { geckoId: 'curve-dao-token',       nama: 'Curve DAO' },
+    LDO:   { geckoId: 'lido-dao',              nama: 'Lido DAO' },
+    RUNE:  { geckoId: 'thorchain',             nama: 'THORChain' },
+    INJ:   { geckoId: 'injective-protocol',    nama: 'Injective' },
+    BLUR:  { geckoId: 'blur',                  nama: 'Blur' },
+    JTO:   { geckoId: 'jito-governance-token', nama: 'Jito' },
+  };
+
+  // Reverse map: geckoId → symbol
+  const GECKO_TO_SYMBOL = Object.fromEntries(
+    Object.entries(COIN_LIST).map(([sym, v]) => [v.geckoId, sym])
+  );
+
+  // ══════════════════════════════════════════════
+  // fetchCrypto — single coin via CoinGecko
   // ══════════════════════════════════════════════
   const fetchCrypto = async (symbol) => {
     symbol = symbol.toUpperCase();
@@ -5460,7 +5497,6 @@ if (cmd === 'crypto') {
     if (!coinInfo) return { notFound: true };
 
     try {
-      // 1. Cek cache (TTL 2 menit)
       const cacheKey = `crypto_cache:${symbol}`;
       const cached   = await env.USERS_KV.get(cacheKey);
       if (cached) {
@@ -5468,43 +5504,120 @@ if (cmd === 'crypto') {
         if (Date.now() - parsed.ts < 2 * 60 * 1000) return parsed.data;
       }
 
-      // 2. Fetch dari Binance
-      const url  = `https://api.binance.com/api/v3/ticker/24hr?symbol=${coinInfo.id}`;
-      const res  = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-      if (!res.ok) return null;
-      const json = await res.json();
-      if (json.code) return null; // Binance error
+      const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${coinInfo.geckoId}&price_change_percentage=24h`;
+      const res = await fetchWithKeyRotation(url);
+      if (!res) return null;
 
-      const harga     = parseFloat(json.lastPrice);
-      const changePct = parseFloat(json.priceChangePercent);
+      const json = await res.json();
+      if (!json || !json[0]) return null;
+
+      const d         = json[0];
+      const harga     = d.current_price   || 0;
+      const changePct = d.price_change_percentage_24h || 0;
+      const change    = d.price_change_24h || 0;
 
       const data = {
         symbol,
         nama:         coinInfo.nama,
         harga,
-        open:         parseFloat(json.openPrice),
-        high:         parseFloat(json.highPrice),
-        low:          parseFloat(json.lowPrice),
-        prev:         parseFloat(json.prevClosePrice),
-        change:       parseFloat(json.priceChange),
+        open:         harga - change,
+        high:         d.high_24h    || harga,
+        low:          d.low_24h     || harga,
+        prev:         harga - change,
+        change,
         changePct:    changePct.toFixed(2) + '%',
         changePctRaw: changePct,
-        volume:       parseFloat(json.volume),
-        volumeUSD:    parseFloat(json.quoteVolume),
-        count:        parseInt(json.count || 0),
+        volumeUSD:    d.total_volume || 0,
+        marketCap:    d.market_cap   || 0,
+        rank:         d.market_cap_rank || 0,
+        ath:          d.ath          || 0,
+        atl:          d.atl          || 0,
       };
 
-      // Simpan cache 2 menit
       await env.USERS_KV.put(
         cacheKey,
         JSON.stringify({ data, ts: Date.now() }),
         { expirationTtl: 120 }
       );
-
       return data;
     } catch (_) {
       return null;
     }
+  };
+
+  // ══════════════════════════════════════════════
+  // fetchCryptoBatch — bulk fetch untuk portofolio
+  // ══════════════════════════════════════════════
+  const fetchCryptoBatch = async (symbols) => {
+    const result   = {};
+    const uncached = [];
+
+    // Ambil dari cache dulu
+    await Promise.all(symbols.map(async (sym) => {
+      try {
+        const cached = await env.USERS_KV.get(`crypto_cache:${sym}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Date.now() - parsed.ts < 2 * 60 * 1000) {
+            result[sym] = parsed.data;
+            return;
+          }
+        }
+      } catch (_) {}
+      uncached.push(sym);
+    }));
+
+    if (uncached.length === 0) return result;
+
+    // 1 request untuk semua yang belum ada di cache
+    try {
+      const geckoIds = uncached.map(s => COIN_LIST[s]?.geckoId).filter(Boolean).join(',');
+      const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${geckoIds}&price_change_percentage=24h`;
+      const res = await fetchWithKeyRotation(url);
+
+      if (res) {
+        const json = await res.json();
+        if (Array.isArray(json)) {
+          for (const d of json) {
+            const sym = GECKO_TO_SYMBOL[d.id];
+            if (!sym) continue;
+
+            const harga     = d.current_price || 0;
+            const changePct = d.price_change_percentage_24h || 0;
+            const change    = d.price_change_24h || 0;
+
+            const data = {
+              symbol: sym,
+              nama:         COIN_LIST[sym].nama,
+              harga,
+              open:         harga - change,
+              high:         d.high_24h    || harga,
+              low:          d.low_24h     || harga,
+              prev:         harga - change,
+              change,
+              changePct:    changePct.toFixed(2) + '%',
+              changePctRaw: changePct,
+              volumeUSD:    d.total_volume || 0,
+              marketCap:    d.market_cap   || 0,
+              rank:         d.market_cap_rank || 0,
+              ath:          d.ath          || 0,
+              atl:          d.atl          || 0,
+            };
+
+            result[sym] = data;
+            await env.USERS_KV.put(
+              `crypto_cache:${sym}`,
+              JSON.stringify({ data, ts: Date.now() }),
+              { expirationTtl: 120 }
+            ).catch(() => {});
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Coin yang tidak dapat dari API → null
+    uncached.forEach(s => { if (!(s in result)) result[s] = null; });
+    return result;
   };
 
   // ── Aksi yang butuh defer ──
@@ -5515,15 +5628,15 @@ if (cmd === 'crypto') {
       try {
 
         // ══════════════════════════════════════════
-        // AKSI: cek — cek harga crypto real-time
+        // AKSI: cek
         // ══════════════════════════════════════════
         if (sub === 'cek') {
           const symbol = getOption(options, 'coin')?.toUpperCase();
           if (!symbol) return editFollowup(`${EMOJI} ❌ Masukkan kode coin! Contoh: \`BTC\`, \`ETH\`, \`SOL\``);
 
           const q = await fetchCrypto(symbol);
-          if (!q)           return editFollowup(`${EMOJI} ❌ Gagal ambil data! Coba lagi.`);
-          if (q.notFound)   return editFollowup(`${EMOJI} ❌ Coin **${symbol}** tidak ditemukan! Ketik \`/crypto info\` untuk daftar coin.`);
+          if (!q)         return editFollowup(`${EMOJI} ❌ Gagal ambil data! Coba lagi.`);
+          if (q.notFound) return editFollowup(`${EMOJI} ❌ Coin **${symbol}** tidak ditemukan! Ketik \`/crypto info\` untuk daftar coin.`);
 
           const naik   = q.change >= 0;
           const arrow  = naik ? '📈' : '📉';
@@ -5532,10 +5645,9 @@ if (cmd === 'crypto') {
           const barLen = Math.min(Math.round(pct * 2), 10);
           const bar    = (naik ? '█' : '▓').repeat(barLen) + '░'.repeat(10 - barLen);
 
-          // Bar posisi harga dalam range 24h
-          const range  = q.high - q.low;
-          const pos    = range > 0 ? Math.round(((q.harga - q.low) / range) * 10) : 5;
-          const bar24  = '─'.repeat(Math.max(0, pos - 1)) + '◆' + '─'.repeat(Math.max(0, 10 - pos));
+          const range = q.high - q.low;
+          const pos   = range > 0 ? Math.round(((q.harga - q.low) / range) * 10) : 5;
+          const bar24 = '─'.repeat(Math.max(0, pos - 1)) + '◆' + '─'.repeat(Math.max(0, 10 - pos));
 
           return editFollowup([
             '```ansi',
@@ -5543,40 +5655,38 @@ if (cmd === 'crypto') {
             `\u001b[2;35m║  \u001b[1;33m${arrow}  CRYPTO QUOTE  ${arrow}\u001b[0m             \u001b[2;35m║\u001b[0m`,
             '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
             '```',
-            `${EMOJI} 🪙 **${q.symbol}** — ${q.nama}`,
+            `${EMOJI} 🪙 **${q.symbol}** — ${q.nama}${q.rank ? ` (Rank #${q.rank})` : ''}`,
             '```ansi',
             '\u001b[1;33m━━━━━━━━━━━ 💰 HARGA INFO ━━━━━━━━━━━\u001b[0m',
             `\u001b[1;36m 💵  Harga Saat Ini :\u001b[0m ${color}${fmtUSD(q.harga)}\u001b[0m`,
             `\u001b[1;36m 🔓  Open (24h)     :\u001b[0m \u001b[0;37m${fmtUSD(q.open)}\u001b[0m`,
             `\u001b[1;36m 🔺  High (24h)     :\u001b[0m \u001b[0;37m${fmtUSD(q.high)}\u001b[0m`,
             `\u001b[1;36m 🔻  Low  (24h)     :\u001b[0m \u001b[0;37m${fmtUSD(q.low)}\u001b[0m`,
-            `\u001b[1;36m 🔒  Prev Close     :\u001b[0m \u001b[0;37m${fmtUSD(q.prev)}\u001b[0m`,
+            `\u001b[1;36m 🏆  ATH            :\u001b[0m \u001b[0;37m${fmtUSD(q.ath)}\u001b[0m`,
             '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '\u001b[1;32m━━━━━━━━━━━ 📊 PERUBAHAN 24H ━━━━━━━━\u001b[0m',
             `\u001b[1;36m ${arrow}  Perubahan     :\u001b[0m ${color}${naik ? '+' : ''}${fmtUSD(q.change)} (${q.changePct})\u001b[0m`,
             `\u001b[1;36m 📊  Grafik        :\u001b[0m ${color}\`${bar}\`\u001b[0m`,
-            `\u001b[1;36m 📦  Volume        :\u001b[0m \u001b[0;37m${fmt(q.volume, 2)} ${q.symbol}\u001b[0m`,
-            `\u001b[1;36m 💲  Vol USD       :\u001b[0m \u001b[0;37m$${fmt(q.volumeUSD, 0)}\u001b[0m`,
-            `\u001b[1;36m 🔢  Trades        :\u001b[0m \u001b[0;37m${q.count.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m 💲  Volume 24h    :\u001b[0m \u001b[0;37m$${fmt(q.volumeUSD, 0)}\u001b[0m`,
+            `\u001b[1;36m 🏦  Market Cap    :\u001b[0m \u001b[0;37m$${fmt(q.marketCap, 0)}\u001b[0m`,
             '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '\u001b[1;35m━━━━━━━━━━━ 📆 24H RANGE ━━━━━━━━━━━━\u001b[0m',
             `\u001b[0;37m ${fmtUSD(q.low)} \u001b[1;33m[${bar24}]\u001b[0m \u001b[0;37m${fmtUSD(q.high)}\u001b[0m`,
             '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
-            `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+            `> 🤖 *Powered by OwoBim Crypto Engine × CoinGecko* ${EMOJI}`
           ].join('\n'));
         }
 
         // ══════════════════════════════════════════
-        // AKSI: beli — beli crypto pakai cowoncy
+        // AKSI: beli
         // ══════════════════════════════════════════
         if (sub === 'beli') {
           const symbol = getOption(options, 'coin')?.toUpperCase();
           const jumlah = parseFloat(getOption(options, 'jumlah') || '1');
 
-          if (!symbol)                     return editFollowup(`${EMOJI} ❌ Masukkan kode coin!`);
-          if (!jumlah || jumlah <= 0)      return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
-          if (jumlah > 1_000_000_000_000)  return editFollowup(`${EMOJI} ❌ Maksimal beli **1 triliun** unit sekaligus!`);
+          if (!symbol)                return editFollowup(`${EMOJI} ❌ Masukkan kode coin!`);
+          if (!jumlah || jumlah <= 0) return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
 
           const q = await fetchCrypto(symbol);
           if (!q)         return editFollowup(`${EMOJI} ❌ Gagal ambil data! Coba lagi.`);
@@ -5627,8 +5737,6 @@ if (cmd === 'crypto') {
             env.USERS_KV.put(`crypto_history:${discordId}`, JSON.stringify(hist))
           ]);
           waitUntil(pushLinkedRole(env, discordId, null, user));
-
-          // Invalidate porto cache
           await env.USERS_KV.delete(`cache:crypto:${discordId}`).catch(() => {});
 
           return editFollowup([
@@ -5650,12 +5758,12 @@ if (cmd === 'crypto') {
             '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
             `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
-            `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+            `> 🤖 *Powered by OwoBim Crypto Engine × CoinGecko* ${EMOJI}`
           ].join('\n'));
         }
 
         // ══════════════════════════════════════════
-        // AKSI: jual — jual crypto
+        // AKSI: jual
         // ══════════════════════════════════════════
         if (sub === 'jual') {
           const symbol    = getOption(options, 'coin')?.toUpperCase();
@@ -5678,8 +5786,8 @@ if (cmd === 'crypto') {
             ? porto[symbol].unit
             : parseFloat(jumlahRaw || '1');
 
-          if (!jumlah || jumlah <= 0)         return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
-          if (jumlah > porto[symbol].unit)    return editFollowup(`${EMOJI} ❌ Kamu cuma punya **${fmt(porto[symbol].unit, 8)} ${symbol}**!`);
+          if (!jumlah || jumlah <= 0)      return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
+          if (jumlah > porto[symbol].unit) return editFollowup(`${EMOJI} ❌ Kamu cuma punya **${fmt(porto[symbol].unit, 8)} ${symbol}**!`);
 
           const q = await fetchCrypto(symbol);
           if (!q)         return editFollowup(`${EMOJI} ❌ Gagal ambil harga! Coba lagi.`);
@@ -5687,6 +5795,7 @@ if (cmd === 'crypto') {
 
           const hargaJual     = q.harga;
           const avgBeli       = porto[symbol].avgBeli;
+          const namaKoin      = porto[symbol]?.nama || q.nama;
           const totalUSD      = hargaJual * jumlah;
           const totalCowoncy  = Math.floor(totalUSD * RATE);
           const modalUSD      = avgBeli * jumlah;
@@ -5711,8 +5820,6 @@ if (cmd === 'crypto') {
             env.USERS_KV.put(`crypto_history:${discordId}`, JSON.stringify(hist))
           ]);
           waitUntil(pushLinkedRole(env, discordId, null, user));
-
-          // Invalidate porto cache
           await env.USERS_KV.delete(`cache:crypto:${discordId}`).catch(() => {});
 
           const profitColor = untung ? '\u001b[1;32m' : '\u001b[1;31m';
@@ -5730,10 +5837,10 @@ if (cmd === 'crypto') {
               ? '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m'
               : '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
             '```',
-            `${EMOJI} ${untung ? '🤑' : '😢'} Berhasil jual **${fmt(jumlah, 8)} ${symbol}**!`,
+            `${EMOJI} ${untung ? '🤑' : '😢'} Berhasil jual **${fmt(jumlah, 8)} ${symbol}** (${namaKoin})!`,
             '```ansi',
             '\u001b[1;33m━━━━━━━━━━━ 📋 DETAIL JUAL ━━━━━━━━━━\u001b[0m',
-            `\u001b[1;36m 🪙  Coin        :\u001b[0m \u001b[1;37m${symbol} (${porto[symbol]?.nama || q.nama})\u001b[0m`,
+            `\u001b[1;36m 🪙  Coin        :\u001b[0m \u001b[1;37m${symbol} (${namaKoin})\u001b[0m`,
             `\u001b[1;36m 📦  Jumlah      :\u001b[0m \u001b[0;37m${fmt(jumlah, 8)} unit\u001b[0m`,
             `\u001b[1;36m 💵  Harga Jual  :\u001b[0m \u001b[0;37m${fmtUSD(hargaJual)}\u001b[0m`,
             `\u001b[1;36m 📊  Avg Beli    :\u001b[0m \u001b[0;37m${fmtUSD(avgBeli)}\u001b[0m`,
@@ -5746,18 +5853,17 @@ if (cmd === 'crypto') {
             `\u001b[1;36m 💳  Saldo Baru  :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
             '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
-            `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+            `> 🤖 *Powered by OwoBim Crypto Engine × CoinGecko* ${EMOJI}`
           ].join('\n'));
         }
 
         // ══════════════════════════════════════════
-        // AKSI: portofolio — lihat semua crypto
+        // AKSI: portofolio
         // ══════════════════════════════════════════
         if (sub === 'portofolio') {
           const portoKey = `crypto:${discordId}`;
           const cacheKey = `cache:crypto:${discordId}`;
 
-          // 1. CEK CACHE (5 menit)
           const cachedRender = await env.USERS_KV.get(cacheKey);
           if (cachedRender) {
             const data = JSON.parse(cachedRender);
@@ -5772,15 +5878,8 @@ if (cmd === 'crypto') {
             return editFollowup(`${EMOJI} 📭 Portofolio crypto kamu kosong!\n> Gunakan \`/crypto beli\` untuk mulai investasi.`);
           }
 
-          // 2. PARALLEL FETCH semua harga sekaligus
-          const results = await Promise.all(
-            symbols.map(s => fetchCrypto(s).catch(() => null))
-          );
-
-          const hargaMap = {};
-          results.forEach((q, i) => {
-            hargaMap[symbols[i]] = q && !q.notFound ? q : null;
-          });
+          // BATCH FETCH — 1 request untuk semua coin
+          const hargaMap = await fetchCryptoBatch(symbols);
 
           let totalModalUSD = 0;
           let totalNilaiUSD = 0;
@@ -5803,7 +5902,6 @@ if (cmd === 'crypto') {
             const naik   = profit >= 0;
             const clr    = naik ? '\u001b[1;32m' : '\u001b[1;31m';
             const sign   = naik ? '+' : '';
-
             totalNilaiUSD += nilai;
 
             rows.push(
@@ -5840,10 +5938,9 @@ if (cmd === 'crypto') {
             '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
             `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
-            `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+            `> 🤖 *Powered by OwoBim Crypto Engine × CoinGecko* ${EMOJI}`
           ].join('\n');
 
-          // 3. SIMPAN CACHE 5 menit
           await env.USERS_KV.put(cacheKey, JSON.stringify({
             content: finalContent,
             ts: Date.now()
@@ -5853,7 +5950,7 @@ if (cmd === 'crypto') {
         }
 
         // ══════════════════════════════════════════
-        // AKSI: info — daftar coin tersedia
+        // AKSI: info
         // ══════════════════════════════════════════
         if (sub === 'info') {
           return editFollowup([
@@ -5863,7 +5960,7 @@ if (cmd === 'crypto') {
             '\u001b[1;36m BTC  ETH  BNB  SOL  XRP  ADA  DOT\u001b[0m',
             '\u001b[1;36m LTC  BCH  ATOM ETC  XLM  HBAR ICP\u001b[0m',
             '\u001b[1;32m━━━━━━━━━━━ ⚡ LAYER 2 & DeFi ━━━━━━━\u001b[0m',
-            '\u001b[1;36m MATIC AVAX LINK UNI AAVE MKR SNX\u001b[0m',
+            '\u001b[1;36m MATIC AVAX LINK UNI  AAVE MKR  SNX\u001b[0m',
             '\u001b[1;36m CRV  LDO  RUNE INJ  NEAR ARB  OP\u001b[0m',
             '\u001b[1;35m━━━━━━━━━━━ 🐕 MEME COINS ━━━━━━━━━━━\u001b[0m',
             '\u001b[1;36m DOGE SHIB PEPE FLOKI WIF  BONK\u001b[0m',
@@ -5875,8 +5972,8 @@ if (cmd === 'crypto') {
             '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
             `> 💡 \`/crypto cek coin:BTC\` — \`/crypto beli coin:ETH jumlah:0.5\``,
-            `> ⚡ Data real-time dari Binance, update tiap 2 menit!`,
-            `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+            `> ⚡ Data real-time dari CoinGecko, update tiap 2 menit!`,
+            `> 🤖 *Powered by OwoBim Crypto Engine × CoinGecko* ${EMOJI}`
           ].join('\n'));
         }
 
@@ -5891,7 +5988,7 @@ if (cmd === 'crypto') {
   }
 
   // ══════════════════════════════════════════
-  // AKSI: history — riwayat transaksi crypto
+  // AKSI: history — no defer
   // ══════════════════════════════════════════
   if (sub === 'history') {
     const histKey = `crypto_history:${discordId}`;
@@ -5929,7 +6026,7 @@ if (cmd === 'crypto') {
       rows.join('\n\n'),
       '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
       '```',
-      `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+      `> 🤖 *Powered by OwoBim Crypto Engine × CoinGecko* ${EMOJI}`
     ].join('\n'));
   }
 
