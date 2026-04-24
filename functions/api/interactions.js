@@ -5351,6 +5351,591 @@ if (cmd === 'saham') {
   return respond(`${EMOJI} ❌ Aksi tidak dikenal! Gunakan: \`cek\`, \`beli\`, \`jual\`, \`portofolio\`, \`history\`, \`top\`, \`info\``);
 }
 
+
+
+
+
+
+
+// ══════════════════════════════════════════════
+// CMD: crypto — sistem crypto virtual
+// Provider: Binance Public API (no key needed)
+// KV Prefix: crypto: | crypto_history: | cache:crypto:
+// ══════════════════════════════════════════════
+if (cmd === 'crypto') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const sub   = getOption(options, 'aksi');
+  const RATE  = 16000; // $1 = 16000 cowoncy
+
+  // ── Helper: format angka ──
+  const fmt    = (n, d = 2) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: d });
+  const fmtUSD = (n) => {
+    if (n >= 1000)    return `$${fmt(n, 2)}`;
+    if (n >= 1)       return `$${fmt(n, 4)}`;
+    if (n >= 0.01)    return `$${fmt(n, 6)}`;
+    return `$${Number(n).toFixed(8)}`;
+  };
+
+  // ── Helper: edit deferred message ──
+  const DISCORD_API = 'https://discord.com/api/v10';
+  const appId       = env.DISCORD_APP_ID;
+  const iToken      = interaction.token;
+
+  const editFollowup = async (content) => {
+    // Discord max message length = 2000
+    if (content.length > 1980) content = content.slice(0, 1977) + '...';
+    try {
+      await fetch(`${DISCORD_API}/webhooks/${appId}/${iToken}/messages/@original`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ content }),
+      });
+    } catch (_) { /* silent fail */ }
+  };
+
+  // ══════════════════════════════════════════════
+  // DAFTAR COIN YANG DIDUKUNG
+  // Format: SYMBOL → { id: Binance symbol, nama: nama lengkap }
+  // ══════════════════════════════════════════════
+  const COIN_LIST = {
+    BTC:   { id: 'BTCUSDT',  nama: 'Bitcoin' },
+    ETH:   { id: 'ETHUSDT',  nama: 'Ethereum' },
+    BNB:   { id: 'BNBUSDT',  nama: 'BNB' },
+    SOL:   { id: 'SOLUSDT',  nama: 'Solana' },
+    XRP:   { id: 'XRPUSDT',  nama: 'XRP' },
+    ADA:   { id: 'ADAUSDT',  nama: 'Cardano' },
+    DOGE:  { id: 'DOGEUSDT', nama: 'Dogecoin' },
+    DOT:   { id: 'DOTUSDT',  nama: 'Polkadot' },
+    MATIC: { id: 'MATICUSDT',nama: 'Polygon' },
+    LINK:  { id: 'LINKUSDT', nama: 'Chainlink' },
+    AVAX:  { id: 'AVAXUSDT', nama: 'Avalanche' },
+    UNI:   { id: 'UNIUSDT',  nama: 'Uniswap' },
+    LTC:   { id: 'LTCUSDT',  nama: 'Litecoin' },
+    ATOM:  { id: 'ATOMUSDT', nama: 'Cosmos' },
+    ETC:   { id: 'ETCUSDT',  nama: 'Ethereum Classic' },
+    XLM:   { id: 'XLMUSDT',  nama: 'Stellar' },
+    BCH:   { id: 'BCHUSDT',  nama: 'Bitcoin Cash' },
+    NEAR:  { id: 'NEARUSDT', nama: 'NEAR Protocol' },
+    APT:   { id: 'APTUSDT',  nama: 'Aptos' },
+    ARB:   { id: 'ARBUSDT',  nama: 'Arbitrum' },
+    OP:    { id: 'OPUSDT',   nama: 'Optimism' },
+    PEPE:  { id: 'PEPEUSDT', nama: 'Pepe' },
+    SHIB:  { id: 'SHIBUSDT', nama: 'Shiba Inu' },
+    FLOKI: { id: 'FLOKIUSDT',nama: 'Floki' },
+    WIF:   { id: 'WIFUSDT',  nama: 'dogwifhat' },
+    BONK:  { id: 'BONKUSDT', nama: 'Bonk' },
+    SUI:   { id: 'SUIUSDT',  nama: 'Sui' },
+    SEI:   { id: 'SEIUSDT',  nama: 'Sei' },
+    TRX:   { id: 'TRXUSDT',  nama: 'TRON' },
+    TON:   { id: 'TONUSDT',  nama: 'Toncoin' },
+    SAND:  { id: 'SANDUSDT', nama: 'The Sandbox' },
+    MANA:  { id: 'MANAUSDT', nama: 'Decentraland' },
+    AXS:   { id: 'AXSUSDT',  nama: 'Axie Infinity' },
+    GALA:  { id: 'GALAUSDT', nama: 'Gala' },
+    ENJ:   { id: 'ENJUSDT',  nama: 'Enjin Coin' },
+    FTM:   { id: 'FTMUSDT',  nama: 'Fantom' },
+    ALGO:  { id: 'ALGOUSDT', nama: 'Algorand' },
+    VET:   { id: 'VETUSDT',  nama: 'VeChain' },
+    HBAR:  { id: 'HBARUSDT', nama: 'Hedera' },
+    ICP:   { id: 'ICPUSDT',  nama: 'Internet Computer' },
+    FIL:   { id: 'FILUSDT',  nama: 'Filecoin' },
+    AAVE:  { id: 'AAVEUSDT', nama: 'Aave' },
+    MKR:   { id: 'MKRUSDT',  nama: 'Maker' },
+    SNX:   { id: 'SNXUSDT',  nama: 'Synthetix' },
+    CRV:   { id: 'CRVUSDT',  nama: 'Curve DAO' },
+    LDO:   { id: 'LDOUSDT',  nama: 'Lido DAO' },
+    RUNE:  { id: 'RUNEUSDT', nama: 'THORChain' },
+    INJ:   { id: 'INJUSDT',  nama: 'Injective' },
+    BLUR:  { id: 'BLURUSDT', nama: 'Blur' },
+    JTO:   { id: 'JTOUSDT',  nama: 'Jito' },
+  };
+
+  // ══════════════════════════════════════════════
+  // fetchCrypto — Binance 24hr ticker
+  // Cache KV 2 menit per coin
+  // ══════════════════════════════════════════════
+  const fetchCrypto = async (symbol) => {
+    symbol = symbol.toUpperCase();
+    const coinInfo = COIN_LIST[symbol];
+    if (!coinInfo) return { notFound: true };
+
+    try {
+      // 1. Cek cache (TTL 2 menit)
+      const cacheKey = `crypto_cache:${symbol}`;
+      const cached   = await env.USERS_KV.get(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.ts < 2 * 60 * 1000) return parsed.data;
+      }
+
+      // 2. Fetch dari Binance
+      const url  = `https://api.binance.com/api/v3/ticker/24hr?symbol=${coinInfo.id}`;
+      const res  = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (!res.ok) return null;
+      const json = await res.json();
+      if (json.code) return null; // Binance error
+
+      const harga     = parseFloat(json.lastPrice);
+      const changePct = parseFloat(json.priceChangePercent);
+
+      const data = {
+        symbol,
+        nama:         coinInfo.nama,
+        harga,
+        open:         parseFloat(json.openPrice),
+        high:         parseFloat(json.highPrice),
+        low:          parseFloat(json.lowPrice),
+        prev:         parseFloat(json.prevClosePrice),
+        change:       parseFloat(json.priceChange),
+        changePct:    changePct.toFixed(2) + '%',
+        changePctRaw: changePct,
+        volume:       parseFloat(json.volume),
+        volumeUSD:    parseFloat(json.quoteVolume),
+        count:        parseInt(json.count || 0),
+      };
+
+      // Simpan cache 2 menit
+      await env.USERS_KV.put(
+        cacheKey,
+        JSON.stringify({ data, ts: Date.now() }),
+        { expirationTtl: 120 }
+      );
+
+      return data;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  // ── Aksi yang butuh defer ──
+  const DEFER_ACTIONS = ['cek', 'beli', 'jual', 'portofolio', 'info'];
+
+  if (DEFER_ACTIONS.includes(sub)) {
+    waitUntil((async () => {
+      try {
+
+        // ══════════════════════════════════════════
+        // AKSI: cek — cek harga crypto real-time
+        // ══════════════════════════════════════════
+        if (sub === 'cek') {
+          const symbol = getOption(options, 'coin')?.toUpperCase();
+          if (!symbol) return editFollowup(`${EMOJI} ❌ Masukkan kode coin! Contoh: \`BTC\`, \`ETH\`, \`SOL\``);
+
+          const q = await fetchCrypto(symbol);
+          if (!q)           return editFollowup(`${EMOJI} ❌ Gagal ambil data! Coba lagi.`);
+          if (q.notFound)   return editFollowup(`${EMOJI} ❌ Coin **${symbol}** tidak ditemukan! Ketik \`/crypto info\` untuk daftar coin.`);
+
+          const naik   = q.change >= 0;
+          const arrow  = naik ? '📈' : '📉';
+          const color  = naik ? '\u001b[1;32m' : '\u001b[1;31m';
+          const pct    = Math.abs(q.changePctRaw);
+          const barLen = Math.min(Math.round(pct * 2), 10);
+          const bar    = (naik ? '█' : '▓').repeat(barLen) + '░'.repeat(10 - barLen);
+
+          // Bar posisi harga dalam range 24h
+          const range  = q.high - q.low;
+          const pos    = range > 0 ? Math.round(((q.harga - q.low) / range) * 10) : 5;
+          const bar24  = '─'.repeat(Math.max(0, pos - 1)) + '◆' + '─'.repeat(Math.max(0, 10 - pos));
+
+          return editFollowup([
+            '```ansi',
+            '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
+            `\u001b[2;35m║  \u001b[1;33m${arrow}  CRYPTO QUOTE  ${arrow}\u001b[0m             \u001b[2;35m║\u001b[0m`,
+            '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `${EMOJI} 🪙 **${q.symbol}** — ${q.nama}`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━ 💰 HARGA INFO ━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 💵  Harga Saat Ini :\u001b[0m ${color}${fmtUSD(q.harga)}\u001b[0m`,
+            `\u001b[1;36m 🔓  Open (24h)     :\u001b[0m \u001b[0;37m${fmtUSD(q.open)}\u001b[0m`,
+            `\u001b[1;36m 🔺  High (24h)     :\u001b[0m \u001b[0;37m${fmtUSD(q.high)}\u001b[0m`,
+            `\u001b[1;36m 🔻  Low  (24h)     :\u001b[0m \u001b[0;37m${fmtUSD(q.low)}\u001b[0m`,
+            `\u001b[1;36m 🔒  Prev Close     :\u001b[0m \u001b[0;37m${fmtUSD(q.prev)}\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━ 📊 PERUBAHAN 24H ━━━━━━━━\u001b[0m',
+            `\u001b[1;36m ${arrow}  Perubahan     :\u001b[0m ${color}${naik ? '+' : ''}${fmtUSD(q.change)} (${q.changePct})\u001b[0m`,
+            `\u001b[1;36m 📊  Grafik        :\u001b[0m ${color}\`${bar}\`\u001b[0m`,
+            `\u001b[1;36m 📦  Volume        :\u001b[0m \u001b[0;37m${fmt(q.volume, 2)} ${q.symbol}\u001b[0m`,
+            `\u001b[1;36m 💲  Vol USD       :\u001b[0m \u001b[0;37m$${fmt(q.volumeUSD, 0)}\u001b[0m`,
+            `\u001b[1;36m 🔢  Trades        :\u001b[0m \u001b[0;37m${q.count.toLocaleString()}\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;35m━━━━━━━━━━━ 📆 24H RANGE ━━━━━━━━━━━━\u001b[0m',
+            `\u001b[0;37m ${fmtUSD(q.low)} \u001b[1;33m[${bar24}]\u001b[0m \u001b[0;37m${fmtUSD(q.high)}\u001b[0m`,
+            '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+          ].join('\n'));
+        }
+
+        // ══════════════════════════════════════════
+        // AKSI: beli — beli crypto pakai cowoncy
+        // ══════════════════════════════════════════
+        if (sub === 'beli') {
+          const symbol = getOption(options, 'coin')?.toUpperCase();
+          const jumlah = parseFloat(getOption(options, 'jumlah') || '1');
+
+          if (!symbol)                     return editFollowup(`${EMOJI} ❌ Masukkan kode coin!`);
+          if (!jumlah || jumlah <= 0)      return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
+          if (jumlah > 1_000_000_000_000)  return editFollowup(`${EMOJI} ❌ Maksimal beli **1 triliun** unit sekaligus!`);
+
+          const q = await fetchCrypto(symbol);
+          if (!q)         return editFollowup(`${EMOJI} ❌ Gagal ambil data! Coba lagi.`);
+          if (q.notFound) return editFollowup(`${EMOJI} ❌ Coin **${symbol}** tidak ditemukan! Ketik \`/crypto info\` untuk daftar coin.`);
+
+          const hargaPerUnit = q.harga;
+          const totalUSD     = hargaPerUnit * jumlah;
+          const totalCowoncy = Math.ceil(totalUSD * RATE);
+
+          if (totalCowoncy < 1) return editFollowup(`${EMOJI} ❌ Total terlalu kecil! Tambah jumlah unitnya.`);
+
+          if (user.balance < totalCowoncy) {
+            return editFollowup([
+              '```ansi',
+              '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+              '\u001b[1;31m║  💸  SALDO TIDAK CUKUP!  💸         ║\u001b[0m',
+              '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+              '```',
+              `> ${EMOJI} ❌ Kamu butuh 🪙 **${totalCowoncy.toLocaleString()}** tapi cuma punya 🪙 **${user.balance.toLocaleString()}**`,
+              `> 💡 Kurangi jumlah unit atau cari cowoncy dulu!`
+            ].join('\n'));
+          }
+
+          const portoKey = `crypto:${discordId}`;
+          const [portoRaw, histRaw] = await Promise.all([
+            env.USERS_KV.get(portoKey),
+            env.USERS_KV.get(`crypto_history:${discordId}`)
+          ]);
+          const porto = portoRaw ? JSON.parse(portoRaw) : {};
+
+          if (porto[symbol]) {
+            const totalUnit = porto[symbol].unit + jumlah;
+            const avgBeli   = ((porto[symbol].avgBeli * porto[symbol].unit) + (hargaPerUnit * jumlah)) / totalUnit;
+            porto[symbol]   = { ...porto[symbol], unit: totalUnit, avgBeli };
+          } else {
+            porto[symbol] = { symbol, nama: q.nama, unit: jumlah, avgBeli: hargaPerUnit, beliAt: Date.now() };
+          }
+
+          user.balance -= totalCowoncy;
+
+          const hist = histRaw ? JSON.parse(histRaw) : [];
+          hist.unshift({ aksi: 'BELI', symbol, unit: jumlah, harga: hargaPerUnit, totalUSD, totalCowoncy, at: Date.now() });
+          if (hist.length > 50) hist.splice(50);
+
+          await Promise.all([
+            env.USERS_KV.put(portoKey, JSON.stringify(porto)),
+            env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user)),
+            env.USERS_KV.put(`crypto_history:${discordId}`, JSON.stringify(hist))
+          ]);
+          waitUntil(pushLinkedRole(env, discordId, null, user));
+
+          // Invalidate porto cache
+          await env.USERS_KV.delete(`cache:crypto:${discordId}`).catch(() => {});
+
+          return editFollowup([
+            '```ansi',
+            '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;32m║  ✅  PEMBELIAN BERHASIL!  ✅        ║\u001b[0m',
+            '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `${EMOJI} 🚀 Berhasil beli **${fmt(jumlah, 8)} ${symbol}** (${q.nama})!`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━ 📋 DETAIL BELI ━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 🪙  Coin        :\u001b[0m \u001b[1;37m${symbol} (${q.nama})\u001b[0m`,
+            `\u001b[1;36m 📦  Jumlah      :\u001b[0m \u001b[0;37m${fmt(jumlah, 8)} unit\u001b[0m`,
+            `\u001b[1;36m 💵  Harga/Unit  :\u001b[0m \u001b[0;37m${fmtUSD(hargaPerUnit)}\u001b[0m`,
+            `\u001b[1;36m 💰  Total USD   :\u001b[0m \u001b[0;37m${fmtUSD(totalUSD)}\u001b[0m`,
+            `\u001b[1;36m 🪙  Total Bayar :\u001b[0m \u001b[1;31m-${totalCowoncy.toLocaleString()} cowoncy\u001b[0m`,
+            `\u001b[1;36m 💳  Sisa Saldo  :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m 📊  Total Hold  :\u001b[0m \u001b[0;37m${fmt(porto[symbol].unit, 8)} unit @ avg ${fmtUSD(porto[symbol].avgBeli)}\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
+            `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+          ].join('\n'));
+        }
+
+        // ══════════════════════════════════════════
+        // AKSI: jual — jual crypto
+        // ══════════════════════════════════════════
+        if (sub === 'jual') {
+          const symbol    = getOption(options, 'coin')?.toUpperCase();
+          const jumlahRaw = getOption(options, 'jumlah');
+
+          if (!symbol) return editFollowup(`${EMOJI} ❌ Masukkan kode coin!`);
+
+          const portoKey = `crypto:${discordId}`;
+          const [portoRaw, histRaw] = await Promise.all([
+            env.USERS_KV.get(portoKey),
+            env.USERS_KV.get(`crypto_history:${discordId}`)
+          ]);
+          const porto = portoRaw ? JSON.parse(portoRaw) : {};
+
+          if (!porto[symbol] || porto[symbol].unit <= 0) {
+            return editFollowup(`${EMOJI} ❌ Kamu tidak punya **${symbol}**!`);
+          }
+
+          const jumlah = jumlahRaw === 'all'
+            ? porto[symbol].unit
+            : parseFloat(jumlahRaw || '1');
+
+          if (!jumlah || jumlah <= 0)         return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
+          if (jumlah > porto[symbol].unit)    return editFollowup(`${EMOJI} ❌ Kamu cuma punya **${fmt(porto[symbol].unit, 8)} ${symbol}**!`);
+
+          const q = await fetchCrypto(symbol);
+          if (!q)         return editFollowup(`${EMOJI} ❌ Gagal ambil harga! Coba lagi.`);
+          if (q.notFound) return editFollowup(`${EMOJI} ❌ Coin **${symbol}** tidak ditemukan!`);
+
+          const hargaJual     = q.harga;
+          const avgBeli       = porto[symbol].avgBeli;
+          const totalUSD      = hargaJual * jumlah;
+          const totalCowoncy  = Math.floor(totalUSD * RATE);
+          const modalUSD      = avgBeli * jumlah;
+          const profitUSD     = totalUSD - modalUSD;
+          const profitCowoncy = Math.floor(profitUSD * RATE);
+          const profitPct     = ((profitUSD / modalUSD) * 100).toFixed(2);
+          const untung        = profitUSD >= 0;
+
+          porto[symbol].unit -= jumlah;
+          if (porto[symbol].unit <= 0.000000001) delete porto[symbol];
+
+          user.balance += totalCowoncy;
+          if (untung) user.totalEarned = (user.totalEarned || 0) + totalCowoncy;
+
+          const hist = histRaw ? JSON.parse(histRaw) : [];
+          hist.unshift({ aksi: 'JUAL', symbol, unit: jumlah, harga: hargaJual, avgBeli, profitUSD, profitCowoncy, totalUSD, totalCowoncy, at: Date.now() });
+          if (hist.length > 50) hist.splice(50);
+
+          await Promise.all([
+            env.USERS_KV.put(portoKey, JSON.stringify(porto)),
+            env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user)),
+            env.USERS_KV.put(`crypto_history:${discordId}`, JSON.stringify(hist))
+          ]);
+          waitUntil(pushLinkedRole(env, discordId, null, user));
+
+          // Invalidate porto cache
+          await env.USERS_KV.delete(`cache:crypto:${discordId}`).catch(() => {});
+
+          const profitColor = untung ? '\u001b[1;32m' : '\u001b[1;31m';
+          const profitSign  = untung ? '+' : '';
+
+          return editFollowup([
+            '```ansi',
+            untung
+              ? '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m'
+              : '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+            untung
+              ? '\u001b[1;32m║  💰  JUAL BERHASIL — PROFIT!  💰   ║\u001b[0m'
+              : '\u001b[1;31m║  📉  JUAL BERHASIL — RUGI!  📉    ║\u001b[0m',
+            untung
+              ? '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m'
+              : '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `${EMOJI} ${untung ? '🤑' : '😢'} Berhasil jual **${fmt(jumlah, 8)} ${symbol}**!`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━ 📋 DETAIL JUAL ━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 🪙  Coin        :\u001b[0m \u001b[1;37m${symbol} (${porto[symbol]?.nama || q.nama})\u001b[0m`,
+            `\u001b[1;36m 📦  Jumlah      :\u001b[0m \u001b[0;37m${fmt(jumlah, 8)} unit\u001b[0m`,
+            `\u001b[1;36m 💵  Harga Jual  :\u001b[0m \u001b[0;37m${fmtUSD(hargaJual)}\u001b[0m`,
+            `\u001b[1;36m 📊  Avg Beli    :\u001b[0m \u001b[0;37m${fmtUSD(avgBeli)}\u001b[0m`,
+            `\u001b[1;36m 💰  Total Dapat :\u001b[0m \u001b[1;32m+${totalCowoncy.toLocaleString()} cowoncy\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━ 📈 PROFIT/LOSS ━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 💸  Profit USD  :\u001b[0m ${profitColor}${profitSign}${fmtUSD(profitUSD)}\u001b[0m`,
+            `\u001b[1;36m 🪙  Profit Coin :\u001b[0m ${profitColor}${profitSign}${profitCowoncy.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m 📊  Return      :\u001b[0m ${profitColor}${profitSign}${profitPct}%\u001b[0m`,
+            `\u001b[1;36m 💳  Saldo Baru  :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
+            '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+          ].join('\n'));
+        }
+
+        // ══════════════════════════════════════════
+        // AKSI: portofolio — lihat semua crypto
+        // ══════════════════════════════════════════
+        if (sub === 'portofolio') {
+          const portoKey = `crypto:${discordId}`;
+          const cacheKey = `cache:crypto:${discordId}`;
+
+          // 1. CEK CACHE (5 menit)
+          const cachedRender = await env.USERS_KV.get(cacheKey);
+          if (cachedRender) {
+            const data = JSON.parse(cachedRender);
+            return editFollowup(data.content + `\n> 🕒 *Cache: diperbarui ${Math.round((Date.now() - data.ts) / 60000)} menit lalu.*`);
+          }
+
+          const portoRaw = await env.USERS_KV.get(portoKey);
+          const porto    = portoRaw ? JSON.parse(portoRaw) : {};
+          const symbols  = Object.keys(porto);
+
+          if (symbols.length === 0) {
+            return editFollowup(`${EMOJI} 📭 Portofolio crypto kamu kosong!\n> Gunakan \`/crypto beli\` untuk mulai investasi.`);
+          }
+
+          // 2. PARALLEL FETCH semua harga sekaligus
+          const results = await Promise.all(
+            symbols.map(s => fetchCrypto(s).catch(() => null))
+          );
+
+          const hargaMap = {};
+          results.forEach((q, i) => {
+            hargaMap[symbols[i]] = q && !q.notFound ? q : null;
+          });
+
+          let totalModalUSD = 0;
+          let totalNilaiUSD = 0;
+          const rows = [];
+
+          for (const s of symbols) {
+            const q     = hargaMap[s];
+            const modal = porto[s].avgBeli * porto[s].unit;
+            totalModalUSD += modal;
+
+            if (!q) {
+              rows.push(`\u001b[1;33m ⚠️  ${s.padEnd(6)}\u001b[0m \u001b[0;37m${fmt(porto[s].unit, 8)} unit — Data tidak tersedia\u001b[0m`);
+              totalNilaiUSD += modal;
+              continue;
+            }
+
+            const nilai  = q.harga * porto[s].unit;
+            const profit = nilai - modal;
+            const pct    = ((profit / modal) * 100).toFixed(2);
+            const naik   = profit >= 0;
+            const clr    = naik ? '\u001b[1;32m' : '\u001b[1;31m';
+            const sign   = naik ? '+' : '';
+
+            totalNilaiUSD += nilai;
+
+            rows.push(
+              `\u001b[1;33m 📌 ${s.padEnd(6)}\u001b[0m \u001b[0;37m${fmt(porto[s].unit, 8)} unit @ avg ${fmtUSD(porto[s].avgBeli)}\u001b[0m \u001b[2;37m(${q.nama})\u001b[0m`,
+              `\u001b[1;36m    Harga Kini : \u001b[0m\u001b[0;37m${fmtUSD(q.harga)}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
+              `\u001b[1;36m    P/L        : \u001b[0m${clr}${sign}${fmtUSD(profit)} (${sign}🪙${Math.floor(Math.abs(profit) * RATE).toLocaleString()})\u001b[0m`,
+              ''
+            );
+          }
+
+          const totalProfit    = totalNilaiUSD - totalModalUSD;
+          const totalProfitPct = totalModalUSD > 0 ? ((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
+          const totalUntung    = totalProfit >= 0;
+          const totalClr       = totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
+          const totalSign      = totalUntung ? '+' : '';
+
+          const finalContent = [
+            '```ansi',
+            '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
+            `\u001b[2;35m║  \u001b[1;33m🪙  PORTOFOLIO CRYPTO  🪙\u001b[0m          \u001b[2;35m║\u001b[0m`,
+            '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `${EMOJI} 💼 **${username}** — Portofolio Crypto`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━ 📋 DAFTAR COIN ━━━━━━━━━━━\u001b[0m',
+            ...rows,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━ 💰 RINGKASAN ━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m 💵  Total Modal  :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
+            `\u001b[1;36m 📈  Total Nilai  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
+            `\u001b[1;36m 💸  Total P/L    :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfit)} (${totalSign}${totalProfitPct}%)\u001b[0m`,
+            `\u001b[1;36m 🪙  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${Math.floor(Math.abs(totalProfit) * RATE).toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m 💳  Saldo Kamu   :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
+            '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 💡 Rate: **$1 = 🪙 ${RATE.toLocaleString()}**`,
+            `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+          ].join('\n');
+
+          // 3. SIMPAN CACHE 5 menit
+          await env.USERS_KV.put(cacheKey, JSON.stringify({
+            content: finalContent,
+            ts: Date.now()
+          }), { expirationTtl: 300 });
+
+          return editFollowup(finalContent);
+        }
+
+        // ══════════════════════════════════════════
+        // AKSI: info — daftar coin tersedia
+        // ══════════════════════════════════════════
+        if (sub === 'info') {
+          return editFollowup([
+            `${EMOJI} 📋 **Daftar Coin Tersedia** — OwoBim Crypto Engine`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━ 🏆 BLUE CHIP ━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;36m BTC  ETH  BNB  SOL  XRP  ADA  DOT\u001b[0m',
+            '\u001b[1;36m LTC  BCH  ATOM ETC  XLM  HBAR ICP\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━ ⚡ LAYER 2 & DeFi ━━━━━━━\u001b[0m',
+            '\u001b[1;36m MATIC AVAX LINK UNI AAVE MKR SNX\u001b[0m',
+            '\u001b[1;36m CRV  LDO  RUNE INJ  NEAR ARB  OP\u001b[0m',
+            '\u001b[1;35m━━━━━━━━━━━ 🐕 MEME COINS ━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;36m DOGE SHIB PEPE FLOKI WIF  BONK\u001b[0m',
+            '\u001b[1;31m━━━━━━━━━━━ 🎮 WEB3 & GAMING ━━━━━━━\u001b[0m',
+            '\u001b[1;36m SAND MANA AXS  GALA ENJ  FTM\u001b[0m',
+            '\u001b[1;34m━━━━━━━━━━━ 🔗 LAINNYA ━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;36m TRX  TON  ALGO VET  FIL  SUI  SEI\u001b[0m',
+            '\u001b[1;36m APT  BLUR JTO\u001b[0m',
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 💡 \`/crypto cek coin:BTC\` — \`/crypto beli coin:ETH jumlah:0.5\``,
+            `> ⚡ Data real-time dari Binance, update tiap 2 menit!`,
+            `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+          ].join('\n'));
+        }
+
+      } catch (err) {
+        await editFollowup(`${EMOJI} ❌ Terjadi error internal: \`${err.message}\`\nCoba lagi atau hubungi admin!`);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // ══════════════════════════════════════════
+  // AKSI: history — riwayat transaksi crypto
+  // ══════════════════════════════════════════
+  if (sub === 'history') {
+    const histKey = `crypto_history:${discordId}`;
+    const histRaw = await env.USERS_KV.get(histKey);
+    const hist    = histRaw ? JSON.parse(histRaw) : [];
+
+    if (hist.length === 0) {
+      return respond(`${EMOJI} 📭 Belum ada riwayat transaksi crypto!`);
+    }
+
+    const rows = hist.slice(0, 15).map((h, i) => {
+      const tgl = new Date(h.at).toLocaleDateString('id-ID', {
+        day: '2-digit', month: 'short', year: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      });
+      const isBeli  = h.aksi === 'BELI';
+      const clr     = isBeli ? '\u001b[1;31m' : '\u001b[1;32m';
+      const sign    = isBeli ? '-' : '+';
+      const coinStr = `${sign}🪙${h.totalCowoncy.toLocaleString()}`;
+      return [
+        `\u001b[1;33m ${i+1}. ${h.aksi} ${h.symbol.padEnd(6)}\u001b[0m \u001b[0;37m${fmt(h.unit, 8)} unit @ ${fmtUSD(h.harga)}\u001b[0m`,
+        `\u001b[1;36m    Cowoncy: \u001b[0m${clr}${coinStr}\u001b[0m  \u001b[0;37m${tgl}\u001b[0m`
+      ].join('\n');
+    });
+
+    return respond([
+      '```ansi',
+      '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
+      `\u001b[2;35m║  \u001b[1;33m📜  HISTORY CRYPTO  📜\u001b[0m             \u001b[2;35m║\u001b[0m`,
+      '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `${EMOJI} 📋 **${username}** — 15 Transaksi Crypto Terakhir`,
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      rows.join('\n\n'),
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> 🤖 *Powered by OwoBim Crypto Engine × Binance* ${EMOJI}`
+    ].join('\n'));
+  }
+
+  return respond(`${EMOJI} ❌ Aksi tidak dikenal! Gunakan: \`cek\`, \`beli\`, \`jual\`, \`portofolio\`, \`history\`, \`info\``);
+}
+
   
 
 
