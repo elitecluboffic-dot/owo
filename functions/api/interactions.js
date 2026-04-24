@@ -5368,13 +5368,17 @@ if (cmd === 'crypto') {
   const RATE  = 16000; // $1 = 16000 cowoncy
 
   // ── Helper: format angka ──
-  const fmt    = (n, d = 2) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: d });
-  const fmtUSD = (n) => {
-    const abs = Math.abs(n);
-    if (abs >= 1000)   return `$${fmt(n, 2)}`;
-    if (abs >= 1)      return `$${fmt(n, 4)}`;
-    if (abs >= 0.01)   return `$${fmt(n, 6)}`;
-    return `$${Number(n).toFixed(8)}`;
+  const fmt = (n, d = 2) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: d });
+
+  // ── Helper: format USD — FIXED, no duplicate, en-US locale ──
+  const fmtUSD = (val) => {
+    if (val == null || isNaN(val)) return '$0.00';
+    const abs = Math.abs(val);
+    if (abs === 0)    return '$0.00';
+    if (abs < 0.0001) return '$' + Number(val).toFixed(8);
+    if (abs < 0.01)   return '$' + Number(val).toFixed(6);
+    if (abs < 1)      return '$' + Number(val).toFixed(4);
+    return '$' + abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   // ── Helper: edit deferred message ──
@@ -5507,26 +5511,26 @@ if (cmd === 'crypto') {
       if (!json || !json[0]) return null;
 
       const d         = json[0];
-      const harga     = d.current_price             || 0;
+      const harga     = d.current_price              || 0;
       const changePct = d.price_change_percentage_24h || 0;
-      const change    = d.price_change_24h           || 0;
+      const change    = d.price_change_24h            || 0;
 
       const data = {
         symbol,
         nama:         coinInfo.nama,
         harga,
         open:         harga - change,
-        high:         d.high_24h         || harga,
-        low:          d.low_24h          || harga,
+        high:         d.high_24h        || harga,
+        low:          d.low_24h         || harga,
         prev:         harga - change,
         change,
         changePct:    changePct.toFixed(2) + '%',
         changePctRaw: changePct,
-        volumeUSD:    d.total_volume     || 0,
-        marketCap:    d.market_cap       || 0,
-        rank:         d.market_cap_rank  || 0,
-        ath:          d.ath              || 0,
-        atl:          d.atl              || 0,
+        volumeUSD:    d.total_volume    || 0,
+        marketCap:    d.market_cap      || 0,
+        rank:         d.market_cap_rank || 0,
+        ath:          d.ath             || 0,
+        atl:          d.atl             || 0,
       };
 
       await env.USERS_KV.put(cacheKey, JSON.stringify({ data, ts: Date.now() }), { expirationTtl: 120 });
@@ -5566,9 +5570,9 @@ if (cmd === 'crypto') {
             const sym = GECKO_TO_SYMBOL[d.id];
             if (!sym) continue;
 
-            const harga     = d.current_price             || 0;
+            const harga     = d.current_price              || 0;
             const changePct = d.price_change_percentage_24h || 0;
-            const change    = d.price_change_24h           || 0;
+            const change    = d.price_change_24h            || 0;
 
             const data = {
               symbol: sym,
@@ -5720,7 +5724,8 @@ if (cmd === 'crypto') {
             env.USERS_KV.put(`crypto_history:${discordId}`, JSON.stringify(hist))
           ]);
           waitUntil(pushLinkedRole(env, discordId, null, user));
-          await env.USERS_KV.delete(`cache:crypto:${discordId}`).catch(() => {});
+          // FIXED: cache key v6
+          await env.USERS_KV.delete(`cache:crypto:v6:${discordId}`).catch(() => {});
 
           return editFollowup([
             '```ansi',
@@ -5785,7 +5790,7 @@ if (cmd === 'crypto') {
           const profitUSD     = totalUSD - modalUSD;
           const profitAbs     = Math.abs(profitUSD);
           const profitCowoncy = Math.floor(profitAbs * RATE);
-          const profitPct     = ((profitUSD / modalUSD) * 100);
+          const profitPct     = (profitUSD / modalUSD) * 100;
           const untung        = profitUSD >= 0;
 
           porto[symbol].unit -= jumlah;
@@ -5804,7 +5809,8 @@ if (cmd === 'crypto') {
             env.USERS_KV.put(`crypto_history:${discordId}`, JSON.stringify(hist))
           ]);
           waitUntil(pushLinkedRole(env, discordId, null, user));
-          await env.USERS_KV.delete(`cache:crypto:${discordId}`).catch(() => {});
+          // FIXED: cache key v6
+          await env.USERS_KV.delete(`cache:crypto:v6:${discordId}`).catch(() => {});
 
           const profitColor = untung ? '\u001b[1;32m' : '\u001b[1;31m';
           const profitSign  = untung ? '+' : '-';
@@ -5846,11 +5852,11 @@ if (cmd === 'crypto') {
         // ══════════════════════════════════════════
         if (sub === 'portofolio') {
           const portoKey = `crypto:${discordId}`;
-          const cacheKey = `cache:crypto:v5:${discordId}`;
+          const cacheKey = `cache:crypto:v6:${discordId}`;
 
-          const data = await env.USERS_KV.get(cacheKey, { type: 'json' });
-          if (data) {
-            return editFollowup(data.content + `\n> *Cache: diperbarui ${Math.round((Date.now() - data.ts) / 60000)} menit lalu.*`);
+          const cached = await env.USERS_KV.get(cacheKey, { type: 'json' });
+          if (cached) {
+            return editFollowup(cached.content + `\n> *Cache: diperbarui ${Math.round((Date.now() - cached.ts) / 60000)} menit lalu.*`);
           }
 
           const portoRaw = await env.USERS_KV.get(portoKey);
@@ -5881,62 +5887,89 @@ if (cmd === 'crypto') {
               continue;
             }
 
-            const nilai      = q.harga * porto[s].unit;
-            const profit     = nilai - modal;
-            const profitAbs  = Math.abs(profit);
-            const pct        = Math.abs((profit / modal) * 100).toFixed(2);
-            const naik       = profit >= 0;
-            const clr        = naik ? '\u001b[1;32m' : '\u001b[1;31m';
-            const sign       = naik ? '+' : '-';
-            const bar        = (naik ? '\u001b[1;32m' : '\u001b[1;31m') + (naik ? '▲' : '▼') + '\u001b[0m';
-            totalNilaiUSD   += nilai;
+            const nilai     = q.harga * porto[s].unit;
+            const profit    = nilai - modal;
+            const profitAbs = Math.abs(profit);
+
+            // Threshold netral: selisih < $0.01 dianggap nol
+            const isNetral = profitAbs < 0.01;
+            const naik     = !isNetral && profit > 0;
+
+            const pct = isNetral
+              ? '0.00'
+              : Math.abs((profit / modal) * 100).toFixed(2);
+
+            const clr  = isNetral ? '\u001b[0;37m' : naik ? '\u001b[1;32m' : '\u001b[1;31m';
+            const sign = isNetral ? ' '            : naik ? '+'           : '-';
+            const icon = isNetral ? '●'            : naik ? '▲'           : '▼';
+            const bar  = isNetral
+              ? `\u001b[0;37m${icon}\u001b[0m`
+              : naik
+                ? `\u001b[1;32m${icon}\u001b[0m`
+                : `\u001b[1;31m${icon}\u001b[0m`;
+
+            const profitDisplay  = isNetral ? '$0.00' : fmtUSD(profitAbs);
+            const cowoncyDisplay = isNetral ? '0'     : Math.floor(profitAbs * RATE).toLocaleString('en-US');
+
+            totalNilaiUSD += nilai;
 
             rows.push(
-              `\u001b[1;33m  ${s.padEnd(6)}\u001b[0m \u001b[0;37m${fmt(porto[s].unit, 8)} unit @ avg ${fmtUSD(porto[s].avgBeli)}\u001b[0m  \u001b[2;37m(${q.nama})\u001b[0m`,
-              `\u001b[1;36m    Harga Kini : \u001b[0;37m${fmtUSD(q.harga)}\u001b[0m  ${bar} ${clr}${sign}${pct}%\u001b[0m`,
-              `\u001b[1;36m    P/L        : \u001b[0m${clr}${sign}${fmtUSD(profitAbs)}  (${sign}${Math.floor(profitAbs * RATE).toLocaleString()})\u001b[0m`,
+              `\u001b[1;33m  ${s.padEnd(6)}\u001b[0m \u001b[0;37m${fmt(porto[s].unit, 8)} unit \u001b[2;37m@ avg \u001b[0;37m${fmtUSD(porto[s].avgBeli)}\u001b[0m  \u001b[2;37m(${q.nama})\u001b[0m`,
+              `\u001b[1;36m    Harga   : \u001b[0;37m${fmtUSD(q.harga).padEnd(14)}\u001b[0m  ${bar}  ${clr}${sign}${pct}%\u001b[0m`,
+              `\u001b[1;36m    P/L     : \u001b[0m${clr}${sign}${profitDisplay}  \u001b[2m(${sign}${cowoncyDisplay} cwncy)\u001b[0m`,
               ''
             );
           }
 
+          // ── RINGKASAN ──
           const totalProfit    = totalNilaiUSD - totalModalUSD;
           const totalProfitAbs = Math.abs(totalProfit);
-          const totalProfitPct = totalModalUSD > 0 ? Math.abs((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
-          const totalUntung    = totalProfit >= 0;
-          const totalClr       = totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
-          const totalSign      = totalUntung ? '+' : '-';
-          const totalBar       = totalUntung
-            ? '\u001b[1;32m================  PROFIT  ================\u001b[0m'
-            : '\u001b[1;31m================   RUGI   ================\u001b[0m';
+          const totalIsNetral  = totalProfitAbs < 0.01;
+          const totalProfitPct = (totalModalUSD > 0 && !totalIsNetral)
+            ? Math.abs((totalProfit / totalModalUSD) * 100).toFixed(2)
+            : '0.00';
+          const totalUntung    = !totalIsNetral && totalProfit > 0;
+          const totalClr       = totalIsNetral ? '\u001b[0;37m' : totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
+          const totalSign      = totalIsNetral ? ' '           : totalUntung ? '+'           : '-';
+
+          const totalBar = totalIsNetral
+            ? '\u001b[0;37m━━━━━━━━━━━━━━━━  NETRAL  ━━━━━━━━━━━━━━━━\u001b[0m'
+            : totalUntung
+              ? '\u001b[1;32m━━━━━━━━━━━━━━━━  PROFIT  ━━━━━━━━━━━━━━━━\u001b[0m'
+              : '\u001b[1;31m━━━━━━━━━━━━━━━━   RUGI   ━━━━━━━━━━━━━━━━\u001b[0m';
+
+          const totalProfitDisplay  = totalIsNetral ? '$0.00' : fmtUSD(totalProfitAbs);
+          const totalCowoncyDisplay = totalIsNetral ? '0'     : Math.floor(totalProfitAbs * RATE).toLocaleString('en-US');
+
+          const SEP  = '\u001b[2;34m  ──────────────────────────────────\u001b[0m';
+          const HEAD = '\u001b[1;34m  ════════════════════════════════════\u001b[0m';
 
           const finalContent = [
             '```ansi',
-            '\u001b[2;34m+--------------------------------------+\u001b[0m',
-            '\u001b[2;34m|\u001b[0m\u001b[1;33m        PORTOFOLIO  CRYPTO             \u001b[0m\u001b[2;34m|\u001b[0m',
-            '\u001b[2;34m+--------------------------------------+\u001b[0m',
-            '```',
-            `${EMOJI} **${username}** — Portofolio Crypto`,
-            '```ansi',
-            '\u001b[1;34m======================================\u001b[0m',
-            '\u001b[1;33m          DAFTAR COIN                 \u001b[0m',
-            '\u001b[1;34m======================================\u001b[0m',
+            '\u001b[1;34m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;34m║\u001b[0m\u001b[1;33m      📊  PORTOFOLIO  CRYPTO           \u001b[0m\u001b[1;34m║\u001b[0m',
+            `\u001b[1;34m║\u001b[0m\u001b[0;37m  👤 ${username.padEnd(35)}\u001b[0m\u001b[1;34m║\u001b[0m`,
+            '\u001b[1;34m╚══════════════════════════════════════╝\u001b[0m',
+            '',
+            HEAD,
+            '\u001b[1;33m    📋  DAFTAR COIN                    \u001b[0m',
+            HEAD,
             '',
             ...rows,
-            '\u001b[1;34m======================================\u001b[0m',
-            '\u001b[1;33m          RINGKASAN                   \u001b[0m',
-            '\u001b[1;34m======================================\u001b[0m',
-            `\u001b[1;36m  Total Modal  :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
-            `\u001b[1;36m  Total Nilai  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
-            '\u001b[2;37m  ......................................\u001b[0m',
-            `\u001b[1;36m  Total P/L    :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfitAbs)}  (${totalSign}${totalProfitPct}%)\u001b[0m`,
-            `\u001b[1;36m  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${Math.floor(totalProfitAbs * RATE).toLocaleString()} cowoncy\u001b[0m`,
-            `\u001b[1;36m  Saldo Kamu   :\u001b[0m \u001b[0;37m${user.balance.toLocaleString()} cowoncy\u001b[0m`,
-            '\u001b[2;37m  ......................................\u001b[0m',
+            HEAD,
+            '\u001b[1;33m    📊  RINGKASAN                      \u001b[0m',
+            HEAD,
+            `\u001b[1;36m  Modal Total  :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
+            `\u001b[1;36m  Nilai Kini   :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
+            SEP,
+            `\u001b[1;36m  Total P/L    :\u001b[0m ${totalClr}${totalSign}${totalProfitDisplay}  (${totalSign}${totalProfitPct}%)\u001b[0m`,
+            `\u001b[1;36m  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${totalCowoncyDisplay} cowoncy\u001b[0m`,
+            `\u001b[1;36m  Saldo Kamu   :\u001b[0m \u001b[0;37m${user.balance.toLocaleString('en-US')} cowoncy\u001b[0m`,
+            SEP,
             totalBar,
-            '\u001b[1;34m======================================\u001b[0m',
+            HEAD,
             '```',
-            `> Rate: **$1 = ${RATE.toLocaleString()} cowoncy**`,
-            `> *Powered by OwoBim Crypto Engine x CoinGecko* ${EMOJI}`
+            `> 💱 Rate: **$1 = ${RATE.toLocaleString('en-US')} cowoncy** · *Powered by CoinGecko* ${EMOJI}`
           ].join('\n');
 
           await env.USERS_KV.put(cacheKey, JSON.stringify({
