@@ -5367,10 +5367,18 @@ if (cmd === 'crypto') {
   const sub   = getOption(options, 'aksi');
   const RATE  = 16000; // $1 = 16000 cowoncy
 
+  // ══════════════════════════════════════════════
+  // SECURITY LIMITS — anti exploit/bocor
+  // ══════════════════════════════════════════════
+  const MAX_UNIT_PER_BELI   = 1_000_000;         // max 1 juta unit per transaksi
+  const MAX_TOTAL_COWONCY   = 999_999_999_999;   // max ~1 Triliun cowoncy per beli
+  const MAX_PORTO_UNIT      = 10_000_000;         // max hold 10 juta unit per coin
+  const MAX_PORTO_COINS     = 20;                 // max 20 jenis coin di portofolio
+
   // ── Helper: format angka ──
   const fmt = (n, d = 2) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: d });
 
-  // ── Helper: format USD — FIXED, no duplicate, en-US locale ──
+  // ── Helper: format USD ──
   const fmtUSD = (val) => {
     if (val == null || isNaN(val)) return '$0.00';
     const abs = Math.abs(val);
@@ -5379,6 +5387,13 @@ if (cmd === 'crypto') {
     if (abs < 0.01)   return '$' + Number(val).toFixed(6);
     if (abs < 1)      return '$' + Number(val).toFixed(4);
     return '$' + abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // ── Helper: sanitize number — anti NaN/Infinity/negatif ──
+  const safeNum = (val, fallback = 0) => {
+    const n = Number(val);
+    if (!isFinite(n) || isNaN(n) || n < 0) return fallback;
+    return n;
   };
 
   // ── Helper: edit deferred message ──
@@ -5511,7 +5526,7 @@ if (cmd === 'crypto') {
       if (!json || !json[0]) return null;
 
       const d         = json[0];
-      const harga     = d.current_price              || 0;
+      const harga     = safeNum(d.current_price);
       const changePct = d.price_change_percentage_24h || 0;
       const change    = d.price_change_24h            || 0;
 
@@ -5520,17 +5535,17 @@ if (cmd === 'crypto') {
         nama:         coinInfo.nama,
         harga,
         open:         harga - change,
-        high:         d.high_24h        || harga,
-        low:          d.low_24h         || harga,
+        high:         safeNum(d.high_24h, harga),
+        low:          safeNum(d.low_24h,  harga),
         prev:         harga - change,
         change,
         changePct:    changePct.toFixed(2) + '%',
         changePctRaw: changePct,
-        volumeUSD:    d.total_volume    || 0,
-        marketCap:    d.market_cap      || 0,
-        rank:         d.market_cap_rank || 0,
-        ath:          d.ath             || 0,
-        atl:          d.atl             || 0,
+        volumeUSD:    safeNum(d.total_volume),
+        marketCap:    safeNum(d.market_cap),
+        rank:         safeNum(d.market_cap_rank),
+        ath:          safeNum(d.ath),
+        atl:          safeNum(d.atl),
       };
 
       await env.USERS_KV.put(cacheKey, JSON.stringify({ data, ts: Date.now() }), { expirationTtl: 120 });
@@ -5570,7 +5585,7 @@ if (cmd === 'crypto') {
             const sym = GECKO_TO_SYMBOL[d.id];
             if (!sym) continue;
 
-            const harga     = d.current_price              || 0;
+            const harga     = safeNum(d.current_price);
             const changePct = d.price_change_percentage_24h || 0;
             const change    = d.price_change_24h            || 0;
 
@@ -5579,17 +5594,17 @@ if (cmd === 'crypto') {
               nama:         COIN_LIST[sym].nama,
               harga,
               open:         harga - change,
-              high:         d.high_24h        || harga,
-              low:          d.low_24h         || harga,
+              high:         safeNum(d.high_24h, harga),
+              low:          safeNum(d.low_24h,  harga),
               prev:         harga - change,
               change,
               changePct:    changePct.toFixed(2) + '%',
               changePctRaw: changePct,
-              volumeUSD:    d.total_volume    || 0,
-              marketCap:    d.market_cap      || 0,
-              rank:         d.market_cap_rank || 0,
-              ath:          d.ath             || 0,
-              atl:          d.atl             || 0,
+              volumeUSD:    safeNum(d.total_volume),
+              marketCap:    safeNum(d.market_cap),
+              rank:         safeNum(d.market_cap_rank),
+              ath:          safeNum(d.ath),
+              atl:          safeNum(d.atl),
             };
 
             result[sym] = data;
@@ -5666,24 +5681,47 @@ if (cmd === 'crypto') {
         }
 
         // ══════════════════════════════════════════
-        // AKSI: beli
+        // AKSI: beli — FULL SECURE
         // ══════════════════════════════════════════
         if (sub === 'beli') {
           const symbol = getOption(options, 'coin')?.toUpperCase();
-          const jumlah = parseFloat(getOption(options, 'jumlah') || '1');
+          const jumlahRaw = parseFloat(getOption(options, 'jumlah') || '1');
 
-          if (!symbol)                return editFollowup(`${EMOJI} ❌ Masukkan kode coin!`);
-          if (!jumlah || jumlah <= 0) return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
+          // ── Validasi input dasar ──
+          if (!symbol) return editFollowup(`${EMOJI} ❌ Masukkan kode coin!`);
+
+          // Sanitize jumlah: harus angka, positif, finite
+          const jumlah = safeNum(jumlahRaw, 0);
+          if (!jumlah || jumlah <= 0 || !isFinite(jumlah)) {
+            return editFollowup(`${EMOJI} ❌ Jumlah tidak valid! Masukkan angka positif.`);
+          }
+
+          // Cek max unit per transaksi
+          if (jumlah > MAX_UNIT_PER_BELI) {
+            return editFollowup(`${EMOJI} ❌ Maksimum pembelian **${MAX_UNIT_PER_BELI.toLocaleString()} unit** per transaksi!`);
+          }
 
           const q = await fetchCrypto(symbol);
           if (!q)         return editFollowup(`${EMOJI} ❌ Gagal ambil data! Coba lagi.`);
           if (q.notFound) return editFollowup(`${EMOJI} ❌ Coin **${symbol}** tidak ditemukan! Ketik \`/crypto info\` untuk daftar coin.`);
 
+          // Validasi harga dari API wajar
+          if (!q.harga || q.harga <= 0) {
+            return editFollowup(`${EMOJI} ❌ Harga coin tidak valid! Coba lagi.`);
+          }
+
           const hargaPerUnit = q.harga;
           const totalUSD     = hargaPerUnit * jumlah;
           const totalCowoncy = Math.ceil(totalUSD * RATE);
 
-          if (totalCowoncy < 1) return editFollowup(`${EMOJI} ❌ Total terlalu kecil! Tambah jumlah unitnya.`);
+          if (totalCowoncy < 1) {
+            return editFollowup(`${EMOJI} ❌ Total terlalu kecil! Tambah jumlah unitnya.`);
+          }
+
+          // Cek max total cowoncy per transaksi
+          if (totalCowoncy > MAX_TOTAL_COWONCY) {
+            return editFollowup(`${EMOJI} ❌ Total transaksi terlalu besar! Maksimum **${MAX_TOTAL_COWONCY.toLocaleString()} cowoncy** per beli.`);
+          }
 
           if (user.balance < totalCowoncy) {
             return editFollowup([
@@ -5704,6 +5742,20 @@ if (cmd === 'crypto') {
           ]);
           const porto = portoRaw ? JSON.parse(portoRaw) : {};
 
+          // Cek max jumlah jenis coin di portofolio
+          if (!porto[symbol] && Object.keys(porto).length >= MAX_PORTO_COINS) {
+            return editFollowup(`${EMOJI} ❌ Portofolio penuh! Maksimum **${MAX_PORTO_COINS} jenis coin**. Jual dulu salah satunya.`);
+          }
+
+          // Hitung unit baru
+          const unitBaru = porto[symbol] ? porto[symbol].unit + jumlah : jumlah;
+
+          // Cek max hold unit per coin
+          if (unitBaru > MAX_PORTO_UNIT) {
+            return editFollowup(`${EMOJI} ❌ Maksimum hold **${MAX_PORTO_UNIT.toLocaleString()} unit** per coin!`);
+          }
+
+          // Update porto dengan aman
           if (porto[symbol]) {
             const totalUnit = porto[symbol].unit + jumlah;
             const avgBeli   = ((porto[symbol].avgBeli * porto[symbol].unit) + (hargaPerUnit * jumlah)) / totalUnit;
@@ -5724,7 +5776,6 @@ if (cmd === 'crypto') {
             env.USERS_KV.put(`crypto_history:${discordId}`, JSON.stringify(hist))
           ]);
           waitUntil(pushLinkedRole(env, discordId, null, user));
-          // FIXED: cache key v6
           await env.USERS_KV.delete(`cache:crypto:v6:${discordId}`).catch(() => {});
 
           return editFollowup([
@@ -5751,7 +5802,7 @@ if (cmd === 'crypto') {
         }
 
         // ══════════════════════════════════════════
-        // AKSI: jual
+        // AKSI: jual — FULL SECURE
         // ══════════════════════════════════════════
         if (sub === 'jual') {
           const symbol    = getOption(options, 'coin')?.toUpperCase();
@@ -5770,19 +5821,31 @@ if (cmd === 'crypto') {
             return editFollowup(`${EMOJI} ❌ Kamu tidak punya **${symbol}**!`);
           }
 
-          const jumlah = jumlahRaw === 'all'
-            ? porto[symbol].unit
-            : parseFloat(jumlahRaw || '1');
+          // Sanitize unit yang sudah tersimpan di porto
+          const unitTersimpan = safeNum(porto[symbol].unit, 0);
+          if (unitTersimpan <= 0) {
+            delete porto[symbol];
+            await env.USERS_KV.put(portoKey, JSON.stringify(porto));
+            return editFollowup(`${EMOJI} ❌ Data porto **${symbol}** tidak valid, sudah direset.`);
+          }
 
-          if (!jumlah || jumlah <= 0)      return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
-          if (jumlah > porto[symbol].unit) return editFollowup(`${EMOJI} ❌ Kamu cuma punya **${fmt(porto[symbol].unit, 8)} ${symbol}**!`);
+          const jumlah = jumlahRaw === 'all'
+            ? unitTersimpan
+            : safeNum(parseFloat(jumlahRaw || '1'), 0);
+
+          if (!jumlah || jumlah <= 0) return editFollowup(`${EMOJI} ❌ Jumlah tidak valid!`);
+          if (jumlah > unitTersimpan)  return editFollowup(`${EMOJI} ❌ Kamu cuma punya **${fmt(unitTersimpan, 8)} ${symbol}**!`);
 
           const q = await fetchCrypto(symbol);
           if (!q)         return editFollowup(`${EMOJI} ❌ Gagal ambil harga! Coba lagi.`);
           if (q.notFound) return editFollowup(`${EMOJI} ❌ Coin **${symbol}** tidak ditemukan!`);
 
+          if (!q.harga || q.harga <= 0) {
+            return editFollowup(`${EMOJI} ❌ Harga coin tidak valid! Coba lagi.`);
+          }
+
           const hargaJual     = q.harga;
-          const avgBeli       = porto[symbol].avgBeli;
+          const avgBeli       = safeNum(porto[symbol].avgBeli, 0);
           const namaKoin      = porto[symbol]?.nama || q.nama;
           const totalUSD      = hargaJual * jumlah;
           const totalCowoncy  = Math.floor(totalUSD * RATE);
@@ -5790,10 +5853,10 @@ if (cmd === 'crypto') {
           const profitUSD     = totalUSD - modalUSD;
           const profitAbs     = Math.abs(profitUSD);
           const profitCowoncy = Math.floor(profitAbs * RATE);
-          const profitPct     = (profitUSD / modalUSD) * 100;
+          const profitPct     = modalUSD > 0 ? (profitUSD / modalUSD) * 100 : 0;
           const untung        = profitUSD >= 0;
 
-          porto[symbol].unit -= jumlah;
+          porto[symbol].unit = unitTersimpan - jumlah;
           if (porto[symbol].unit <= 0.000000001) delete porto[symbol];
 
           user.balance += totalCowoncy;
@@ -5809,7 +5872,6 @@ if (cmd === 'crypto') {
             env.USERS_KV.put(`crypto_history:${discordId}`, JSON.stringify(hist))
           ]);
           waitUntil(pushLinkedRole(env, discordId, null, user));
-          // FIXED: cache key v6
           await env.USERS_KV.delete(`cache:crypto:v6:${discordId}`).catch(() => {});
 
           const profitColor = untung ? '\u001b[1;32m' : '\u001b[1;31m';
@@ -5875,23 +5937,25 @@ if (cmd === 'crypto') {
 
           for (const s of symbols) {
             const q     = hargaMap[s];
-            const modal = porto[s].avgBeli * porto[s].unit;
+            // Sanitize unit & avgBeli dari KV — ini yang cegah bocor di portofolio
+            const unit    = safeNum(porto[s].unit, 0);
+            const avgBeli = safeNum(porto[s].avgBeli, 0);
+            const modal   = avgBeli * unit;
             totalModalUSD += modal;
 
             if (!q) {
               rows.push(
-                `\u001b[1;33m  ${s.padEnd(6)}\u001b[0m \u001b[0;37m${fmt(porto[s].unit, 8)} unit  \u001b[2;37m— Data tidak tersedia\u001b[0m`,
+                `\u001b[1;33m  ${s.padEnd(6)}\u001b[0m \u001b[0;37m${fmt(unit, 8)} unit  \u001b[2;37m— Data tidak tersedia\u001b[0m`,
                 ''
               );
               totalNilaiUSD += modal;
               continue;
             }
 
-            const nilai     = q.harga * porto[s].unit;
+            const nilai     = q.harga * unit;
             const profit    = nilai - modal;
             const profitAbs = Math.abs(profit);
 
-            // Threshold netral: selisih < $0.01 dianggap nol
             const isNetral = profitAbs < 0.01;
             const naik     = !isNetral && profit > 0;
 
@@ -5914,7 +5978,7 @@ if (cmd === 'crypto') {
             totalNilaiUSD += nilai;
 
             rows.push(
-              `\u001b[1;33m  ${s.padEnd(6)}\u001b[0m \u001b[0;37m${fmt(porto[s].unit, 8)} unit \u001b[2;37m@ avg \u001b[0;37m${fmtUSD(porto[s].avgBeli)}\u001b[0m  \u001b[2;37m(${q.nama})\u001b[0m`,
+              `\u001b[1;33m  ${s.padEnd(6)}\u001b[0m \u001b[0;37m${fmt(unit, 8)} unit \u001b[2;37m@ avg \u001b[0;37m${fmtUSD(avgBeli)}\u001b[0m  \u001b[2;37m(${q.nama})\u001b[0m`,
               `\u001b[1;36m    Harga   : \u001b[0;37m${fmtUSD(q.harga).padEnd(14)}\u001b[0m  ${bar}  ${clr}${sign}${pct}%\u001b[0m`,
               `\u001b[1;36m    P/L     : \u001b[0m${clr}${sign}${profitDisplay}  \u001b[2m(${sign}${cowoncyDisplay} cwncy)\u001b[0m`,
               ''
