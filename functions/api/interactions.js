@@ -5846,7 +5846,7 @@ if (cmd === 'crypto') {
         // ══════════════════════════════════════════
         if (sub === 'portofolio') {
           const portoKey = `crypto:${discordId}`;
-          const cacheKey = `cache:crypto:${discordId}`;
+          const cacheKey = `cache:crypto:v2:${discordId}`;
 
           const cachedRender = await env.USERS_KV.get(cacheKey);
           if (cachedRender) {
