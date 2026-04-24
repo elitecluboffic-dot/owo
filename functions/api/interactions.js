@@ -5934,7 +5934,7 @@ if (cmd === 'crypto') {
         
 
 // ══════════════════════════════════════════════════════════════════════
-// AKSI: portofolio (FIXED MULTI-MESSAGE CHUNKING)
+// AKSI: portofolio (FIXED ANSI LEAKING)
 // ══════════════════════════════════════════════════════════════════════
 if (sub === 'portofolio') {
   const portoKey = `crypto:${discordId}`;
@@ -5946,7 +5946,6 @@ if (sub === 'portofolio') {
     return editFollowup(`${EMOJI} Portofolio crypto kamu kosong!\n> Gunakan \`/crypto beli\` untuk mulai investasi.`);
   }
 
-  // Fetch harga (asumsi fungsi fetchCryptoBatch sudah ada di scope global)
   const hargaMap = await fetchCryptoBatch(symbols);
 
   let totalModalUSD = 0;
@@ -5955,14 +5954,14 @@ if (sub === 'portofolio') {
 
   for (const s of symbols) {
     const q       = hargaMap[s];
-    const unit    = typeof safeNum === 'function' ? safeNum(porto[s].unit, 0) : (Number(porto[s].unit) || 0);
-    const avgBeli = typeof safeNum === 'function' ? safeNum(porto[s].avgBeli, 0) : (Number(porto[s].avgBeli) || 0);
+    const unit    = (Number(porto[s].unit) || 0);
+    const avgBeli = (Number(porto[s].avgBeli) || 0);
     const modal   = avgBeli * unit;
     totalModalUSD += modal;
 
     if (!q) {
       totalNilaiUSD += modal;
-      coinBlocks.push(`\u001b[1;33m  ${s.padEnd(6)}\u001b[0m \u001b[0;37m${unit.toLocaleString('en-US')} unit  \u001b[2;37m— Data tidak tersedia\u001b[0m\n`);
+      coinBlocks.push(`\u001b[1;33m  ${s.padEnd(6)}\u001b[0m \u001b[0;37m${unit.toLocaleString('en-US')} unit\u001b[0m \u001b[2;37m— Data tidak tersedia\u001b[0m`);
       continue;
     }
 
@@ -5977,46 +5976,17 @@ if (sub === 'portofolio') {
     const sign = isNetral ? ' ' : naik ? '+' : '-';
     const icon = isNetral ? '●' : naik ? '▲' : '▼';
 
-    const barIcon = isNetral ? `\u001b[0;37m${icon}\u001b[0m` : (naik ? `\u001b[1;32m${icon}\u001b[0m` : `\u001b[1;31m${icon}\u001b[0m`);
-
-    const profitDisplayUSD = isNetral ? '$0.00' : fmtUSD(profitAbs);
-    const cowoncyDisplay   = isNetral ? '0' : Math.floor(profitAbs * RATE).toLocaleString('en-US');
-
     totalNilaiUSD += nilai;
 
     coinBlocks.push([
-      `\u001b[1;33m  ${s.padEnd(6)}\u001b[0m \u001b[0;37m${unit.toLocaleString('en-US')} unit \u001b[2;37m@ avg \u001b[0;37m${fmtUSD(avgBeli)}\u001b[0m  \u001b[2;37m(${q.nama})\u001b[0m`,
-      `\u001b[1;36m    Harga   : \u001b[0;37m${fmtUSD(q.harga).padEnd(14)}\u001b[0m  ${barIcon}  ${clr}${sign}${pct}%\u001b[0m`,
-      `\u001b[1;36m    P/L     : \u001b[0m${clr}${sign}${profitDisplayUSD}  \u001b[2m(${sign}${cowoncyDisplay} cwncy)\u001b[0m`,
-      ''
+      `\u001b[1;33m  ${s.padEnd(6)}\u001b[0m \u001b[0;37m${unit.toLocaleString('en-US')} unit \u001b[2;37m@ avg \u001b[0;37m${fmtUSD(avgBeli)}\u001b[0m`,
+      `\u001b[1;36m    Harga   : \u001b[0;37m${fmtUSD(q.harga).padEnd(14)}\u001b[0m \u001b[1;${naik ? '32' : '31'}m${icon}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
+      `\u001b[1;36m    P/L     : \u001b[0m${clr}${sign}${fmtUSD(profitAbs)} \u001b[2m(${sign}${Math.floor(profitAbs * RATE).toLocaleString('en-US')} cwncy)\u001b[0m`
     ].join('\n'));
   }
 
-  // ── RINGKASAN DATA ──
-  const totalProfit    = totalNilaiUSD - totalModalUSD;
-  const totalProfitAbs = Math.abs(totalProfit);
-  const totalIsNetral  = totalProfitAbs < 0.01;
-  const totalProfitPct = (!totalIsNetral && totalModalUSD > 0) ? Math.abs((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
-  const totalUntung    = !totalIsNetral && totalProfit > 0;
-  const totalClr       = totalIsNetral ? '\u001b[0;37m' : totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
-  const totalSign      = totalIsNetral ? ' ' : totalUntung ? '+' : '-';
-  const totalBar       = totalIsNetral ? '\u001b[0;37m━━━━━━━━━━━━━━━━  NETRAL  ━━━━━━━━━━━━━━━━\u001b[0m' : (totalUntung ? '\u001b[1;32m━━━━━━━━━━━━━━━━  PROFIT  ━━━━━━━━━━━━━━━━\u001b[0m' : '\u001b[1;31m━━━━━━━━━━━━━━━━   RUGI   ━━━━━━━━━━━━━━━━\u001b[0m');
-
-  // ── CHUNKING LOGIC (Agar tidak melebihi limit 2000 char Discord) ──
-  const chunks = [];
-  let currentChunk = "";
-
-  for (const block of coinBlocks) {
-    if ((currentChunk + block).length > 1500) {
-      chunks.push("```ansi\n" + currentChunk + "```");
-      currentChunk = "";
-    }
-    currentChunk += block + "\n";
-  }
-  if (currentChunk) chunks.push("```ansi\n" + currentChunk + "```");
-
-  // ── HEADER ──
-  const header = [
+  // ── HEADER MESSAGE ──
+  const headerContent = [
     '```ansi',
     '\u001b[1;34m╔══════════════════════════════════════╗\u001b[0m',
     '\u001b[1;34m║\u001b[0m\u001b[1;33m      📊  PORTOFOLIO  CRYPTO            \u001b[0m\u001b[1;34m║\u001b[0m',
@@ -6028,8 +5998,30 @@ if (sub === 'portofolio') {
     '```'
   ].join('\n');
 
-  // ── SUMMARY ──
-  const summary = [
+  // ── DAFTAR COIN (CHUNKING) ──
+  const chunks = [];
+  let currentStr = "";
+  for (const block of coinBlocks) {
+    // Discord limit per message is 2000, we use 1800 to be safe
+    if ((currentStr + block).length > 1800) {
+      chunks.push("```ansi\n" + currentStr + "```");
+      currentStr = "";
+    }
+    currentStr += block + "\n\n";
+  }
+  if (currentStr) chunks.push("```ansi\n" + currentStr + "```");
+
+  // ── RINGKASAN MESSAGE ──
+  const totalProfit    = totalNilaiUSD - totalModalUSD;
+  const totalProfitAbs = Math.abs(totalProfit);
+  const totalIsNetral  = totalProfitAbs < 0.01;
+  const totalProfitPct = (totalModalUSD > 0) ? Math.abs((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
+  const totalUntung    = totalProfit > 0;
+  const totalClr       = totalIsNetral ? '\u001b[0;37m' : totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
+  const totalSign      = totalIsNetral ? '' : totalUntung ? '+' : '-';
+  const totalBar       = totalIsNetral ? '\u001b[0;37m━━━━━━━━━━━━━━━━  NETRAL  ━━━━━━━━━━━━━━━━\u001b[0m' : (totalUntung ? '\u001b[1;32m━━━━━━━━━━━━━━━━  PROFIT  ━━━━━━━━━━━━━━━━\u001b[0m' : '\u001b[1;31m━━━━━━━━━━━━━━━━   RUGI   ━━━━━━━━━━━━━━━━\u001b[0m');
+
+  const summaryContent = [
     '```ansi',
     '\u001b[1;34m  ════════════════════════════════════\u001b[0m',
     '\u001b[1;33m      📊 RINGKASAN                      \u001b[0m',
@@ -6047,37 +6039,20 @@ if (sub === 'portofolio') {
     `> 💱 Rate: **$1 = ${RATE.toLocaleString('en-US')} cowoncy** · *Powered by OwoBim Engine* ${EMOJI}`
   ].join('\n');
 
-  // ── EXECUTION (Kirim Pesan) ──
-  // 1. Edit pesan original dengan Header
-  await editFollowup(header);
+  // ── KIRIM KE DISCORD ──
+  // Langkah 1: Update original message dengan Header
+  await editFollowup(headerContent);
 
-  // 2. Kirim chunks koin (menggunakan sendFollowup helper lu)
+  // Langkah 2: Kirim daftar koin sebagai pesan baru (Followup)
   for (const chunk of chunks) {
-    if (typeof sendFollowup === 'function') {
-      await sendFollowup(chunk);
-    } else {
-      // Fallback manual jika sendFollowup tidak didefinisikan
-      await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APP_ID}/${interaction.token}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: chunk }),
-      });
-    }
-    await new Promise(r => setTimeout(r, 500)); // Delay biar gak rate limit
+    await sendFollowup(chunk);
+    await new Promise(r => setTimeout(r, 400)); // Jeda biar gak kena rate limit
   }
 
-  // 3. Kirim Summary terakhir
-  if (typeof sendFollowup === 'function') {
-    await sendFollowup(summary);
-  } else {
-    await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APP_ID}/${interaction.token}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: summary }),
-    });
-  }
+  // Langkah 3: Kirim Ringkasan sebagai pesan penutup
+  await sendFollowup(summaryContent);
 
-  return; // Selesai
+  return;
 }
 
 
