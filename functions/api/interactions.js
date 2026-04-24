@@ -5934,7 +5934,7 @@ if (cmd === 'crypto') {
         
 
 // ══════════════════════════════════════════════════════════════════════
-// AKSI: portofolio (FINAL CLEANUP - ANTI BOCOR ANSI + SALDO & CHUNKING)
+// AKSI: portofolio (ULTRA CLEAN - FIX ANSI RENDER)
 // ══════════════════════════════════════════════════════════════════════
 if (sub === 'portofolio') {
   const portoKey = `crypto:${discordId}`;
@@ -5946,8 +5946,8 @@ if (sub === 'portofolio') {
     return editFollowup(`${EMOJI} Portofolio crypto kamu kosong!\n> Gunakan \`/crypto beli\` untuk mulai investasi.`);
   }
 
-  // Ambil harga terbaru secara batch
   const hargaMap = await fetchCryptoBatch(symbols);
+  const ESC = "\u001b"; // Definisi karakter escape untuk render warna
 
   let totalModalUSD = 0;
   let totalNilaiUSD = 0;
@@ -5960,10 +5960,9 @@ if (sub === 'portofolio') {
     const modal   = avgBeli * unit;
     totalModalUSD += modal;
 
-    // Jika data koin tidak ditemukan (API error)
     if (!q) {
       totalNilaiUSD += modal;
-      coinBlocks.push(`\u001b[1;33m${s.padEnd(6)}\u001b[0m \u001b[0;37m${unit.toLocaleString('en-US')} unit\u001b[0m \u001b[2;37m(Data Error)\u001b[0m`);
+      coinBlocks.push(`${ESC}[1;33m${s.padEnd(6)}${ESC}[0m ${ESC}[0;37m${unit.toLocaleString('en-US')} unit${ESC}[0m ${ESC}[2;37m(Data Error)${ESC}[0m`);
       continue;
     }
 
@@ -5974,35 +5973,33 @@ if (sub === 'portofolio') {
     const naik      = !isNetral && profit > 0;
 
     const pct  = isNetral ? '0.00' : Math.abs((profit / (modal || 1)) * 100).toFixed(2);
-    const clr  = isNetral ? '\u001b[0;37m' : naik ? '\u001b[1;32m' : '\u001b[1;31m';
+    const clr  = isNetral ? `${ESC}[0;37m` : naik ? `${ESC}[1;32m` : `${ESC}[1;31m`;
     const sign = isNetral ? ' ' : naik ? '+' : '-';
     const icon = isNetral ? '●' : naik ? '▲' : '▼';
 
     totalNilaiUSD += nilai;
 
-    // Susun blok per koin dengan ANSI Reset \u001b[0m di tiap akhir baris agar tidak bocor
-    coinBlocks.push([
-      `\u001b[1;33m${s.padEnd(6)}\u001b[0m \u001b[0;37m${unit.toLocaleString('en-US')} unit \u001b[2;37m@avg ${fmtUSD(avgBeli)}\u001b[0m`,
-      `\u001b[1;36mHarga : \u001b[0;37m${fmtUSD(q.harga).padEnd(12)}\u001b[0m ${clr}${icon} ${sign}${pct}%\u001b[0m`,
-      `\u001b[1;36mP/L   : \u001b[0m${clr}${sign}${fmtUSD(profitAbs)}\u001b[0m`
-    ].join('\n'));
+    // Menampilkan detail per koin dengan format yang lebih tahan error parser
+    coinBlocks.push(
+      `${ESC}[1;33m${s.padEnd(6)}${ESC}[0m ${ESC}[0;37m${unit.toLocaleString('en-US')} unit${ESC}[0m\n` +
+      `${ESC}[1;36mHarga :${ESC}[0m ${ESC}[0;37m${fmtUSD(q.harga).padEnd(10)}${ESC}[0m ${clr}${icon} ${sign}${pct}%${ESC}[0m\n` +
+      `${ESC}[1;36mP/L   :${ESC}[0m ${clr}${sign}${fmtUSD(profitAbs)}${ESC}[0m`
+    );
   }
 
-  // ── 1. HEADER (Box Biru Solid) ──
-  const headerLines = [
-    '\u001b[1;34m╔══════════════════════════════════════╗\u001b[0m',
-    '\u001b[1;34m║\u001b[1;33m      📊  PORTOFOLIO CRYPTO           \u001b[1;34m║\u001b[0m',
-    `\u001b[1;34m║\u001b[0;37m  👤 ${username.slice(0, 30).padEnd(32)}\u001b[1;34m║\u001b[0m`,
-    '\u001b[1;34m╚══════════════════════════════════════╝\u001b[0m',
-    '\u001b[1;33m      📋 DAFTAR ASET\u001b[0m'
-  ];
-  const headerContent = "```ansi\n" + headerLines.join('\n') + "\n```";
+  // ── 1. HEADER (Pesan Pertama) ──
+  const header = "```ansi\n" +
+    `${ESC}[1;34m╔══════════════════════════════════════╗${ESC}[0m\n` +
+    `${ESC}[1;34m║${ESC}[1;33m      📊  PORTOFOLIO CRYPTO           ${ESC}[1;34m║${ESC}[0m\n` +
+    `${ESC}[1;34m║${ESC}[0;37m  👤 ${username.slice(0, 28).padEnd(30)}${ESC}[1;34m║${ESC}[0m\n` +
+    `${ESC}[1;34m╚══════════════════════════════════════╝${ESC}[0m\n` +
+    `${ESC}[1;33m      📋 DAFTAR ASET${ESC}[0m\n` + "```";
 
-  // ── 2. DAFTAR COIN (Chunking System - Maks 1500 chars per msg) ──
+  // ── 2. DAFTAR COIN (Pesan Bertahap jika koin banyak) ──
   const chunks = [];
   let currentStr = "";
   for (const block of coinBlocks) {
-    if ((currentStr + block).length > 1500) {
+    if ((currentStr + block).length > 1200) { 
       chunks.push("```ansi\n" + currentStr.trim() + "\n```");
       currentStr = "";
     }
@@ -6010,47 +6007,31 @@ if (sub === 'portofolio') {
   }
   if (currentStr.trim()) chunks.push("```ansi\n" + currentStr.trim() + "\n```");
 
-  // ── 3. RINGKASAN FINAL (Total Akumulasi & Saldo) ──
+  // ── 3. RINGKASAN (Pesan Terakhir) ──
   const totalProfit    = totalNilaiUSD - totalModalUSD;
   const totalProfitAbs = Math.abs(totalProfit);
-  const totalIsNetral  = totalProfitAbs < 0.01;
-  const totalProfitPct = (totalModalUSD > 0) ? Math.abs((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
   const totalUntung    = totalProfit > 0;
-  const totalClr       = totalIsNetral ? '\u001b[0;37m' : totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
-  const totalSign      = totalIsNetral ? '' : totalUntung ? '+' : '-';
-  const totalBar       = totalIsNetral ? '      ● STATUS: NETRAL ●' : (totalUntung ? '      ▲ STATUS: PROFIT ▲' : '      ▼ STATUS: RUGI ▼');
+  const totalClr       = totalProfitAbs < 0.01 ? `${ESC}[0;37m` : totalUntung ? `${ESC}[1;32m` : `${ESC}[1;31m`;
+  const totalSign      = totalProfitAbs < 0.01 ? '' : totalUntung ? '+' : '-';
 
-  const summaryLines = [
-    '\u001b[1;34m══════════════════════════════════════\u001b[0m',
-    '\u001b[1;33m      📊 RINGKASAN AKUMULASI\u001b[0m',
-    '\u001b[1;34m══════════════════════════════════════\u001b[0m',
-    `\u001b[1;36mModal Total :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
-    `\u001b[1;36mNilai Kini  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
-    `\u001b[1;36mTotal P/L   :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfitAbs)} (${totalSign}${totalProfitPct}%)\u001b[0m`,
-    `\u001b[1;36mEstimasi    :\u001b[0m ${totalClr}${totalSign}${Math.floor(totalProfitAbs * RATE).toLocaleString('en-US')} cowoncy\u001b[0m`,
-    `\u001b[1;36mSaldo Kamu  :\u001b[0m \u001b[0;37m${(user.balance || 0).toLocaleString('en-US')} cowoncy\u001b[0m`,
-    '\u001b[1;34m──────────────────────────────────────\u001b[0m',
-    `${totalClr}${totalBar.padEnd(38)}\u001b[0m`,
-    '\u001b[1;34m══════════════════════════════════════\u001b[0m'
-  ];
-  const summaryContent = "```ansi\n" + summaryLines.join('\n') + "\n```";
+  const summary = "```ansi\n" +
+    `${ESC}[1;34m══════════════════════════════════════${ESC}[0m\n` +
+    `${ESC}[1;33m      📊 RINGKASAN AKUMULASI${ESC}[0m\n` +
+    `${ESC}[1;34m══════════════════════════════════════${ESC}[0m\n` +
+    `${ESC}[1;36mModal Total :${ESC}[0m ${ESC}[0;37m${fmtUSD(totalModalUSD)}${ESC}[0m\n` +
+    `${ESC}[1;36mNilai Kini  :${ESC}[0m ${ESC}[0;37m${fmtUSD(totalNilaiUSD)}${ESC}[0m\n` +
+    `${ESC}[1;36mTotal P/L   :${ESC}[0m ${totalClr}${totalSign}${fmtUSD(totalProfitAbs)} (${totalSign}${((totalProfit/(totalModalUSD||1))*100).toFixed(2)}%)${ESC}[0m\n` +
+    `${ESC}[1;36mEstimasi    :${ESC}[0m ${totalClr}${totalSign}${Math.floor(totalProfitAbs * RATE).toLocaleString('en-US')} cowoncy${ESC}[0m\n` +
+    `${ESC}[1;36mSaldo Kamu  :${ESC}[0m ${ESC}[0;37m${(user.balance || 0).toLocaleString('en-US')} cowoncy${ESC}[0m\n` +
+    `${ESC}[1;34m══════════════════════════════════════${ESC}[0m\n` + "```";
 
   // ── EKSEKUSI PENGIRIMAN ──
-  try {
-    // Edit loading message dengan Header
-    await editFollowup(headerContent);
-    
-    // Kirim potongan list koin jika banyak
-    for (const chunk of chunks) {
-      await sendFollowup(chunk);
-    }
-    
-    // Kirim penutup Ringkasan
-    await sendFollowup(summaryContent);
-  } catch (err) {
-    console.error("Critical Portfolio Error:", err);
-    await sendFollowup("⚠️ Terjadi kesalahan saat merender tampilan portofolio.");
+  // Menggunakan editFollowup untuk pesan awal, dan sendFollowup untuk sisanya
+  await editFollowup(header);
+  for (const chunk of chunks) { 
+    await sendFollowup(chunk); 
   }
+  await sendFollowup(summary);
 
   return;
 }
