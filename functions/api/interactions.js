@@ -5934,7 +5934,7 @@ if (cmd === 'crypto') {
         
 
 // ══════════════════════════════════════════════════════════════════════
-// AKSI: portofolio (FIXED ANSI LEAKING)
+// AKSI: portofolio (PERBAIKAN TOTAL BOCOR ANSI)
 // ══════════════════════════════════════════════════════════════════════
 if (sub === 'portofolio') {
   const portoKey = `crypto:${discordId}`;
@@ -5985,33 +5985,31 @@ if (sub === 'portofolio') {
     ].join('\n'));
   }
 
-  // ── HEADER MESSAGE ──
-  const headerContent = [
-    '```ansi',
+  // ── 1. HEADER (Hanya Header) ──
+  // Gue pastiin gak ada spasi di awal atau akhir blokir kode
+  const headerContent = "```ansi\n" + [
     '\u001b[1;34m╔══════════════════════════════════════╗\u001b[0m',
     '\u001b[1;34m║\u001b[0m\u001b[1;33m      📊  PORTOFOLIO  CRYPTO            \u001b[0m\u001b[1;34m║\u001b[0m',
     `\u001b[1;34m║\u001b[0m\u001b[0;37m  👤 ${username.slice(0, 33).padEnd(35)}\u001b[0m\u001b[1;34m║\u001b[0m`,
     '\u001b[1;34m╚══════════════════════════════════════╝\u001b[0m',
     '\u001b[1;34m  ════════════════════════════════════\u001b[0m',
     '\u001b[1;33m      📋 DAFTAR COIN                    \u001b[0m',
-    '\u001b[1;34m  ════════════════════════════════════\u001b[0m',
-    '```'
-  ].join('\n');
+    '\u001b[1;34m  ════════════════════════════════════\u001b[0m'
+  ].join('\n') + "\n```";
 
-  // ── DAFTAR COIN (CHUNKING) ──
+  // ── 2. DAFTAR COIN (DIKIRIM TERPISAH) ──
   const chunks = [];
   let currentStr = "";
   for (const block of coinBlocks) {
-    // Discord limit per message is 2000, we use 1800 to be safe
     if ((currentStr + block).length > 1800) {
-      chunks.push("```ansi\n" + currentStr + "```");
+      chunks.push("```ansi\n" + currentStr.trim() + "\n```");
       currentStr = "";
     }
     currentStr += block + "\n\n";
   }
-  if (currentStr) chunks.push("```ansi\n" + currentStr + "```");
+  if (currentStr.trim()) chunks.push("```ansi\n" + currentStr.trim() + "\n```");
 
-  // ── RINGKASAN MESSAGE ──
+  // ── 3. RINGKASAN (DIKIRIM TERPISAH) ──
   const totalProfit    = totalNilaiUSD - totalModalUSD;
   const totalProfitAbs = Math.abs(totalProfit);
   const totalIsNetral  = totalProfitAbs < 0.01;
@@ -6021,8 +6019,7 @@ if (sub === 'portofolio') {
   const totalSign      = totalIsNetral ? '' : totalUntung ? '+' : '-';
   const totalBar       = totalIsNetral ? '\u001b[0;37m━━━━━━━━━━━━━━━━  NETRAL  ━━━━━━━━━━━━━━━━\u001b[0m' : (totalUntung ? '\u001b[1;32m━━━━━━━━━━━━━━━━  PROFIT  ━━━━━━━━━━━━━━━━\u001b[0m' : '\u001b[1;31m━━━━━━━━━━━━━━━━   RUGI   ━━━━━━━━━━━━━━━━\u001b[0m');
 
-  const summaryContent = [
-    '```ansi',
+  const summaryContent = "```ansi\n" + [
     '\u001b[1;34m  ════════════════════════════════════\u001b[0m',
     '\u001b[1;33m      📊 RINGKASAN                      \u001b[0m',
     '\u001b[1;34m  ════════════════════════════════════\u001b[0m',
@@ -6034,26 +6031,8 @@ if (sub === 'portofolio') {
     `\u001b[1;36m  Saldo Kamu   :\u001b[0m \u001b[0;37m${user.balance.toLocaleString('en-US')} cowoncy\u001b[0m`,
     '\u001b[2;34m  ──────────────────────────────────\u001b[0m',
     totalBar,
-    '\u001b[1;34m  ════════════════════════════════════\u001b[0m',
-    '```',
-    `> 💱 Rate: **$1 = ${RATE.toLocaleString('en-US')} cowoncy** · *Powered by OwoBim Engine* ${EMOJI}`
-  ].join('\n');
-
-  // ── KIRIM KE DISCORD ──
-  // Langkah 1: Update original message dengan Header
-  await editFollowup(headerContent);
-
-  // Langkah 2: Kirim daftar koin sebagai pesan baru (Followup)
-  for (const chunk of chunks) {
-    await sendFollowup(chunk);
-    await new Promise(r => setTimeout(r, 400)); // Jeda biar gak kena rate limit
-  }
-
-  // Langkah 3: Kirim Ringkasan sebagai pesan penutup
-  await sendFollowup(summaryContent);
-
-  return;
-}
+    '\u001b[1;34m  ════════════════════════════════════\u001b[0m'
+  ].join('\n') + "\n
 
 
 
