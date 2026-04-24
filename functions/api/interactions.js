@@ -5122,144 +5122,139 @@ if (cmd === 'saham') {
         
         
 
-        // ══════════════════════════════════════════
-        // AKSI: portofolio — lihat semua saham (FINAL DEBUG FIX)
-        // ══════════════════════════════════════════
-        if (sub === 'portofolio') {
-          const portoKey = `saham:${discordId}`;
-          const portoRaw = await env.USERS_KV.get(portoKey);
-          const porto    = portoRaw ? JSON.parse(portoRaw) : {};
-          const tickers  = Object.keys(porto);
+// ══════════════════════════════════════════
+// AKSI: portofolio — Khusus Crypto (FINAL VERSION)
+// ══════════════════════════════════════════
+if (sub === 'portofolio') {
+  const portoKey = `crypto:${discordId}`;
+  const portoRaw = await env.USERS_KV.get(portoKey);
+  const porto    = portoRaw ? JSON.parse(portoRaw) : {};
+  const tickers  = Object.keys(porto);
 
-          if (tickers.length === 0) {
-            return editFollowup([
-              '```ansi',
-              '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-              '\u001b[2;34m║  \u001b[1;31m📭  PORTOFOLIO KOSONG  📭\u001b[0m  \u001b[2;34m║\u001b[0m',
-              '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-              '```',
-              `> ${EMOJI} Kamu belum punya saham!`,
-              `> 💡 Gunakan \`/saham beli ticker:AAPL jumlah:1\` untuk mulai.`
-            ].join('\n'));
-          }
+  if (tickers.length === 0) {
+    return editFollowup([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;31m📭  PORTOFOLIO KOSONG  📭\u001b[0m  \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} Portofolio crypto kamu kosong!`,
+      `> 💡 Gunakan \`/crypto beli\` untuk mulai investasi.`
+    ].join('\n'));
+  }
 
-          const RATE     = 16000;
-          const hargaMap = {};
-          const symbols  = tickers.join(',');
+  const RATE     = 16000;
+  const hargaMap = {};
+  // Twelve Data mewajibkan format COIN/USD untuk crypto
+  const symbols = tickers.map(t => t.includes('/') ? t.toUpperCase() : `${t.toUpperCase()}/USD`).join(',');
 
-          // --- LOGIKA AMBIL KEY (FORCE DETECTION) ---
-          let batchData = null;
-          
-          // Kita ambil langsung dari env, tambahkan pengecekan tipe data
-          const rawKeys = [
-            env.TWELVE_DATA_KEY_1, 
-            env.TWELVE_DATA_KEY_2, 
-            env.TWELVE_DATA_KEY_3
-          ];
-          
-          const TD_KEYS = rawKeys.filter(k => k && typeof k === 'string' && k.length > 5); 
+  // --- LOGIKA MULTI-KEY (ANTI RATE LIMIT) ---
+  const rawKeys = [env.TWELVE_DATA_KEY_1, env.TWELVE_DATA_KEY_2, env.TWELVE_DATA_KEY_3];
+  const TD_KEYS = rawKeys.filter(k => k && typeof k === 'string' && k.length > 5);
 
-          // Jika array kosong, berarti script tidak bisa baca Secret di dashboard
-          if (TD_KEYS.length === 0) {
-            return editFollowup([
-              `> ❌ **API Key Detection Failed!**`,
-              `> Status: Found **${rawKeys.filter(Boolean).length}** keys, but none are valid strings.`,
-              `> 💡 **Solusi:** Kamu harus melakukan **Redeploy** di dashboard Cloudflare agar Secret baru sinkron ke script.`
-            ].join('\n'));
-          }
+  if (TD_KEYS.length === 0) {
+    return editFollowup(`> ❌ **API Key Error!** Periksa Secret di Cloudflare.`);
+  }
 
-          // Loop Fetching
-          for (const key of TD_KEYS) {
-            try {
-              const url = `https://api.twelvedata.com/quote?symbol=${symbols}&apikey=${key.trim()}`;
-              const res = await fetch(url);
-              
-              if (!res.ok) continue;
+  let batchData = null;
+  for (const key of TD_KEYS) {
+    try {
+      const url = `https://api.twelvedata.com/quote?symbol=${symbols}&apikey=${key.trim()}`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const json = await res.json();
+      if (json.status === 'error' || json.code === 429) continue;
+      batchData = json;
+      break; 
+    } catch (e) { continue; }
+  }
 
-              const json = await res.json();
-              if (json.status === 'error' || json.code === 429) continue; 
-              
-              batchData = json;
-              break; 
-            } catch (e) {
-              continue;
-            }
-          }
+  // Mapping harga ke koin masing-masing
+  tickers.forEach(t => {
+    const apiSymbol = t.includes('/') ? t.toUpperCase() : `${t.toUpperCase()}/USD`;
+    const q = tickers.length > 1 ? batchData?.[apiSymbol] : batchData;
+    if (q && q.close && !q.status?.includes('error')) {
+      hargaMap[t] = { harga: parseFloat(q.close), nama: q.name || t.toUpperCase() };
+    } else {
+      hargaMap[t] = null;
+    }
+  });
 
-          // Mapping hasil batch ke hargaMap
-          tickers.forEach(t => {
-            const q = tickers.length > 1 ? batchData?.[t] : batchData;
-            if (q && q.close && !q.status?.includes('error')) {
-              hargaMap[t] = {
-                harga: parseFloat(q.close),
-                nama: q.name || t
-              };
-            } else {
-              hargaMap[t] = null;
-            }
-          });
+  let totalModalUSD = 0;
+  let totalNilaiUSD = 0;
+  const rows = [];
 
-          let totalModalUSD = 0;
-          let totalNilaiUSD = 0;
-          const rows = [];
+  for (const t of tickers) {
+    const q = hargaMap[t];
+    const unit = porto[t].unit || porto[t].amount || 0;
+    const modal = porto[t].avgBeli * unit;
+    
+    if (!q) {
+      totalModalUSD += modal;
+      totalNilaiUSD += modal;
+      rows.push(`\u001b[1;33m  ${t.toUpperCase().padEnd(6)}\u001b[0m \u001b[0;37m${unit} unit — \u001b[1;31mError Fetching\u001b[0m`);
+      continue;
+    }
 
-          for (const t of tickers) {
-            const q = hargaMap[t];
-            const modal = porto[t].avgBeli * porto[t].lot;
-            
-            if (!q) {
-              totalModalUSD += modal;
-              totalNilaiUSD += modal; 
-              rows.push(`\u001b[1;33m ⚠️  ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot — \u001b[1;31mGagal muat harga\u001b[0m`);
-              continue;
-            }
+    const nilai  = q.harga * unit;
+    const profit = nilai - modal;
+    const pct    = modal > 0 ? ((profit / modal) * 100).toFixed(2) : '0.00';
+    const naik   = profit >= 0;
+    const clr    = naik ? '\u001b[1;32m' : '\u001b[1;31m';
+    const sign   = naik ? '+' : '';
+    const icon   = naik ? '▲' : '▼';
 
-            const nilai  = q.harga * porto[t].lot;
-            const profit = nilai - modal;
-            const pct    = ((profit / modal) * 100).toFixed(1);
-            const naik   = profit >= 0;
-            const clr    = naik ? '\u001b[1;32m' : '\u001b[1;31m';
-            const sign   = naik ? '+' : '';
+    totalModalUSD += modal;
+    totalNilaiUSD += nilai;
 
-            totalModalUSD += modal;
-            totalNilaiUSD += nilai;
+    rows.push(
+      `\u001b[1;33m  ${t.toUpperCase().padEnd(6)}\u001b[0m \u001b[0;37m${String(unit).padEnd(8)} unit \u001b[2;37m@ avg \u001b[0;37m${fmtUSD(porto[t].avgBeli)}\u001b[0m`,
+      `\u001b[1;36m    Harga   : \u001b[0;37m${fmtUSD(q.harga).padEnd(14)}\u001b[0m  \u001b[1;32m${icon}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
+      `\u001b[1;36m    P/L     : \u001b[0m${clr}${sign}${fmtUSD(Math.abs(profit))}  \u001b[2m(${sign}${Math.floor(Math.abs(profit) * RATE).toLocaleString()} cwncy)\u001b[0m`,
+      ''
+    );
+  }
 
-            rows.push(
-              `\u001b[1;33m 📌 ${t.padEnd(6)}\u001b[0m \u001b[0;37m${porto[t].lot} lot @ ${fmtUSD(porto[t].avgBeli)}\u001b[0m`,
-              `\u001b[1;36m    Harga Kini : \u001b[0m\u001b[0;37m${fmtUSD(q.harga)}\u001b[0m  ${clr}${sign}${pct}%\u001b[0m`,
-              `\u001b[1;36m    P/L       : \u001b[0m${clr}${sign}${fmtUSD(profit)} (${sign}🪙${Math.floor(profit * RATE).toLocaleString()})\u001b[0m`,
-              ''
-            );
-          }
+  const totalProfit    = totalNilaiUSD - totalModalUSD;
+  const totalProfitPct = totalModalUSD > 0 ? ((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
+  const totalUntung    = totalProfit >= 0;
+  const totalClr       = totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
+  const totalSign      = totalUntung ? '+' : '';
 
-          const totalProfit    = totalNilaiUSD - totalModalUSD;
-          const totalProfitPct = totalModalUSD > 0 ? ((totalProfit / totalModalUSD) * 100).toFixed(2) : '0.00';
-          const totalUntung    = totalProfit >= 0;
-          const totalClr       = totalUntung ? '\u001b[1;32m' : '\u001b[1;31m';
-          const totalSign      = totalUntung ? '+' : '';
+  const totalBar = totalUntung 
+    ? '\u001b[1;32m━━━━━━━━━━━━━━━━  PROFIT  ━━━━━━━━━━━━━━━━\u001b[0m' 
+    : '\u001b[1;31m━━━━━━━━━━━━━━━━   RUGI   ━━━━━━━━━━━━━━━━\u001b[0m';
 
-          return editFollowup([
-            '```ansi',
-            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-            `\u001b[2;34m║  \u001b[1;33m📊  PORTOFOLIO SAHAM  📊\u001b[0m           \u001b[2;34m║\u001b[0m`,
-            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-            '```',
-            `${EMOJI} 💼 **${username}** — Portofolio`,
-            '```ansi',
-            '\u001b[1;33m━━━━━━━━━━━ 📋 DAFTAR SAHAM ━━━━━━━━━━\u001b[0m',
-            ...rows,
-            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-            '\u001b[1;32m━━━━━━━━━━━ 💰 RINGKASAN ━━━━━━━━━━━━\u001b[0m',
-            `\u001b[1;36m 💵  Total Modal  :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
-            `\u001b[1;36m 📈  Total Nilai  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
-            `\u001b[1;36m 💸  Total P/L    :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfit)} (${totalSign}${totalProfitPct}%)\u001b[0m`,
-            `\u001b[1;36m 🪙  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${Math.floor(totalProfit * RATE).toLocaleString()}\u001b[0m`,
-            '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-            '```',
-            `> 🤖 *Powered by OwoBim Stock Engine* ${EMOJI}`
-          ].join('\n'));
-        }
+  const SEP  = '\u001b[2;34m  ──────────────────────────────────\u001b[0m';
+  const HEAD = '\u001b[1;34m  ════════════════════════════════════\u001b[0m';
 
+  return editFollowup([
+    '```ansi',
+    '\u001b[1;34m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[1;34m║\u001b[0m\u001b[1;33m      📊  PORTOFOLIO  CRYPTO            \u001b[0m\u001b[1;34m║\u001b[0m',
+    `\u001b[1;34m║\u001b[0m\u001b[0;37m  👤 ${username.padEnd(35)}\u001b[0m\u001b[1;34m║\u001b[0m`,
+    '\u001b[1;34m╚══════════════════════════════════════╝\u001b[0m',
+    '',
+    HEAD,
+    '\u001b[1;33m    📋  DAFTAR COIN                    \u001b[0m',
+    HEAD,
+    '',
+    ...rows,
+    HEAD,
+    '\u001b[1;33m    📊  RINGKASAN                      \u001b[0m',
+    HEAD,
+    `\u001b[1;36m  Modal Total  :\u001b[0m \u001b[0;37m${fmtUSD(totalModalUSD)}\u001b[0m`,
+    `\u001b[1;36m  Nilai Kini   :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
+    SEP,
+    `\u001b[1;36m  Total P/L    :\u001b[0m ${totalClr}${totalSign}${fmtUSD(Math.abs(totalProfit))}  (${totalSign}${totalProfitPct}%)\u001b[0m`,
+    `\u001b[1;36m  P/L Cowoncy  :\u001b[0m ${totalClr}${totalSign}${Math.floor(Math.abs(totalProfit) * RATE).toLocaleString()} cowoncy\u001b[0m`,
+    SEP,
+    totalBar,
+    HEAD,
+    '```',
+    `> 💱 **Rate: $1 = 16,000 cowoncy** · *Powered by TwelveData* ${EMOJI}`
+  ].join('\n'));
+}
         
         // ══════════════════════════════════════════
         // AKSI: info — daftar saham tersedia
