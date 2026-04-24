@@ -6052,16 +6052,16 @@ if (cmd === 'crypto') {
           const chunks     = [];
           let   currentBuf = '';
 
-          for (const block of coinBlocks) {
-            if ((currentBuf + block).length > CHUNK_MAX && currentBuf.length > 0) {
-              chunks.push(ANSI_OPEN + currentBuf + ANSI_CLOSE);
-              currentBuf = '';
-            }
-            currentBuf += block + '\n';
-          }
-          if (currentBuf.length > 0) {
-            chunks.push(ANSI_OPEN + currentBuf + ANSI_CLOSE);
-          }
+for (const block of coinBlocks) {
+  if ((currentBuf + block).length > CHUNK_MAX && currentBuf.length > 0) {
+    chunks.push(currentBuf);
+    currentBuf = '';
+  }
+  currentBuf += block + '\n';
+}
+if (currentBuf.length > 0) {
+  chunks.push(currentBuf);
+}
 
           // Message 1: header + chunk pertama
           await editFollowup(header + (chunks[0] || ''));
