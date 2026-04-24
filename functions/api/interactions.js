@@ -5934,7 +5934,7 @@ if (cmd === 'crypto') {
         
 
 // ══════════════════════════════════════════════════════════════════════
-// AKSI: portofolio (FIXED BUILD ERROR - TERMINATED STRING)
+// AKSI: portofolio (FIXED BUILD ERROR - FULLY TERMINATED STRINGS)
 // ══════════════════════════════════════════════════════════════════════
 if (sub === 'portofolio') {
   const portoKey = `crypto:${discordId}`;
@@ -5985,7 +5985,7 @@ if (sub === 'portofolio') {
     ].join('\n'));
   }
 
-  // ── 1. HEADER (Fixed String) ──
+  // ── 1. HEADER ──
   const headerContent = "```ansi\n" + [
     '\u001b[1;34m╔══════════════════════════════════════╗\u001b[0m',
     '\u001b[1;34m║\u001b[0m\u001b[1;33m      📊  PORTOFOLIO  CRYPTO            \u001b[0m\u001b[1;34m║\u001b[0m',
@@ -5996,7 +5996,7 @@ if (sub === 'portofolio') {
     '\u001b[1;34m  ════════════════════════════════════\u001b[0m'
   ].join('\n') + "\n```";
 
-  // ── 2. DAFTAR COIN (Fixed String) ──
+  // ── 2. DAFTAR COIN (Chunking) ──
   const chunks = [];
   let currentStr = "";
   for (const block of coinBlocks) {
@@ -6008,7 +6008,7 @@ if (sub === 'portofolio') {
   }
   if (currentStr.trim()) chunks.push("```ansi\n" + currentStr.trim() + "\n```");
 
-  // ── 3. RINGKASAN (Fixed String & Termination) ──
+  // ── 3. RINGKASAN (FIXED) ──
   const totalProfit    = totalNilaiUSD - totalModalUSD;
   const totalProfitAbs = Math.abs(totalProfit);
   const totalIsNetral  = totalProfitAbs < 0.01;
@@ -6031,8 +6031,25 @@ if (sub === 'portofolio') {
     '\u001b[2;34m  ──────────────────────────────────\u001b[0m',
     totalBar,
     '\u001b[1;34m  ════════════════════════════════════\u001b[0m'
-  ].join('\n') + "\n
+  ].join('\n') + "\n```";
 
+  // ── EKSEKUSI PENGIRIMAN ──
+  try {
+    // Gunakan editFollowup untuk yang pertama (menghapus status "thinking")
+    await editFollowup(headerContent);
+    
+    // Gunakan sendFollowup untuk sisanya agar tidak tertumpuk
+    for (const chunk of chunks) {
+      await sendFollowup(chunk);
+    }
+    
+    await sendFollowup(summaryContent);
+  } catch (err) {
+    console.error("Gagal mengirim portofolio:", err);
+  }
+
+  return;
+}
 
 
   
