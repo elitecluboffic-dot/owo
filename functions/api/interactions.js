@@ -5934,7 +5934,7 @@ if (cmd === 'crypto') {
         
 
 // ══════════════════════════════════════════════════════════════════════
-// AKSI: portofolio (FINAL CLEANUP - ANTI BOCOR ANSI)
+// AKSI: portofolio (FINAL CLEANUP - ANTI BOCOR ANSI + SALDO & CHUNKING)
 // ══════════════════════════════════════════════════════════════════════
 if (sub === 'portofolio') {
   const portoKey = `crypto:${discordId}`;
@@ -5946,6 +5946,7 @@ if (sub === 'portofolio') {
     return editFollowup(`${EMOJI} Portofolio crypto kamu kosong!\n> Gunakan \`/crypto beli\` untuk mulai investasi.`);
   }
 
+  // Ambil harga terbaru secara batch
   const hargaMap = await fetchCryptoBatch(symbols);
 
   let totalModalUSD = 0;
@@ -5959,6 +5960,7 @@ if (sub === 'portofolio') {
     const modal   = avgBeli * unit;
     totalModalUSD += modal;
 
+    // Jika data koin tidak ditemukan (API error)
     if (!q) {
       totalNilaiUSD += modal;
       coinBlocks.push(`\u001b[1;33m${s.padEnd(6)}\u001b[0m \u001b[0;37m${unit.toLocaleString('en-US')} unit\u001b[0m \u001b[2;37m(Data Error)\u001b[0m`);
@@ -5978,7 +5980,7 @@ if (sub === 'portofolio') {
 
     totalNilaiUSD += nilai;
 
-    // Block coin dibuat lebih compact supaya tidak gampang terpotong Discord
+    // Susun blok per koin dengan ANSI Reset \u001b[0m di tiap akhir baris agar tidak bocor
     coinBlocks.push([
       `\u001b[1;33m${s.padEnd(6)}\u001b[0m \u001b[0;37m${unit.toLocaleString('en-US')} unit \u001b[2;37m@avg ${fmtUSD(avgBeli)}\u001b[0m`,
       `\u001b[1;36mHarga : \u001b[0;37m${fmtUSD(q.harga).padEnd(12)}\u001b[0m ${clr}${icon} ${sign}${pct}%\u001b[0m`,
@@ -5986,7 +5988,7 @@ if (sub === 'portofolio') {
     ].join('\n'));
   }
 
-  // ── 1. HEADER (DIBUAT SANGAT AMAN) ──
+  // ── 1. HEADER (Box Biru Solid) ──
   const headerLines = [
     '\u001b[1;34m╔══════════════════════════════════════╗\u001b[0m',
     '\u001b[1;34m║\u001b[1;33m      📊  PORTOFOLIO CRYPTO           \u001b[1;34m║\u001b[0m',
@@ -5996,11 +5998,10 @@ if (sub === 'portofolio') {
   ];
   const headerContent = "```ansi\n" + headerLines.join('\n') + "\n```";
 
-  // ── 2. DAFTAR COIN (CHUNK MANAGEMENT) ──
+  // ── 2. DAFTAR COIN (Chunking System - Maks 1500 chars per msg) ──
   const chunks = [];
   let currentStr = "";
   for (const block of coinBlocks) {
-    // Limit per pesan 1500 chars biar aman dari pemotongan paksa
     if ((currentStr + block).length > 1500) {
       chunks.push("```ansi\n" + currentStr.trim() + "\n```");
       currentStr = "";
@@ -6009,7 +6010,7 @@ if (sub === 'portofolio') {
   }
   if (currentStr.trim()) chunks.push("```ansi\n" + currentStr.trim() + "\n```");
 
-  // ── 3. RINGKASAN FINAL ──
+  // ── 3. RINGKASAN FINAL (Total Akumulasi & Saldo) ──
   const totalProfit    = totalNilaiUSD - totalModalUSD;
   const totalProfitAbs = Math.abs(totalProfit);
   const totalIsNetral  = totalProfitAbs < 0.01;
@@ -6027,27 +6028,27 @@ if (sub === 'portofolio') {
     `\u001b[1;36mNilai Kini  :\u001b[0m \u001b[0;37m${fmtUSD(totalNilaiUSD)}\u001b[0m`,
     `\u001b[1;36mTotal P/L   :\u001b[0m ${totalClr}${totalSign}${fmtUSD(totalProfitAbs)} (${totalSign}${totalProfitPct}%)\u001b[0m`,
     `\u001b[1;36mEstimasi    :\u001b[0m ${totalClr}${totalSign}${Math.floor(totalProfitAbs * RATE).toLocaleString('en-US')} cowoncy\u001b[0m`,
+    `\u001b[1;36mSaldo Kamu  :\u001b[0m \u001b[0;37m${(user.balance || 0).toLocaleString('en-US')} cowoncy\u001b[0m`,
     '\u001b[1;34m──────────────────────────────────────\u001b[0m',
     `${totalClr}${totalBar.padEnd(38)}\u001b[0m`,
     '\u001b[1;34m══════════════════════════════════════\u001b[0m'
   ];
   const summaryContent = "```ansi\n" + summaryLines.join('\n') + "\n```";
 
-  // ── EKSEKUSI PENGIRIMAN (SAFE SEQUENCE) ──
+  // ── EKSEKUSI PENGIRIMAN ──
   try {
-    // 1. Edit pesan loading awal dengan Header
+    // Edit loading message dengan Header
     await editFollowup(headerContent);
     
-    // 2. Kirim list koin (jika ada)
+    // Kirim potongan list koin jika banyak
     for (const chunk of chunks) {
       await sendFollowup(chunk);
     }
     
-    // 3. Kirim Ringkasan sebagai penutup
+    // Kirim penutup Ringkasan
     await sendFollowup(summaryContent);
   } catch (err) {
     console.error("Critical Portfolio Error:", err);
-    // Fallback jika API Discord ngadat
     await sendFollowup("⚠️ Terjadi kesalahan saat merender tampilan portofolio.");
   }
 
