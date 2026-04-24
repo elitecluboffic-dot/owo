@@ -5848,10 +5848,9 @@ if (cmd === 'crypto') {
           const portoKey = `crypto:${discordId}`;
           const cacheKey = `cache:crypto:v5:${discordId}`;
 
-          const cachedRender = await env.USERS_KV.get(cacheKey);
-          if (cachedRender) {
-            const data = JSON.parse(cachedRender);
-            return editFollowup(data.content + `\n> \u001b[2;37m*Cache: diperbarui ${Math.round((Date.now() - data.ts) / 60000)} menit lalu.*\u001b[0m`);
+          const data = await env.USERS_KV.get(cacheKey, { type: 'json' });
+          if (data) {
+            return editFollowup(data.content + `\n> *Cache: diperbarui ${Math.round((Date.now() - data.ts) / 60000)} menit lalu.*`);
           }
 
           const portoRaw = await env.USERS_KV.get(portoKey);
