@@ -569,6 +569,41 @@ const commands = [
       "description": "Jumlah lot (atau 'all' untuk jual semua)"
     }
   ]
+},
+
+
+
+  {
+  "name": "crypto",
+  "description": "Sistem crypto virtual",
+  "options": [
+    {
+      "name": "aksi",
+      "type": 3,
+      "required": true,
+      "description": "Pilih aksi",
+      "choices": [
+        {"name": "cek", "value": "cek"},
+        {"name": "beli", "value": "beli"},
+        {"name": "jual", "value": "jual"},
+        {"name": "portofolio", "value": "portofolio"},
+        {"name": "history", "value": "history"},
+        {"name": "info", "value": "info"}
+      ]
+    },
+    {
+      "name": "coin",
+      "type": 3,
+      "required": false,
+      "description": "Kode coin (contoh: BTC, ETH, SOL)"
+    },
+    {
+      "name": "jumlah",
+      "type": 3,
+      "required": false,
+      "description": "Jumlah unit (atau 'all' untuk jual semua)"
+    }
+  ]
 }
 
   
