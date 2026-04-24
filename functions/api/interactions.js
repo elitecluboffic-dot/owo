@@ -5934,7 +5934,7 @@ if (cmd === 'crypto') {
         
 
 // ══════════════════════════════════════════════════════════════════════
-// AKSI: portofolio (PERBAIKAN TOTAL BOCOR ANSI)
+// AKSI: portofolio (FIXED BUILD ERROR - TERMINATED STRING)
 // ══════════════════════════════════════════════════════════════════════
 if (sub === 'portofolio') {
   const portoKey = `crypto:${discordId}`;
@@ -5985,8 +5985,7 @@ if (sub === 'portofolio') {
     ].join('\n'));
   }
 
-  // ── 1. HEADER (Hanya Header) ──
-  // Gue pastiin gak ada spasi di awal atau akhir blokir kode
+  // ── 1. HEADER (Fixed String) ──
   const headerContent = "```ansi\n" + [
     '\u001b[1;34m╔══════════════════════════════════════╗\u001b[0m',
     '\u001b[1;34m║\u001b[0m\u001b[1;33m      📊  PORTOFOLIO  CRYPTO            \u001b[0m\u001b[1;34m║\u001b[0m',
@@ -5997,7 +5996,7 @@ if (sub === 'portofolio') {
     '\u001b[1;34m  ════════════════════════════════════\u001b[0m'
   ].join('\n') + "\n```";
 
-  // ── 2. DAFTAR COIN (DIKIRIM TERPISAH) ──
+  // ── 2. DAFTAR COIN (Fixed String) ──
   const chunks = [];
   let currentStr = "";
   for (const block of coinBlocks) {
@@ -6009,7 +6008,7 @@ if (sub === 'portofolio') {
   }
   if (currentStr.trim()) chunks.push("```ansi\n" + currentStr.trim() + "\n```");
 
-  // ── 3. RINGKASAN (DIKIRIM TERPISAH) ──
+  // ── 3. RINGKASAN (Fixed String & Termination) ──
   const totalProfit    = totalNilaiUSD - totalModalUSD;
   const totalProfitAbs = Math.abs(totalProfit);
   const totalIsNetral  = totalProfitAbs < 0.01;
@@ -6033,7 +6032,6 @@ if (sub === 'portofolio') {
     totalBar,
     '\u001b[1;34m  ════════════════════════════════════\u001b[0m'
   ].join('\n') + "\n
-
 
 
 
