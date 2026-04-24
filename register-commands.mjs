@@ -572,36 +572,81 @@ const commands = [
 },
 
 
+  
 
-  {
+
+{
   "name": "crypto",
-  "description": "Sistem crypto virtual",
+  "description": "Sistem crypto virtual OwoBim",
   "options": [
     {
-      "name": "aksi",
-      "type": 3,
-      "required": true,
-      "description": "Pilih aksi",
-      "choices": [
-        {"name": "cek", "value": "cek"},
-        {"name": "beli", "value": "beli"},
-        {"name": "jual", "value": "jual"},
-        {"name": "portofolio", "value": "portofolio"},
-        {"name": "history", "value": "history"},
-        {"name": "info", "value": "info"}
+      "type": 1,
+      "name": "cek",
+      "description": "Cek harga coin secara real-time",
+      "options": [
+        {
+          "name": "coin",
+          "type": 3,
+          "required": true,
+          "description": "Kode coin (contoh: BTC, ETH, SOL)",
+          "autocomplete": true
+        }
       ]
     },
     {
-      "name": "coin",
-      "type": 3,
-      "required": false,
-      "description": "Kode coin (contoh: BTC, ETH, SOL)"
+      "type": 1,
+      "name": "beli",
+      "description": "Beli coin crypto dengan cowoncy",
+      "options": [
+        {
+          "name": "coin",
+          "type": 3,
+          "required": true,
+          "description": "Kode coin yang ingin dibeli",
+          "autocomplete": true
+        },
+        {
+          "name": "jumlah",
+          "type": 3,
+          "required": true,
+          "description": "Jumlah unit yang ingin dibeli (contoh: 0.5, 10, 100)"
+        }
+      ]
     },
     {
-      "name": "jumlah",
-      "type": 3,
-      "required": false,
-      "description": "Jumlah unit (atau 'all' untuk jual semua)"
+      "type": 1,
+      "name": "jual",
+      "description": "Jual coin crypto dari portofolio kamu",
+      "options": [
+        {
+          "name": "coin",
+          "type": 3,
+          "required": true,
+          "description": "Kode coin yang ingin dijual",
+          "autocomplete": true
+        },
+        {
+          "name": "jumlah",
+          "type": 3,
+          "required": false,
+          "description": "Jumlah unit (kosongkan = jual semua / ketik 'all')"
+        }
+      ]
+    },
+    {
+      "type": 1,
+      "name": "portofolio",
+      "description": "Lihat portofolio crypto kamu"
+    },
+    {
+      "type": 1,
+      "name": "history",
+      "description": "Lihat 15 riwayat transaksi crypto terakhir"
+    },
+    {
+      "type": 1,
+      "name": "info",
+      "description": "Lihat daftar semua coin yang tersedia"
     }
   ]
 }
