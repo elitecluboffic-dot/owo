@@ -29,6 +29,10 @@ if (interaction.type === 3) {
   const type = interaction.type;
   const clickerId = interaction.member?.user?.id || interaction.user?.id;
 
+    // TAMBAH INI ↓
+  const discordId = clickerId;
+  const username  = interaction.member?.user?.username || interaction.user?.username;
+
 
   // 💬 Reply Anonim → buka modal
 if (customId.startsWith('confess_reply:')) {
