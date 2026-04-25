@@ -3605,14 +3605,9 @@ if (interaction.type === 3) {
 
 
 
-      // ← TAMBAH DI SINI
-  console.log('DEBUG CLICK:', JSON.stringify({ clickerId, challengeId, pilihanLawan }));
-
-  const challengeRaw = await env.USERS_KV.get(`rps_challenge:${challengeId}`);
-
-  // ← TAMBAH DI SINI JUGA
-  console.log('DEBUG CHALLENGE RAW:', challengeRaw);
-
+const challengeRaw = await env.USERS_KV.get(`rps_challenge:${challengeId}`);
+console.log('DEBUG CLICK:', JSON.stringify({ clickerId, challengeId, pilihanLawan }));
+console.log('DEBUG CHALLENGE RAW:', challengeRaw);
 
 
 
