@@ -3602,6 +3602,10 @@ if (interaction.type === 3) {
     };
 
     const challengeRaw = await env.USERS_KV.get(`rps_challenge:${challengeId}`);
+    console.log('IDS:', JSON.stringify({
+  clickerId,
+  lawanId: challengeRaw ? JSON.parse(challengeRaw).lawanId : 'null'
+}));
 
     if (!challengeRaw) {
       return new Response(JSON.stringify({
