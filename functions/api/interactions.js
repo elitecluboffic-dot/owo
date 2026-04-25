@@ -3359,6 +3359,7 @@ if (cmd === 'makequote') {
 }
 
 
+    
 
 
     
@@ -3378,12 +3379,7 @@ if (cmd === 'rps') {
   };
   const keys = Object.keys(items);
 
-  // ═══════════════════════════════════════
-  // MODE PvP — lawan user lain
-  // ═══════════════════════════════════════
   if (lawanId) {
-
-    // Cegah challenge diri sendiri
     if (lawanId === discordId) {
       return new Response(JSON.stringify({
         type: 4,
@@ -3391,7 +3387,6 @@ if (cmd === 'rps') {
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // Cek apakah user sudah punya challenge aktif
     const existingChallenge = await env.USERS_KV.get(`rps_active:${discordId}`);
     if (existingChallenge) {
       return new Response(JSON.stringify({
@@ -3400,7 +3395,6 @@ if (cmd === 'rps') {
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // Simpan challenge ke KV (expire 5 menit)
     const challengeId   = `${discordId}-${Date.now()}`;
     const challengeData = {
       challengerId:      discordId,
@@ -3447,9 +3441,6 @@ if (cmd === 'rps') {
     }), { headers: { 'Content-Type': 'application/json' } });
   }
 
-  // ═══════════════════════════════════════
-  // MODE vs BOT
-  // ═══════════════════════════════════════
   const statsRaw = await env.USERS_KV.get(`rps:${discordId}`);
   const stats = statsRaw ? JSON.parse(statsRaw) : {
     menang: 0, kalah: 0, seri: 0, total: 0,
@@ -3589,32 +3580,25 @@ if (cmd === 'rps') {
       }]
     }
   }), { headers: { 'Content-Type': 'application/json' } });
-}
+
+} // ← TUTUP if (cmd === 'rps') — PENTING!
 
 
+    return respond('❓ Command tidak dikenal.');
+  } // ← TUTUP if (interaction.type === 2)
 
-
-    // TARUH DI SINI ↓
-console.log('INTERACTION TYPE:', interaction.type, '| CUSTOM_ID:', interaction.data?.custom_id);
-
-
-
-
-
-
-    
 
 // ═══════════════════════════════════════════════════════
 // HANDLER BUTTON PvP (interaction.type === 3)
+// DI LUAR if (interaction.type === 2) — WAJIB!
 // ═══════════════════════════════════════════════════════
 if (interaction.type === 3) {
   const customId = interaction.data.custom_id;
 
   if (customId.startsWith('rps_pvp:')) {
     const [, challengeId, pilihanLawan] = customId.split(':');
-    const clickerId   = interaction.member.user.id;
-    const clickerName = interaction.member.user.username;
-    
+    const clickerId   = interaction.member?.user?.id || interaction.user?.id;
+    const clickerName = interaction.member?.user?.username || interaction.user?.username;
 
     const items = {
       batu:    { emoji: '🪨', nama: 'Batu',    menang: 'gunting', kalah: 'kertas'  },
@@ -3622,19 +3606,8 @@ if (interaction.type === 3) {
       gunting: { emoji: '✂️', nama: 'Gunting', menang: 'kertas',  kalah: 'batu'    }
     };
 
-    // ── Ambil data challenge ──
     const challengeRaw = await env.USERS_KV.get(`rps_challenge:${challengeId}`);
 
-
-
-        // ← LOG DI SINI, SETELAH challengeRaw ada
-    console.log('DEBUG CLICK:', JSON.stringify({ clickerId, challengeId, pilihanLawan }));
-    console.log('DEBUG CHALLENGE RAW:', challengeRaw);
-
-
-
-
-    
     if (!challengeRaw) {
       return new Response(JSON.stringify({
         type: 4,
@@ -3659,12 +3632,10 @@ if (interaction.type === 3) {
 
     const challenge = JSON.parse(challengeRaw);
 
-    // ── Challenger klik tombol sendiri ──
     if (clickerId === challenge.challengerId) {
       const elapsed   = Math.floor((Date.now() - challenge.createdAt) / 1000);
       const sisaDetik = Math.max(0, 300 - elapsed);
 
-      // Waktu sudah habis
       if (sisaDetik === 0) {
         await Promise.all([
           env.USERS_KV.delete(`rps_challenge:${challengeId}`),
@@ -3695,7 +3666,6 @@ if (interaction.type === 3) {
         }), { headers: { 'Content-Type': 'application/json' } });
       }
 
-      // Masih ada waktu → kasih tau sisa waktu
       const menit = Math.floor(sisaDetik / 60);
       const detik = String(sisaDetik % 60).padStart(2, '0');
 
@@ -3723,7 +3693,6 @@ if (interaction.type === 3) {
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ── Orang random klik → tolak ──
     if (clickerId !== challenge.lawanId) {
       return new Response(JSON.stringify({
         type: 4,
@@ -3748,7 +3717,6 @@ if (interaction.type === 3) {
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ── Lawan valid → proses hasil ──
     await Promise.all([
       env.USERS_KV.delete(`rps_challenge:${challengeId}`),
       env.USERS_KV.delete(`rps_active:${challenge.challengerId}`)
@@ -3771,7 +3739,6 @@ if (interaction.type === 3) {
       hasilEmoji = '🏆'; hasilColor = 0x2ECC71;
     }
 
-    // ── Update stats kedua user ──
     const updateStats = async (userId, hasil) => {
       const raw = await env.USERS_KV.get(`rps:${userId}`);
       const s   = raw ? JSON.parse(raw) : {
