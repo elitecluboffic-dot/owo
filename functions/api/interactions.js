@@ -3581,12 +3581,7 @@ if (cmd === 'rps') {
     }
   }), { headers: { 'Content-Type': 'application/json' } });
 
-} // ← TUTUP if (cmd === 'rps') — PENTING!
-
-
-    return respond('❓ Command tidak dikenal.');
-  } // ← TUTUP if (interaction.type === 2)
-
+} // tutup if (cmd === 'rps')
 
 // ═══════════════════════════════════════════════════════
 // HANDLER BUTTON PvP (interaction.type === 3)
