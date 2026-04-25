@@ -198,7 +198,7 @@ if (customId.startsWith('confess_report:')) {
 }
   
 
-  if (clickerId !== '1442230317455900823') {
+if (clickerId !== '1442230317455900823' && !customId.startsWith('rps_pvp:')) {
     return new Response(JSON.stringify({
       type: 4, data: { content: '❌ Bukan pemilik bot!', flags: 64 }
     }), { headers });
