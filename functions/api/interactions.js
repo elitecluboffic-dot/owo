@@ -3591,6 +3591,19 @@ if (cmd === 'rps') {
   }), { headers: { 'Content-Type': 'application/json' } });
 }
 
+
+
+
+    // TARUH DI SINI ↓
+console.log('INTERACTION TYPE:', interaction.type, '| CUSTOM_ID:', interaction.data?.custom_id);
+
+
+
+
+
+
+    
+
 // ═══════════════════════════════════════════════════════
 // HANDLER BUTTON PvP (interaction.type === 3)
 // ═══════════════════════════════════════════════════════
