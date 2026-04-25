@@ -3585,6 +3585,83 @@ if (cmd === 'rps') {
 
 } // ← TUTUP if (cmd === 'rps')
 
+
+// ═══════════════════════════════════════════════════════
+// BUTTON: rps_pvp
+// ═══════════════════════════════════════════════════════
+if (type === 3 && customId.startsWith('rps_pvp:')) {
+  const [, challengeId, pilihanLawan] = customId.split(':');
+
+  const items = {
+    batu:    { emoji: '🪨', nama: 'Batu',    menang: 'gunting', kalah: 'kertas'  },
+    kertas:  { emoji: '📄', nama: 'Kertas',  menang: 'batu',    kalah: 'gunting' },
+    gunting: { emoji: '✂️', nama: 'Gunting', menang: 'kertas',  kalah: 'batu'    }
+  };
+
+  // Ambil data challenge dari KV
+  const challengeRaw = await env.USERS_KV.get(`rps_challenge:${challengeId}`);
+  if (!challengeRaw) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Challenge sudah expire atau tidak ditemukan!', flags: 64 }
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  const challenge = JSON.parse(challengeRaw);
+
+  // Pastikan yang klik adalah lawan yang ditantang
+  if (discordId !== challenge.lawanId) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Bukan tantanganmu!', flags: 64 }
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // Hapus challenge dari KV biar tidak bisa diklik lagi
+  await Promise.all([
+    env.USERS_KV.delete(`rps_challenge:${challengeId}`),
+    env.USERS_KV.delete(`rps_active:${challenge.challengerId}`)
+  ]);
+
+  const pilihanChallenger = challenge.challengerPilihan;
+  const challengerName    = challenge.challengerName;
+  const challengerItem    = items[pilihanChallenger];
+  const lawanItem         = items[pilihanLawan];
+
+  // Tentukan hasil
+  let hasil, hasilEmoji, hasilColor;
+  if (pilihanChallenger === pilihanLawan) {
+    hasil = 'SERI';   hasilEmoji = '🤝'; hasilColor = 0xF1C40F;
+  } else if (challengerItem.menang === pilihanLawan) {
+    hasil = `${challengerName} MENANG`; hasilEmoji = '🏆'; hasilColor = 0x2ECC71;
+  } else {
+    hasil = `${username} MENANG`; hasilEmoji = '🏆'; hasilColor = 0x2ECC71;
+  }
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: `${hasilEmoji} RPS PVP selesai! **${hasil}!**`,
+      embeds: [{
+        color: hasilColor,
+        title: `${hasilEmoji} RPS PVP — ${hasil}!`,
+        description: [
+          '```ansi',
+          '\u001b[1;35m━━━━━━━━━━ HASIL PERTARUNGAN ━━━━━━━━━━\u001b[0m',
+          `\u001b[1;37m  👤 ${challengerName.padEnd(10)}: \u001b[1;33m${challengerItem.emoji} ${challengerItem.nama}\u001b[0m`,
+          `\u001b[1;37m  👤 ${username.padEnd(10)}: \u001b[1;33m${lawanItem.emoji} ${lawanItem.nama}\u001b[0m`,
+          '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;32m  ${hasilEmoji}  ${hasil}\u001b[0m`,
+          '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```'
+        ].join('\n'),
+        footer: { text: '🎮 OwoBim RPS PVP System' },
+        timestamp: new Date().toISOString()
+      }],
+      components: [] // Hapus tombol setelah selesai
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
     
 
 
