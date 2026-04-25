@@ -3601,17 +3601,6 @@ if (interaction.type === 3) {
     const [, challengeId, pilihanLawan] = customId.split(':');
     const clickerId   = interaction.member.user.id;
     const clickerName = interaction.member.user.username;
-
-
-
-
-const challengeRaw = await env.USERS_KV.get(`rps_challenge:${challengeId}`);
-console.log('DEBUG CLICK:', JSON.stringify({ clickerId, challengeId, pilihanLawan }));
-console.log('DEBUG CHALLENGE RAW:', challengeRaw);
-
-
-
-
     
 
     const items = {
@@ -3622,6 +3611,17 @@ console.log('DEBUG CHALLENGE RAW:', challengeRaw);
 
     // ── Ambil data challenge ──
     const challengeRaw = await env.USERS_KV.get(`rps_challenge:${challengeId}`);
+
+
+
+        // ← LOG DI SINI, SETELAH challengeRaw ada
+    console.log('DEBUG CLICK:', JSON.stringify({ clickerId, challengeId, pilihanLawan }));
+    console.log('DEBUG CHALLENGE RAW:', challengeRaw);
+
+
+
+
+    
     if (!challengeRaw) {
       return new Response(JSON.stringify({
         type: 4,
