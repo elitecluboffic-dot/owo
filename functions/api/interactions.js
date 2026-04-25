@@ -3602,6 +3602,23 @@ if (interaction.type === 3) {
     const clickerId   = interaction.member.user.id;
     const clickerName = interaction.member.user.username;
 
+
+
+
+      // ← TAMBAH DI SINI
+  console.log('DEBUG CLICK:', JSON.stringify({ clickerId, challengeId, pilihanLawan }));
+
+  const challengeRaw = await env.USERS_KV.get(`rps_challenge:${challengeId}`);
+
+  // ← TAMBAH DI SINI JUGA
+  console.log('DEBUG CHALLENGE RAW:', challengeRaw);
+
+
+
+
+
+    
+
     const items = {
       batu:    { emoji: '🪨', nama: 'Batu',    menang: 'gunting', kalah: 'kertas'  },
       kertas:  { emoji: '📄', nama: 'Kertas',  menang: 'batu',    kalah: 'gunting' },
