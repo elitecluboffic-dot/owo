@@ -2209,20 +2209,63 @@ if (cmd === 'avatar') {
   ].join('\n'));
 }
 
-    if (cmd === 'fix-level') {
+    
+
+if (cmd === 'fix-level') {
   if (discordId !== '1442230317455900823') return respond('❌ Bukan Pemilik Bot!');
-  const list = await env.USERS_KV.list({ prefix: 'user:' });
-  let count = 0;
-  for (const key of list.keys) {
-    const u = await env.USERS_KV.get(key.name);
-    if (u) {
-      const parsed = JSON.parse(u);
-      parsed.totalEarned = parsed.balance || 0;
-      await env.USERS_KV.put(key.name, JSON.stringify(parsed));
-      count++;
+ 
+  // Langsung reply dulu biar tidak timeout
+  waitUntil((async () => {
+    try {
+      const list = await env.USERS_KV.list({ prefix: 'user:' });
+      let count = 0;
+ 
+      for (const key of list.keys) {
+        const u = await env.USERS_KV.get(key.name);
+        if (u) {
+          const parsed = JSON.parse(u);
+          parsed.totalEarned = parsed.balance || 0;
+          await env.USERS_KV.put(key.name, JSON.stringify(parsed));
+          count++;
+        }
+      }
+ 
+      // Kirim hasil via webhook setelah selesai
+      const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
+      if (WEBHOOK) {
+        await fetch(WEBHOOK, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: `<@1442230317455900823> ✅ **fix-level selesai!**\n> 👥 Total user difix: **${count}**\n> 🪙 \`totalEarned\` sekarang sama dengan \`balance\` masing-masing user.`
+          })
+        });
+      }
+    } catch (err) {
+      console.error('[FIX-LEVEL] Error:', err.message);
+      const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
+      if (WEBHOOK) {
+        await fetch(WEBHOOK, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: `<@1442230317455900823> ❌ **fix-level GAGAL!**\n> Error: \`${err.message}\``
+          })
+        });
+      }
     }
-  }
-  return respond(`✅ **${count} user** berhasil difix! Total earned sekarang sama dengan balance.`);
+  })());
+ 
+  // Langsung balas tanpa nunggu loop selesai
+  return respond([
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[2;34m║  \u001b[1;33m⏳  FIX-LEVEL BERJALAN...  ⏳\u001b[0m  \u001b[2;34m║\u001b[0m',
+    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    '> 🔄 Proses fix sedang berjalan di background.',
+    '> 📩 Kamu akan dapat **notif webhook** setelah selesai!'
+  ].join('\n'));
 }
 
     
