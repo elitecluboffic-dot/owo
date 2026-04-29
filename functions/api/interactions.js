@@ -6024,9 +6024,13 @@ if (sub === 'portofolio') {
 
 
 
-// ══════════════════════════════════════════════
-// CMD: search — Google Search via Custom Search API
-// Env: GOOGLE_API_KEY, GOOGLE_CX_ID
+
+
+
+    // ══════════════════════════════════════════════
+// CMD: search — Web Search via SerpAPI
+// Env: SERPAPI_KEY
+// Gratis: 100 searches/bulan
 // ══════════════════════════════════════════════
 if (cmd === 'search') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
@@ -6041,11 +6045,11 @@ if (cmd === 'search') {
     return respond(`> ${EMOJI} ❌ Query terlalu panjang! Maksimal **200 karakter**.`);
   }
 
-  // ── Cooldown 5 detik per user ──
-  const cdKey   = `search_cd:${discordId}`;
+  // ── Cooldown 10 detik per user ──
+  const cdKey      = `search_cd:${discordId}`;
   const lastSearch = await env.USERS_KV.get(cdKey);
   if (lastSearch) {
-    const sisa = 5000 - (Date.now() - parseInt(lastSearch));
+    const sisa = 10000 - (Date.now() - parseInt(lastSearch));
     if (sisa > 0) {
       return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
     }
@@ -6061,23 +6065,22 @@ if (cmd === 'search') {
         hour: '2-digit', minute: '2-digit'
       });
 
-      // ── Build URL berdasarkan tipe ──
-      let searchUrl = `https://www.googleapis.com/customsearch/v1?key=${env.GOOGLE_API_KEY}&cx=${env.GOOGLE_CX_ID}&q=${encodeURIComponent(query)}&num=5&safe=off`;
+      // ── Build URL SerpAPI berdasarkan tipe ──
+      let searchUrl = `https://serpapi.com/search.json?api_key=${env.SERPAPI_KEY}&q=${encodeURIComponent(query)}&hl=id&gl=id&num=5`;
 
-      if (tipe === 'image') searchUrl += '&searchType=image';
-      if (tipe === 'news')  searchUrl += '&sort=date';
+      if (tipe === 'image') searchUrl += '&tbm=isch';
+      if (tipe === 'news')  searchUrl += '&tbm=nws';
 
-      const res  = await fetch(searchUrl);
+      const res  = await fetch(searchUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
       const data = await res.json();
 
-      // ── Handle error dari Google API ──
+      // ── Handle error dari SerpAPI ──
       if (data.error) {
-        const errCode = data.error.code;
-        const errMsg  = data.error.message;
-
-        let errText = `❌ Google API Error: \`${errMsg}\``;
-        if (errCode === 429) errText = '❌ Limit API habis! (100 query/hari)\nCoba lagi besok atau hubungi owner.';
-        if (errCode === 403) errText = '❌ API Key tidak valid atau belum diaktifkan!';
+        let errText = `❌ Search Error: \`${data.error}\``;
+        if (data.error.includes('Invalid API key')) errText = '❌ SERPAPI_KEY tidak valid! Cek Cloudflare env.';
+        if (data.error.includes('limit'))           errText = '❌ Limit search habis! (100/bulan)\nCoba lagi bulan depan atau hubungi owner.';
 
         await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
           method: 'PATCH',
@@ -6087,48 +6090,25 @@ if (cmd === 'search') {
         return;
       }
 
-      // ── Tidak ada hasil ──
-      if (!data.items || data.items.length === 0) {
-        await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: [
-              '```ansi',
-              '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-              '\u001b[2;34m║  \u001b[1;31m✗  TIDAK ADA HASIL  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
-              '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-              '```',
-              `> ${EMOJI} ❌ Tidak ada hasil untuk **"${query}"**`,
-              `> 💡 Coba kata kunci yang berbeda atau lebih spesifik.`
-            ].join('\n')
-          })
-        });
-        return;
-      }
-
-      // ── Info pencarian dari Google ──
-      const totalResults = parseInt(data.searchInformation?.totalResults || 0).toLocaleString('id-ID');
-      const searchTime   = parseFloat(data.searchInformation?.searchTime || 0).toFixed(2);
-
-      // ── Tipe label & emoji ──
-      const tipeLabel = {
-        web:   '🌐 Web',
-        image: '🖼️ Gambar',
-        news:  '📰 Berita'
-      }[tipe] || '🌐 Web';
-
-      // ── Format hasil ──
+      // ── Ambil hasil sesuai tipe ──
       const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
-
+      let items = [];
       let hasilText = '';
 
       if (tipe === 'image') {
-        // Mode gambar — tampilkan link gambar
-        hasilText = data.items.slice(0, 5).map((item, i) => {
+        items = data.images_results || [];
+        if (items.length === 0) {
+          await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: `> ${EMOJI} ❌ Tidak ada hasil gambar untuk **"${query}"**` })
+          });
+          return;
+        }
+        hasilText = items.slice(0, 5).map((item, i) => {
           const title  = item.title?.slice(0, 60) || 'Tanpa Judul';
-          const link   = item.link || '#';
-          const source = item.displayLink || 'Unknown';
+          const link   = item.original || item.link || '#';
+          const source = item.source || 'Unknown';
           return [
             `${medals[i]} **${title}**`,
             `> 🔗 [Lihat Gambar](${link})`,
@@ -6136,17 +6116,22 @@ if (cmd === 'search') {
           ].join('\n');
         }).join('\n\n');
 
-      } else {
-        // Mode web / news
-        hasilText = data.items.slice(0, 5).map((item, i) => {
-          const title   = item.title?.slice(0, 80)   || 'Tanpa Judul';
+      } else if (tipe === 'news') {
+        items = data.news_results || [];
+        if (items.length === 0) {
+          await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: `> ${EMOJI} ❌ Tidak ada berita untuk **"${query}"**` })
+          });
+          return;
+        }
+        hasilText = items.slice(0, 5).map((item, i) => {
+          const title   = item.title?.slice(0, 80) || 'Tanpa Judul';
           const snippet = item.snippet?.slice(0, 120) || 'Tidak ada deskripsi.';
-          const link    = item.link    || '#';
-          const source  = item.displayLink || 'Unknown';
-          const tanggal = item.pagemap?.metatags?.[0]?.['article:published_time']
-            ? new Date(item.pagemap.metatags[0]['article:published_time']).toLocaleDateString('id-ID')
-            : null;
-
+          const link    = item.link || '#';
+          const source  = item.source?.name || item.source || 'Unknown';
+          const tanggal = item.date || null;
           return [
             `${medals[i]} **${title}**`,
             `> 📝 ${snippet}`,
@@ -6154,14 +6139,48 @@ if (cmd === 'search') {
             tanggal ? `> 📅 ${tanggal}` : null
           ].filter(Boolean).join('\n');
         }).join('\n\n');
+
+      } else {
+        // Web (default)
+        items = data.organic_results || [];
+        if (items.length === 0) {
+          await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: `> ${EMOJI} ❌ Tidak ada hasil untuk **"${query}"**` })
+          });
+          return;
+        }
+        hasilText = items.slice(0, 5).map((item, i) => {
+          const title   = item.title?.slice(0, 80) || 'Tanpa Judul';
+          const snippet = item.snippet?.slice(0, 120) || 'Tidak ada deskripsi.';
+          const link    = item.link || '#';
+          const source  = item.displayed_link || item.source || 'Unknown';
+          return [
+            `${medals[i]} **${title}**`,
+            `> 📝 ${snippet}`,
+            `> 🔗 [Buka Link](${link}) • 🌐 \`${source}\``
+          ].join('\n');
+        }).join('\n\n');
       }
 
-      // ── Cek sisa quota (estimasi) ──
+      // ── Tipe label ──
+      const tipeLabel = {
+        web:   '🌐 Web',
+        image: '🖼️ Gambar',
+        news:  '📰 Berita'
+      }[tipe] || '🌐 Web';
+
+      // ── Info pencarian ──
+      const totalResults = data.search_information?.total_results
+        ? parseInt(data.search_information.total_results).toLocaleString('id-ID')
+        : 'N/A';
+      const searchTime = data.search_information?.time_taken_displayed || 'N/A';
+
+      // ── Counter quota harian per user ──
       const quotaKey  = `search_quota:${discordId}`;
       const quotaRaw  = await env.USERS_KV.get(quotaKey);
       const quotaData = quotaRaw ? JSON.parse(quotaRaw) : { count: 0, resetAt: Date.now() + 86400000 };
-
-      // Reset quota harian
       if (Date.now() > quotaData.resetAt) {
         quotaData.count   = 0;
         quotaData.resetAt = Date.now() + 86400000;
@@ -6183,16 +6202,15 @@ if (cmd === 'search') {
         `\u001b[1;36m 🌐  Total Hasil  :\u001b[0m \u001b[0;37m${totalResults} hasil\u001b[0m`,
         `\u001b[1;36m ⚡  Waktu Cari   :\u001b[0m \u001b[0;37m${searchTime} detik\u001b[0m`,
         `\u001b[1;36m 🕐  Dicari Pada  :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
-        `\u001b[1;36m 🔢  Query Kamu   :\u001b[0m \u001b[0;37m${quotaData.count}x hari ini\u001b[0m`,
+        `\u001b[1;36m 🔢  Search Kamu  :\u001b[0m \u001b[0;37m${quotaData.count}x hari ini\u001b[0m`,
         '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
         '```',
         '',
         hasilText,
         '',
-        `> 🤖 *Powered by OwoBim Search Engine* ${EMOJI}`
+        `> 🤖 *Powered by OwoBim Search Engine API* ${EMOJI}`
       ].join('\n');
 
-      // Potong kalau kepanjangan (Discord limit 2000 char)
       const finalContent = content.length > 1990 ? content.slice(0, 1987) + '...' : content;
 
       await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
@@ -6210,7 +6228,6 @@ if (cmd === 'search') {
     }
   })());
 
-  // ── Langsung return deferred ──
   return new Response(JSON.stringify({ type: 5 }), {
     headers: { 'Content-Type': 'application/json' }
   });
