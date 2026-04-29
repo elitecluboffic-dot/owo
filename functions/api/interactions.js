@@ -6024,22 +6024,196 @@ if (sub === 'portofolio') {
 
 
 
+// ══════════════════════════════════════════════
+// CMD: search — Google Search via Custom Search API
+// Env: GOOGLE_API_KEY, GOOGLE_CX_ID
+// ══════════════════════════════════════════════
 if (cmd === 'search') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const query  = getOption(options, 'query');
-  const tipe   = getOption(options, 'tipe') || 'web';
+  const tipe   = getOption(options, 'tipe') || 'web'; // web / image / news
 
-  // DEBUG — cek env variable
-  const debugKey = env.GOOGLE_API_KEY ? `✅ Ada (${env.GOOGLE_API_KEY.slice(0, 8)}...)` : '❌ KOSONG';
-  const debugCx  = env.GOOGLE_CX_ID  ? `✅ Ada (${env.GOOGLE_CX_ID.slice(0, 8)}...)`  : '❌ KOSONG';
+  if (!query || query.trim() === '') {
+    return respond(`> ${EMOJI} ❌ Masukkan kata kunci pencarian!`);
+  }
 
-  return respond([
-    `🔍 **DEBUG INFO**`,
-    `> GOOGLE_API_KEY: ${debugKey}`,
-    `> GOOGLE_CX_ID: ${debugCx}`,
-    `> Query: \`${query}\``,
-    `> Tipe: \`${tipe}\``
-  ].join('\n'));
+  if (query.length > 200) {
+    return respond(`> ${EMOJI} ❌ Query terlalu panjang! Maksimal **200 karakter**.`);
+  }
+
+  // ── Cooldown 5 detik per user ──
+  const cdKey   = `search_cd:${discordId}`;
+  const lastSearch = await env.USERS_KV.get(cdKey);
+  if (lastSearch) {
+    const sisa = 5000 - (Date.now() - parseInt(lastSearch));
+    if (sisa > 0) {
+      return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
+    }
+  }
+  await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
+
+  // ── Defer dulu biar tidak timeout ──
+  waitUntil((async () => {
+    try {
+      const waktu = new Date().toLocaleString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        day: '2-digit', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+
+      // ── Build URL berdasarkan tipe ──
+      let searchUrl = `https://www.googleapis.com/customsearch/v1?key=${env.GOOGLE_API_KEY}&cx=${env.GOOGLE_CX_ID}&q=${encodeURIComponent(query)}&num=5&safe=off`;
+
+      if (tipe === 'image') searchUrl += '&searchType=image';
+      if (tipe === 'news')  searchUrl += '&sort=date';
+
+      const res  = await fetch(searchUrl);
+      const data = await res.json();
+
+      // ── Handle error dari Google API ──
+      if (data.error) {
+        const errCode = data.error.code;
+        const errMsg  = data.error.message;
+
+        let errText = `❌ Google API Error: \`${errMsg}\``;
+        if (errCode === 429) errText = '❌ Limit API habis! (100 query/hari)\nCoba lagi besok atau hubungi owner.';
+        if (errCode === 403) errText = '❌ API Key tidak valid atau belum diaktifkan!';
+
+        await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: `> ${EMOJI} ${errText}` })
+        });
+        return;
+      }
+
+      // ── Tidak ada hasil ──
+      if (!data.items || data.items.length === 0) {
+        await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: [
+              '```ansi',
+              '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+              '\u001b[2;34m║  \u001b[1;31m✗  TIDAK ADA HASIL  ✗\u001b[0m  \u001b[2;34m║\u001b[0m',
+              '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+              '```',
+              `> ${EMOJI} ❌ Tidak ada hasil untuk **"${query}"**`,
+              `> 💡 Coba kata kunci yang berbeda atau lebih spesifik.`
+            ].join('\n')
+          })
+        });
+        return;
+      }
+
+      // ── Info pencarian dari Google ──
+      const totalResults = parseInt(data.searchInformation?.totalResults || 0).toLocaleString('id-ID');
+      const searchTime   = parseFloat(data.searchInformation?.searchTime || 0).toFixed(2);
+
+      // ── Tipe label & emoji ──
+      const tipeLabel = {
+        web:   '🌐 Web',
+        image: '🖼️ Gambar',
+        news:  '📰 Berita'
+      }[tipe] || '🌐 Web';
+
+      // ── Format hasil ──
+      const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+
+      let hasilText = '';
+
+      if (tipe === 'image') {
+        // Mode gambar — tampilkan link gambar
+        hasilText = data.items.slice(0, 5).map((item, i) => {
+          const title  = item.title?.slice(0, 60) || 'Tanpa Judul';
+          const link   = item.link || '#';
+          const source = item.displayLink || 'Unknown';
+          return [
+            `${medals[i]} **${title}**`,
+            `> 🔗 [Lihat Gambar](${link})`,
+            `> 🌐 Sumber: \`${source}\``
+          ].join('\n');
+        }).join('\n\n');
+
+      } else {
+        // Mode web / news
+        hasilText = data.items.slice(0, 5).map((item, i) => {
+          const title   = item.title?.slice(0, 80)   || 'Tanpa Judul';
+          const snippet = item.snippet?.slice(0, 120) || 'Tidak ada deskripsi.';
+          const link    = item.link    || '#';
+          const source  = item.displayLink || 'Unknown';
+          const tanggal = item.pagemap?.metatags?.[0]?.['article:published_time']
+            ? new Date(item.pagemap.metatags[0]['article:published_time']).toLocaleDateString('id-ID')
+            : null;
+
+          return [
+            `${medals[i]} **${title}**`,
+            `> 📝 ${snippet}`,
+            `> 🔗 [Buka Link](${link}) • 🌐 \`${source}\``,
+            tanggal ? `> 📅 ${tanggal}` : null
+          ].filter(Boolean).join('\n');
+        }).join('\n\n');
+      }
+
+      // ── Cek sisa quota (estimasi) ──
+      const quotaKey  = `search_quota:${discordId}`;
+      const quotaRaw  = await env.USERS_KV.get(quotaKey);
+      const quotaData = quotaRaw ? JSON.parse(quotaRaw) : { count: 0, resetAt: Date.now() + 86400000 };
+
+      // Reset quota harian
+      if (Date.now() > quotaData.resetAt) {
+        quotaData.count   = 0;
+        quotaData.resetAt = Date.now() + 86400000;
+      }
+      quotaData.count++;
+      await env.USERS_KV.put(quotaKey, JSON.stringify(quotaData), { expirationTtl: 86400 });
+
+      // ── Build response ──
+      const content = [
+        '```ansi',
+        '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+        `\u001b[2;34m║  \u001b[1;33m🔍  SEARCH RESULT  🔍\u001b[0m             \u001b[2;34m║\u001b[0m`,
+        '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `${EMOJI} 🔍 **Query:** \`${query}\` — ${tipeLabel}`,
+        '',
+        '```ansi',
+        '\u001b[1;33m━━━━━━━━━━━━ 📊 INFO ━━━━━━━━━━━━━━━\u001b[0m',
+        `\u001b[1;36m 🌐  Total Hasil  :\u001b[0m \u001b[0;37m${totalResults} hasil\u001b[0m`,
+        `\u001b[1;36m ⚡  Waktu Cari   :\u001b[0m \u001b[0;37m${searchTime} detik\u001b[0m`,
+        `\u001b[1;36m 🕐  Dicari Pada  :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+        `\u001b[1;36m 🔢  Query Kamu   :\u001b[0m \u001b[0;37m${quotaData.count}x hari ini\u001b[0m`,
+        '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+        '```',
+        '',
+        hasilText,
+        '',
+        `> 🤖 *Powered by OwoBim Search Engine* ${EMOJI}`
+      ].join('\n');
+
+      // Potong kalau kepanjangan (Discord limit 2000 char)
+      const finalContent = content.length > 1990 ? content.slice(0, 1987) + '...' : content;
+
+      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: finalContent })
+      });
+
+    } catch (err) {
+      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: `> ❌ Error: \`${err.message}\`` })
+      });
+    }
+  })());
+
+  // ── Langsung return deferred ──
+  return new Response(JSON.stringify({ type: 5 }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
 
   
