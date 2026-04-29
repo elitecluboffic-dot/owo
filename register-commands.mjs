@@ -649,6 +649,33 @@ const commands = [
       "description": "Lihat daftar semua coin yang tersedia"
     }
   ]
+},
+
+
+  
+
+{
+  name: 'search',
+  description: '🔍 Cari informasi di Google secara real-time!',
+  options: [
+    {
+      name: 'query',
+      description: '🔍 Kata kunci yang mau dicari',
+      type: 3,
+      required: true
+    },
+    {
+      name: 'tipe',
+      description: '📂 Tipe pencarian',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '🌐 Web',     value: 'web'   },
+        { name: '🖼️ Gambar', value: 'image' },
+        { name: '📰 Berita', value: 'news'  }
+      ]
+    }
+  ]
 }
 
   
