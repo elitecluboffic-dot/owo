@@ -6051,7 +6051,7 @@ if (cmd === 'search') {
       return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
     }
   }
-  await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 10 });
+  await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
 
   // ── Defer dulu biar tidak timeout ──
   waitUntil((async () => {
