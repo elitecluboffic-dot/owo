@@ -6702,208 +6702,16 @@ if (cmd === 'fish-inventory') {
 }
 
 
-// ══════════════════════════════════════════════════════════════
-// CMD: fish-sell — auction & jual ikan
-// Sub: start | bid | sellall | claim | list
-// ══════════════════════════════════════════════════════════════
+
+
+
+    
+
 if (cmd === 'fish-sell') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const sub   = getOption(options, 'aksi') || 'start';
 
-  // ────────────────────────────
-  // SUB: start — mulai lelang
-  // [UPDATED] Sekarang pakai embed + gambar ikan
-  // ────────────────────────────
-  if (sub === 'start') {
-    const fishId    = getOption(options, 'id');
-    const startBid  = parseInt(getOption(options, 'harga_awal') || '0');
-    const durationH = parseInt(getOption(options, 'durasi') || '1');
-
-    if (!fishId) return respond(`> ${EMOJI} ❌ Masukkan ID ikan! Cek \`/fish-inventory\``);
-    if (startBid < 0) return respond(`> ${EMOJI} ❌ Harga awal tidak boleh negatif!`);
-    if (durationH < 1 || durationH > 24) return respond(`> ${EMOJI} ❌ Durasi lelang 1-24 jam!`);
-
-    const invRaw = await env.USERS_KV.get(`fishing:inventory:${discordId}`);
-    const inv    = invRaw ? JSON.parse(invRaw) : [];
-    const fishIdx = inv.findIndex(f => f.id === fishId);
-
-    if (fishIdx === -1) return respond(`> ${EMOJI} ❌ Ikan ID **${fishId}** tidak ada di inventory kamu!`);
-
-    const fish        = inv[fishIdx];
-    const rInfo       = RARITY[fish.rarity];
-    const minPrice    = Math.floor(fish.price * 0.1);
-    const actualStart = Math.max(startBid, minPrice);
-    const auctionId   = genAuctionId();
-    const endTime     = Date.now() + durationH * 3600000;
-
-    // [NEW] Fetch gambar ikan jika belum ada
-    let fishImageUrl = fish.imageUrl || null;
-    if (!fishImageUrl && fish.scientificName) {
-      fishImageUrl = await fetchFishImage(fish.scientificName);
-    }
-
-    inv.splice(fishIdx, 1);
-
-    const auctionData = {
-      id:          auctionId,
-      fish:        { ...fish, imageUrl: fishImageUrl }, // [NEW] simpan imageUrl terbaru
-      sellerId:    discordId,
-      sellerName:  username,
-      startBid:    actualStart,
-      currentBid:  actualStart,
-      highestBidder: null,
-      highestBidderName: null,
-      bids:        [],
-      endTime,
-      createdAt:   Date.now(),
-      channelId,
-      guildId,
-      status:      'active'
-    };
-
-    const listRaw = await env.USERS_KV.get('fishing:auctions:active');
-    const auctionList = listRaw ? JSON.parse(listRaw) : [];
-    auctionList.push({ id: auctionId, endTime, sellerId: discordId });
-
-    await Promise.all([
-      env.USERS_KV.put(`fishing:auction:${auctionId}`, JSON.stringify(auctionData), { expirationTtl: 86400 * 2 }),
-      env.USERS_KV.put('fishing:auctions:active', JSON.stringify(auctionList)),
-      env.USERS_KV.put(`fishing:inventory:${discordId}`, JSON.stringify(inv)),
-    ]);
-
-    // [UPDATED] Pakai editMsg dengan embed supaya gambar ikan muncul
-    const editMsg = async (content, embeds) => {
-      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(embeds ? { content, embeds } : { content })
-      });
-    };
-
-    const auctionLines = [
-      '```ansi',
-      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
-      '\u001b[1;32m║  🔨  LELANG DIMULAI!  🔨             ║\u001b[0m',
-      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
-      '```',
-      `> ${EMOJI} 🔨 **${fish.emoji || '🐟'} ${fish.name}** sekarang dilelang!`,
-      '```ansi',
-      '\u001b[1;33m━━━━━━━━━━━━ 🔨 DETAIL LELANG ━━━━━━━━\u001b[0m',
-      `\u001b[1;36m  🆔  Auction ID :\u001b[0m \u001b[0;37m${auctionId}\u001b[0m`,
-      `\u001b[1;36m  🐟  Ikan       :\u001b[0m \u001b[1;37m${fish.name}\u001b[0m`,
-      fish.scientificName ? `\u001b[1;36m  🔬  Ilmiah     :\u001b[0m \u001b[2;37m${fish.scientificName}\u001b[0m` : null,
-      `\u001b[1;36m  ⭐  Rarity     :\u001b[0m ${rInfo?.color || ''}${rInfo?.name || fish.rarity}\u001b[0m`,
-      `\u001b[1;36m  ⚖️  Berat      :\u001b[0m \u001b[0;37m${fish.weightKg} kg\u001b[0m`,
-      `\u001b[1;36m  💰  Harga Awal :\u001b[0m \u001b[1;32m🪙 ${actualStart.toLocaleString()}\u001b[0m`,
-      `\u001b[1;36m  💎  Est. Value :\u001b[0m \u001b[0;37m🪙 ${fish.price.toLocaleString()}\u001b[0m`,
-      `\u001b[1;36m  ⏰  Berakhir   :\u001b[0m \u001b[0;37m${durationH} jam dari sekarang\u001b[0m`,
-      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```',
-      `> 🏷️ User lain bid pakai: \`/fish-sell bid id:${auctionId} jumlah:xxx\``
-    ].filter(Boolean).join('\n');
-
-    return await editMsg('', [{
-      color: rInfo ? parseInt(rInfo.color.replace(/\u001b\[\d+;\d+m/, '').replace(/[^0-9A-Fa-f]/g, ''), 16) || 0x2ECC71 : 0x2ECC71,
-      description: auctionLines,
-      // [NEW] Gambar ikan tampil di embed lelang
-      image: fishImageUrl ? { url: fishImageUrl } : undefined,
-      footer: { text: `OwoBim Auction System • ${auctionId}` },
-      timestamp: new Date().toISOString()
-    }]);
-  }
-
-  // ────────────────────────────
-  // SUB: bid — pasang penawaran
-  // ────────────────────────────
-  if (sub === 'bid') {
-    const auctionId = getOption(options, 'id');
-    const bidAmount = parseInt(getOption(options, 'jumlah') || '0');
-
-    if (!auctionId) return respond(`> ${EMOJI} ❌ Masukkan Auction ID!`);
-    if (!bidAmount || bidAmount <= 0) return respond(`> ${EMOJI} ❌ Jumlah bid tidak valid!`);
-
-    const auctionRaw = await env.USERS_KV.get(`fishing:auction:${auctionId}`);
-    if (!auctionRaw) return respond(`> ${EMOJI} ❌ Lelang **${auctionId}** tidak ditemukan atau sudah berakhir!`);
-
-    const auction = JSON.parse(auctionRaw);
-
-    if (auction.status !== 'active') return respond(`> ${EMOJI} ❌ Lelang ini sudah **${auction.status}**!`);
-    if (Date.now() > auction.endTime) return respond(`> ${EMOJI} ❌ Lelang sudah berakhir!`);
-    if (auction.sellerId === discordId) return respond(`> ${EMOJI} ❌ Tidak bisa bid di lelang sendiri!`);
-    if (bidAmount <= auction.currentBid) {
-      return respond(`> ${EMOJI} ❌ Bid harus lebih dari 🪙 **${auction.currentBid.toLocaleString()}** (bid tertinggi saat ini)!`);
-    }
-    if (bidAmount > user.balance) {
-      return respond(`> ${EMOJI} ❌ Saldo tidak cukup! Kamu punya 🪙 **${user.balance.toLocaleString()}**`);
-    }
-
-    if (auction.highestBidder && auction.highestBidder !== discordId) {
-      const prevBidderStr = await env.USERS_KV.get(`user:${auction.highestBidder}`);
-      if (prevBidderStr) {
-        const prevBidder = JSON.parse(prevBidderStr);
-        prevBidder.balance += auction.currentBid;
-        await env.USERS_KV.put(`user:${auction.highestBidder}`, JSON.stringify(prevBidder));
-      }
-    }
-
-    user.balance -= bidAmount;
-    await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
-
-    auction.currentBid = bidAmount;
-    auction.highestBidder = discordId;
-    auction.highestBidderName = username;
-    auction.bids.push({ bidderId: discordId, bidderName: username, amount: bidAmount, at: Date.now() });
-    if (auction.bids.length > 20) auction.bids = auction.bids.slice(-20);
-
-    await env.USERS_KV.put(`fishing:auction:${auctionId}`, JSON.stringify(auction), { expirationTtl: 86400 * 2 });
-
-    const sisa = auction.endTime - Date.now();
-
-    // [NEW] Ambil gambar ikan dari data lelang yang sudah tersimpan
-    const bidFishImageUrl = auction.fish?.imageUrl || null;
-
-    const editMsg = async (content, embeds) => {
-      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(embeds ? { content, embeds } : { content })
-      });
-    };
-
-    const bidLines = [
-      '```ansi',
-      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
-      '\u001b[1;32m║  💰  BID BERHASIL!  💰               ║\u001b[0m',
-      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
-      '```',
-      `> ${EMOJI} 🏷️ Kamu memimpin lelang **${auction.fish.name}**!`,
-      '```ansi',
-      '\u001b[1;33m━━━━━━━━━━━━ 💰 BID INFO ━━━━━━━━━━━━━\u001b[0m',
-      `\u001b[1;36m  🆔  Auction    :\u001b[0m \u001b[0;37m${auctionId}\u001b[0m`,
-      `\u001b[1;36m  🐟  Ikan       :\u001b[0m \u001b[1;37m${auction.fish.name}\u001b[0m`,
-      `\u001b[1;36m  💰  Bid Kamu   :\u001b[0m \u001b[1;32m🪙 ${bidAmount.toLocaleString()}\u001b[0m`,
-      `\u001b[1;36m  👑  Posisi     :\u001b[0m \u001b[1;32m#1 TERTINGGI\u001b[0m`,
-      `\u001b[1;36m  ⏰  Sisa Waktu :\u001b[0m \u001b[0;37m${fmtDuration(sisa)}\u001b[0m`,
-      `\u001b[1;36m  💳  Saldo Sisa :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
-      `\u001b[1;36m  📊  Total Bid  :\u001b[0m \u001b[0;37m${auction.bids.length}x\u001b[0m`,
-      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```',
-      `> ⚠️ Jika ada yang bid lebih tinggi, uangmu dikembalikan otomatis.`
-    ].join('\n');
-
-    return await editMsg('', [{
-      color: 0x2ECC71,
-      description: bidLines,
-      // [NEW] Gambar ikan tampil di embed bid
-      thumbnail: bidFishImageUrl ? { url: bidFishImageUrl } : undefined,
-      footer: { text: `OwoBim Auction System • ${auctionId}` },
-      timestamp: new Date().toISOString()
-    }]);
-  }
-
-  // ────────────────────────────
-  // SUB: sellall — jual semua langsung
-  // ────────────────────────────
+  // sellall dan claim — respond biasa, tidak perlu defer
   if (sub === 'sellall') {
     const rarityFilter = getOption(options, 'rarity') || 'all';
     const invRaw = await env.USERS_KV.get(`fishing:inventory:${discordId}`);
@@ -6912,9 +6720,7 @@ if (cmd === 'fish-sell') {
     if (inv.length === 0) return respond(`> ${EMOJI} 🎒 Inventory kosong!`);
 
     let toSell = inv;
-    if (rarityFilter !== 'all') {
-      toSell = inv.filter(f => f.rarity === rarityFilter);
-    }
+    if (rarityFilter !== 'all') toSell = inv.filter(f => f.rarity === rarityFilter);
     toSell = toSell.filter(f => f.rarity !== 'trash');
 
     if (toSell.length === 0) return respond(`> ${EMOJI} ❌ Tidak ada ikan untuk dijual dengan filter **${rarityFilter}**!`);
@@ -6944,9 +6750,6 @@ if (cmd === 'fish-sell') {
     ].join('\n'));
   }
 
-  // ────────────────────────────
-  // SUB: claim — ambil hasil lelang
-  // ────────────────────────────
   if (sub === 'claim') {
     const auctionId = getOption(options, 'id');
     if (!auctionId) return respond(`> ${EMOJI} ❌ Masukkan Auction ID!`);
@@ -6972,7 +6775,6 @@ if (cmd === 'fish-sell') {
         ]);
         return respond(`> ${EMOJI} 😔 Tidak ada yang bid! Ikan **${auction.fish.name}** dikembalikan ke inventory.`);
       }
-
       const earned = auction.currentBid;
       user.balance += earned;
       user.totalEarned = (user.totalEarned || 0) + earned;
@@ -7008,68 +6810,231 @@ if (cmd === 'fish-sell') {
     return respond(`> ${EMOJI} ❌ Kamu bukan seller maupun pemenang lelang ini!`);
   }
 
-  // ────────────────────────────
-  // SUB: list — lihat lelang aktif
-  // [UPDATED] Sekarang pakai embed dengan gambar tiap ikan
-  // ────────────────────────────
-  if (sub === 'list') {
-    const listRaw = await env.USERS_KV.get('fishing:auctions:active');
-    const auctionList = listRaw ? JSON.parse(listRaw) : [];
+  // start, bid, list — pakai defer
+  const DEFER_SUBS = ['start', 'bid', 'list'];
 
-    const active = auctionList.filter(a => Date.now() < a.endTime);
-    if (active.length === 0) return respond(`> ${EMOJI} 📭 Tidak ada lelang aktif saat ini!`);
+  if (DEFER_SUBS.includes(sub)) {
+    waitUntil((async () => {
+      const editMsg = async (content, embeds) => {
+        await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(embeds ? { content, embeds } : { content })
+        });
+      };
 
-    const details = await Promise.all(
-      active.slice(-10).map(a => env.USERS_KV.get(`fishing:auction:${a.id}`))
-    );
+      try {
 
-    const validAuctions = details.filter(Boolean).map(raw => JSON.parse(raw));
+        if (sub === 'start') {
+          const fishId    = getOption(options, 'id');
+          const startBid  = parseInt(getOption(options, 'harga_awal') || '0');
+          const durationH = parseInt(getOption(options, 'durasi') || '1');
 
-    // [NEW] Buat embed fields — tiap lelang = 1 embed, ditampilkan sampai 5 (Discord limit 10 embeds)
-    const EMOJI_LIST = '<a:GifOwoBim:1492599199038967878>';
-    const editMsg = async (content, embeds) => {
-      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(embeds ? { content, embeds } : { content })
-      });
-    };
+          if (!fishId) return editMsg(`> ${EMOJI} ❌ Masukkan ID ikan! Cek \`/fish-inventory\``);
+          if (startBid < 0) return editMsg(`> ${EMOJI} ❌ Harga awal tidak boleh negatif!`);
+          if (durationH < 1 || durationH > 24) return editMsg(`> ${EMOJI} ❌ Durasi lelang 1-24 jam!`);
 
-    // Header embed
-    const embeds = [{
-      color: 0x3498DB,
-      title: '🔨 LELANG AKTIF',
-      description: `> ${EMOJI_LIST} **${active.length}** lelang sedang berlangsung\n> Bid menggunakan \`/fish-sell bid id:AUC-xxx jumlah:xxx\``,
-      footer: { text: 'OwoBim Auction System' },
-      timestamp: new Date().toISOString()
-    }];
+          const invRaw = await env.USERS_KV.get(`fishing:inventory:${discordId}`);
+          const inv    = invRaw ? JSON.parse(invRaw) : [];
+          const fishIdx = inv.findIndex(f => f.id === fishId);
 
-    // [NEW] Tiap lelang jadi embed terpisah dengan gambar ikannya
-    for (const a of validAuctions.slice(0, 9)) {
-      const r = RARITY[a.fish.rarity];
-      const sisa = a.endTime - Date.now();
-      const fishImg = a.fish?.imageUrl || null;
+          if (fishIdx === -1) return editMsg(`> ${EMOJI} ❌ Ikan ID **${fishId}** tidak ada di inventory kamu!`);
 
-      embeds.push({
-        color: 0x2ECC71,
-        author: { name: `${a.fish.emoji || '🐟'} ${a.fish.name} ${r?.name || ''}` },
-        description: [
-          `**⚖️ Berat:** ${a.fish.weightKg} kg`,
-          `**💰 Bid Sekarang:** 🪙 ${a.currentBid.toLocaleString()}`,
-          `**👤 Penjual:** ${a.sellerName}`,
-          `**⏰ Sisa Waktu:** ${fmtDuration(sisa)}`,
-          a.highestBidderName ? `**👑 Leading:** ${a.highestBidderName}` : `**👑 Leading:** _belum ada bid_`,
-          `\`🆔 ${a.id}\``
-        ].join('\n'),
-        // [NEW] Gambar ikan tampil di tiap embed lelang
-        thumbnail: fishImg ? { url: fishImg } : undefined,
-      });
-    }
+          const fish        = inv[fishIdx];
+          const rInfo       = RARITY[fish.rarity];
+          const minPrice    = Math.floor(fish.price * 0.1);
+          const actualStart = Math.max(startBid, minPrice);
+          const auctionId   = genAuctionId();
+          const endTime     = Date.now() + durationH * 3600000;
 
-    return await editMsg('', embeds);
+          let fishImageUrl = fish.imageUrl || null;
+          if (!fishImageUrl && fish.scientificName) {
+            fishImageUrl = await fetchFishImage(fish.scientificName);
+          }
+
+          inv.splice(fishIdx, 1);
+
+          const auctionData = {
+            id: auctionId,
+            fish: { ...fish, imageUrl: fishImageUrl },
+            sellerId: discordId,
+            sellerName: username,
+            startBid: actualStart,
+            currentBid: actualStart,
+            highestBidder: null,
+            highestBidderName: null,
+            bids: [],
+            endTime,
+            createdAt: Date.now(),
+            channelId, guildId,
+            status: 'active'
+          };
+
+          const listRaw = await env.USERS_KV.get('fishing:auctions:active');
+          const auctionList = listRaw ? JSON.parse(listRaw) : [];
+          auctionList.push({ id: auctionId, endTime, sellerId: discordId });
+
+          await Promise.all([
+            env.USERS_KV.put(`fishing:auction:${auctionId}`, JSON.stringify(auctionData), { expirationTtl: 86400 * 2 }),
+            env.USERS_KV.put('fishing:auctions:active', JSON.stringify(auctionList)),
+            env.USERS_KV.put(`fishing:inventory:${discordId}`, JSON.stringify(inv)),
+          ]);
+
+          const auctionLines = [
+            '```ansi',
+            '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;32m║  🔨  LELANG DIMULAI!  🔨             ║\u001b[0m',
+            '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `> ${EMOJI} 🔨 **${fish.emoji || '🐟'} ${fish.name}** sekarang dilelang!`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━━ 🔨 DETAIL LELANG ━━━━━━━━\u001b[0m',
+            `\u001b[1;36m  🆔  Auction ID :\u001b[0m \u001b[0;37m${auctionId}\u001b[0m`,
+            `\u001b[1;36m  🐟  Ikan       :\u001b[0m \u001b[1;37m${fish.name}\u001b[0m`,
+            fish.scientificName ? `\u001b[1;36m  🔬  Ilmiah     :\u001b[0m \u001b[2;37m${fish.scientificName}\u001b[0m` : null,
+            `\u001b[1;36m  ⭐  Rarity     :\u001b[0m ${rInfo?.color || ''}${rInfo?.name || fish.rarity}\u001b[0m`,
+            `\u001b[1;36m  ⚖️  Berat      :\u001b[0m \u001b[0;37m${fish.weightKg} kg\u001b[0m`,
+            `\u001b[1;36m  💰  Harga Awal :\u001b[0m \u001b[1;32m🪙 ${actualStart.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m  💎  Est. Value :\u001b[0m \u001b[0;37m🪙 ${fish.price.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m  ⏰  Berakhir   :\u001b[0m \u001b[0;37m${durationH} jam dari sekarang\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 🏷️ User lain bid pakai: \`/fish-sell bid id:${auctionId} jumlah:xxx\``
+          ].filter(Boolean).join('\n');
+
+          return editMsg('', [{
+            color: 0x2ECC71,
+            description: auctionLines,
+            image: fishImageUrl ? { url: fishImageUrl } : undefined,
+            footer: { text: `OwoBim Auction System • ${auctionId}` },
+            timestamp: new Date().toISOString()
+          }]);
+        }
+
+        if (sub === 'bid') {
+          const auctionId = getOption(options, 'id');
+          const bidAmount = parseInt(getOption(options, 'jumlah') || '0');
+
+          if (!auctionId) return editMsg(`> ${EMOJI} ❌ Masukkan Auction ID!`);
+          if (!bidAmount || bidAmount <= 0) return editMsg(`> ${EMOJI} ❌ Jumlah bid tidak valid!`);
+
+          const auctionRaw = await env.USERS_KV.get(`fishing:auction:${auctionId}`);
+          if (!auctionRaw) return editMsg(`> ${EMOJI} ❌ Lelang **${auctionId}** tidak ditemukan atau sudah berakhir!`);
+
+          const auction = JSON.parse(auctionRaw);
+
+          if (auction.status !== 'active') return editMsg(`> ${EMOJI} ❌ Lelang ini sudah **${auction.status}**!`);
+          if (Date.now() > auction.endTime) return editMsg(`> ${EMOJI} ❌ Lelang sudah berakhir!`);
+          if (auction.sellerId === discordId) return editMsg(`> ${EMOJI} ❌ Tidak bisa bid di lelang sendiri!`);
+          if (bidAmount <= auction.currentBid) return editMsg(`> ${EMOJI} ❌ Bid harus lebih dari 🪙 **${auction.currentBid.toLocaleString()}**!`);
+          if (bidAmount > user.balance) return editMsg(`> ${EMOJI} ❌ Saldo tidak cukup! Kamu punya 🪙 **${user.balance.toLocaleString()}**`);
+
+          if (auction.highestBidder && auction.highestBidder !== discordId) {
+            const prevBidderStr = await env.USERS_KV.get(`user:${auction.highestBidder}`);
+            if (prevBidderStr) {
+              const prevBidder = JSON.parse(prevBidderStr);
+              prevBidder.balance += auction.currentBid;
+              await env.USERS_KV.put(`user:${auction.highestBidder}`, JSON.stringify(prevBidder));
+            }
+          }
+
+          user.balance -= bidAmount;
+          await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+
+          auction.currentBid = bidAmount;
+          auction.highestBidder = discordId;
+          auction.highestBidderName = username;
+          auction.bids.push({ bidderId: discordId, bidderName: username, amount: bidAmount, at: Date.now() });
+          if (auction.bids.length > 20) auction.bids = auction.bids.slice(-20);
+
+          await env.USERS_KV.put(`fishing:auction:${auctionId}`, JSON.stringify(auction), { expirationTtl: 86400 * 2 });
+
+          const sisa = auction.endTime - Date.now();
+          const bidFishImageUrl = auction.fish?.imageUrl || null;
+
+          const bidLines = [
+            '```ansi',
+            '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;32m║  💰  BID BERHASIL!  💰               ║\u001b[0m',
+            '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `> ${EMOJI} 🏷️ Kamu memimpin lelang **${auction.fish.name}**!`,
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━━ 💰 BID INFO ━━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m  🆔  Auction    :\u001b[0m \u001b[0;37m${auctionId}\u001b[0m`,
+            `\u001b[1;36m  🐟  Ikan       :\u001b[0m \u001b[1;37m${auction.fish.name}\u001b[0m`,
+            `\u001b[1;36m  💰  Bid Kamu   :\u001b[0m \u001b[1;32m🪙 ${bidAmount.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m  👑  Posisi     :\u001b[0m \u001b[1;32m#1 TERTINGGI\u001b[0m`,
+            `\u001b[1;36m  ⏰  Sisa Waktu :\u001b[0m \u001b[0;37m${fmtDuration(sisa)}\u001b[0m`,
+            `\u001b[1;36m  💳  Saldo Sisa :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m  📊  Total Bid  :\u001b[0m \u001b[0;37m${auction.bids.length}x\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
+            '```',
+            `> ⚠️ Jika ada yang bid lebih tinggi, uangmu dikembalikan otomatis.`
+          ].join('\n');
+
+          return editMsg('', [{
+            color: 0x2ECC71,
+            description: bidLines,
+            thumbnail: bidFishImageUrl ? { url: bidFishImageUrl } : undefined,
+            footer: { text: `OwoBim Auction System • ${auctionId}` },
+            timestamp: new Date().toISOString()
+          }]);
+        }
+
+        if (sub === 'list') {
+          const listRaw = await env.USERS_KV.get('fishing:auctions:active');
+          const auctionList = listRaw ? JSON.parse(listRaw) : [];
+          const active = auctionList.filter(a => Date.now() < a.endTime);
+
+          if (active.length === 0) return editMsg(`> ${EMOJI} 📭 Tidak ada lelang aktif saat ini!`);
+
+          const details = await Promise.all(
+            active.slice(-10).map(a => env.USERS_KV.get(`fishing:auction:${a.id}`))
+          );
+          const validAuctions = details.filter(Boolean).map(raw => JSON.parse(raw));
+
+          const embeds = [{
+            color: 0x3498DB,
+            title: '🔨 LELANG AKTIF',
+            description: `> **${active.length}** lelang sedang berlangsung\n> Bid: \`/fish-sell bid id:AUC-xxx jumlah:xxx\``,
+            footer: { text: 'OwoBim Auction System' },
+            timestamp: new Date().toISOString()
+          }];
+
+          for (const a of validAuctions.slice(0, 9)) {
+            const r = RARITY[a.fish.rarity];
+            const sisa = a.endTime - Date.now();
+            const fishImg = a.fish?.imageUrl || null;
+            embeds.push({
+              color: 0x2ECC71,
+              author: { name: `${a.fish.emoji || '🐟'} ${a.fish.name} ${r?.name || ''}` },
+              description: [
+                `**⚖️ Berat:** ${a.fish.weightKg} kg`,
+                `**💰 Bid Sekarang:** 🪙 ${a.currentBid.toLocaleString()}`,
+                `**👤 Penjual:** ${a.sellerName}`,
+                `**⏰ Sisa Waktu:** ${fmtDuration(sisa)}`,
+                a.highestBidderName ? `**👑 Leading:** ${a.highestBidderName}` : `**👑 Leading:** _belum ada bid_`,
+                `\`🆔 ${a.id}\``
+              ].join('\n'),
+              thumbnail: fishImg ? { url: fishImg } : undefined,
+            });
+          }
+
+          return editMsg('', embeds);
+        }
+
+      } catch (err) {
+        await editMsg(`> ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
-  return respond(`> ❌ Aksi tidak dikenal! Gunakan: \`start\`, \`bid\`, \`sellall\`, \`claim\`, \`list\``);
+  return respond(`> ❌ Aksi tidak dikenal!`);
 }
 
 
