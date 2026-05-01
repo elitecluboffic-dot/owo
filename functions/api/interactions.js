@@ -6455,198 +6455,192 @@ function fmtDuration(ms) {
 if (cmd === 'fishing') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const useBait = getOption(options, 'bait') || 'none';
-  const location = getOption(options, 'location') || 'ocean'; // ocean / river / deep
+  const location = getOption(options, 'location') || 'ocean';
 
-  // ── Cek cooldown ──
-  const cdKey     = `fishing:cd:${discordId}`;
-  const rodKey    = `fishing:rod:${discordId}`;
-  const baitKey   = `fishing:bait:${discordId}`;
-  const statsKey  = `fishing:stats:${discordId}`;
-  const invKey    = `fishing:inventory:${discordId}`;
+  waitUntil((async () => {
+    const cdKey    = `fishing:cd:${discordId}`;
+    const rodKey   = `fishing:rod:${discordId}`;
+    const baitKey  = `fishing:bait:${discordId}`;
+    const statsKey = `fishing:stats:${discordId}`;
+    const invKey   = `fishing:inventory:${discordId}`;
 
-  const [cdRaw, rodRaw, baitRaw, statsRaw, invRaw] = await Promise.all([
-    env.USERS_KV.get(cdKey),
-    env.USERS_KV.get(rodKey),
-    env.USERS_KV.get(baitKey),
-    env.USERS_KV.get(statsKey),
-    env.USERS_KV.get(invKey),
-  ]);
+    const editMsg = async (content, embeds) => {
+      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(embeds ? { content, embeds } : { content })
+      });
+    };
 
-  const rod    = rodRaw ? JSON.parse(rodRaw) : FISHING_RODS.basic;
-  const baits  = baitRaw ? JSON.parse(baitRaw) : {};
-  const stats  = statsRaw ? JSON.parse(statsRaw) : { totalCast: 0, totalCatch: 0, totalValue: 0, biggestFish: null, byRarity: {} };
-  const inv    = invRaw ? JSON.parse(invRaw) : [];
+    const [cdRaw, rodRaw, baitRaw, statsRaw, invRaw] = await Promise.all([
+      env.USERS_KV.get(cdKey),
+      env.USERS_KV.get(rodKey),
+      env.USERS_KV.get(baitKey),
+      env.USERS_KV.get(statsKey),
+      env.USERS_KV.get(invKey),
+    ]);
 
-  // Cek cooldown
-  if (cdRaw) {
-    const lastCast = parseInt(cdRaw);
-    const sisa     = rod.cooldownMs - (Date.now() - lastCast);
-    if (sisa > 0) {
-      return respond([
-        `> ${EMOJI} ⏳ Joran kamu masih basah! Tunggu **${fmtDuration(sisa)}** lagi.`,
-        `> 🎣 Rod: **${rod.name}** | Cooldown: **${fmtDuration(rod.cooldownMs)}**`
+    const rod   = rodRaw   ? JSON.parse(rodRaw)   : FISHING_RODS.basic;
+    const baits = baitRaw  ? JSON.parse(baitRaw)  : {};
+    const stats = statsRaw ? JSON.parse(statsRaw) : { totalCast: 0, totalCatch: 0, totalValue: 0, biggestFish: null, byRarity: {} };
+    const inv   = invRaw   ? JSON.parse(invRaw)   : [];
+
+    if (cdRaw) {
+      const sisa = rod.cooldownMs - (Date.now() - parseInt(cdRaw));
+      if (sisa > 0) {
+        return editMsg([
+          `> ${EMOJI} ⏳ Joran kamu masih basah! Tunggu **${fmtDuration(sisa)}** lagi.`,
+          `> 🎣 Rod: **${rod.name}** | Cooldown: **${fmtDuration(rod.cooldownMs)}**`
+        ].join('\n'));
+      }
+    }
+
+    if (inv.length >= 30) {
+      return editMsg([
+        `> ${EMOJI} 🎒 Kantong penuh! Kamu punya **${inv.length}/30** ikan.`,
+        `> 💡 Jual lewat \`/fish-sell\` atau simpan di \`/aquarium add\` dulu!`
       ].join('\n'));
     }
-  }
 
-  // Cek inventory penuh (max 30 ikan)
-  if (inv.length >= 30) {
-    return respond([
-      `> ${EMOJI} 🎒 Kantong penuh! Kamu punya **${inv.length}/30** ikan.`,
-      `> 💡 Jual lewat \`/fish-sell\` atau simpan di \`/aquarium add\` dulu!`
-    ].join('\n'));
-  }
+    let rarityBoost = rod.rarityBoost || 0;
+    let sizeBoost   = 0;
+    let baitUsed    = null;
 
-  // ── Hitung boost dari rod & bait ──
-  let rarityBoost = rod.rarityBoost || 0;
-  let sizeBoost   = 0;
-  let baitUsed    = null;
-
-  if (useBait !== 'none' && FISHING_BAITS[useBait]) {
-    const baitInfo  = FISHING_BAITS[useBait];
-    const baitStock = baits[useBait] || 0;
-    if (baitStock <= 0) {
-      return respond(`> ${EMOJI} ❌ Kamu tidak punya **${baitInfo.name}**!\n> 💡 Beli di \`/fish-shop\``);
+    if (useBait !== 'none' && FISHING_BAITS[useBait]) {
+      const baitInfo  = FISHING_BAITS[useBait];
+      const baitStock = baits[useBait] || 0;
+      if (baitStock <= 0) {
+        return editMsg(`> ${EMOJI} ❌ Kamu tidak punya **${baitInfo.name}**!\n> 💡 Beli di \`/fish-shop\``);
+      }
+      rarityBoost += baitInfo.rarityBoost;
+      sizeBoost   += baitInfo.sizeBoost;
+      baits[useBait] = baitStock - 1;
+      baitUsed = baitInfo;
     }
-    rarityBoost += baitInfo.rarityBoost;
-    sizeBoost   += baitInfo.sizeBoost;
-    baits[useBait] = baitStock - 1;
-    baitUsed = baitInfo;
-  }
 
-  // Bonus lokasi
-  const locationBonus = { ocean: 0, river: -5, deep: 20 };
-  rarityBoost += locationBonus[location] || 0;
+    const locationBonus = { ocean: 0, river: -5, deep: 20 };
+    rarityBoost += locationBonus[location] || 0;
 
-  // ── Roll rarity & ukuran ──
-  const rarity  = rollRarity(rarityBoost);
-  const weightKg = rollFishSize(rarity, sizeBoost);
-  const rarityInfo = RARITY[rarity];
+    const rarity     = rollRarity(rarityBoost);
+    const weightKg   = rollFishSize(rarity, sizeBoost);
+    const rarityInfo = RARITY[rarity];
 
-  // ── Ambil data ikan ──
-  let fishData;
-  if (rarity === 'trash') {
-    const trash = TRASH_ITEMS[Math.floor(Math.random() * TRASH_ITEMS.length)];
-    fishData = { name: trash.name, scientificName: '', emoji: trash.emoji, habitat: 'trash', imageUrl: null };
-  } else {
-    // Coba NOAA API
-    const apiResult = await fetchFishFromNOAA(rarity);
-    if (apiResult) {
-      fishData = apiResult;
+    let fishData;
+    if (rarity === 'trash') {
+      const trash = TRASH_ITEMS[Math.floor(Math.random() * TRASH_ITEMS.length)];
+      fishData = { name: trash.name, scientificName: '', emoji: trash.emoji, habitat: 'trash', imageUrl: null };
     } else {
-      // Fallback ke data lokal
-      const pool = FALLBACK_FISH[rarity] || FALLBACK_FISH.common;
-      fishData = pool[Math.floor(Math.random() * pool.length)];
+      const apiResult = await fetchFishFromNOAA(rarity);
+      if (apiResult) {
+        fishData = apiResult;
+      } else {
+        const pool = FALLBACK_FISH[rarity] || FALLBACK_FISH.common;
+        fishData = pool[Math.floor(Math.random() * pool.length)];
+      }
     }
-  }
 
-  const price = calcFishPrice(rarity, weightKg);
-  const catchId = `FISH-${Date.now()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+    const price   = calcFishPrice(rarity, weightKg);
+    const catchId = `FISH-${Date.now()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
-  const fishEntry = {
-    id:             catchId,
-    name:           fishData.name,
-    scientificName: fishData.scientificName || '',
-    emoji:          fishData.emoji || '🐟',
-    rarity,
-    weightKg,
-    price,
-    habitat:        fishData.habitat || 'unknown',
-    imageUrl:       fishData.imageUrl || null,
-    caughtAt:       Date.now(),
-    caughtBy:       username,
-    location,
-    rodUsed:        rod.id,
-    baitUsed:       baitUsed?.id || null,
-  };
+    const fishEntry = {
+      id:             catchId,
+      name:           fishData.name,
+      scientificName: fishData.scientificName || '',
+      emoji:          fishData.emoji || '🐟',
+      rarity,
+      weightKg,
+      price,
+      habitat:        fishData.habitat || 'unknown',
+      imageUrl:       fishData.imageUrl || null,
+      caughtAt:       Date.now(),
+      caughtBy:       username,
+      location,
+      rodUsed:        rod.id,
+      baitUsed:       baitUsed?.id || null,
+    };
 
-  // ── Update inventory & stats ──
-  inv.push(fishEntry);
-
-  stats.totalCast++;
-  if (rarity !== 'trash') {
-    stats.totalCatch++;
-    stats.totalValue += price;
-    stats.byRarity[rarity] = (stats.byRarity[rarity] || 0) + 1;
-    if (!stats.biggestFish || weightKg > stats.biggestFish.weightKg) {
-      stats.biggestFish = { name: fishData.name, weightKg, rarity, caughtAt: Date.now() };
+    inv.push(fishEntry);
+    stats.totalCast++;
+    if (rarity !== 'trash') {
+      stats.totalCatch++;
+      stats.totalValue += price;
+      stats.byRarity[rarity] = (stats.byRarity[rarity] || 0) + 1;
+      if (!stats.biggestFish || weightKg > stats.biggestFish.weightKg) {
+        stats.biggestFish = { name: fishData.name, weightKg, rarity, caughtAt: Date.now() };
+      }
     }
-  }
 
-  // Set cooldown
-  await Promise.all([
-    env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: Math.max(60, Math.ceil(rod.cooldownMs / 1000) + 5) }),
-    env.USERS_KV.put(invKey, JSON.stringify(inv)),
-    env.USERS_KV.put(statsKey, JSON.stringify(stats)),
-    baitUsed ? env.USERS_KV.put(baitKey, JSON.stringify(baits)) : Promise.resolve(),
-  ]);
+    await Promise.all([
+      env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: Math.max(60, Math.ceil(rod.cooldownMs / 1000) + 5) }),
+      env.USERS_KV.put(invKey, JSON.stringify(inv)),
+      env.USERS_KV.put(statsKey, JSON.stringify(stats)),
+      baitUsed ? env.USERS_KV.put(baitKey, JSON.stringify(baits)) : Promise.resolve(),
+    ]);
 
-  // ── Build response ──
-  const isTrash    = rarity === 'trash';
-  const isMythic   = rarity === 'mythic';
-  const isLegendary= rarity === 'legendary';
-  const headerColor = isMythic ? '\u001b[1;36m' : isLegendary ? '\u001b[1;33m' : rarityInfo.color;
+    const isTrash     = rarity === 'trash';
+    const isMythic    = rarity === 'mythic';
+    const isLegendary = rarity === 'legendary';
+    const headerColor = isMythic ? '\u001b[1;36m' : isLegendary ? '\u001b[1;33m' : rarityInfo.color;
+    const locationLabel = { ocean: '🌊 Laut', river: '🏞️ Sungai', deep: '🌑 Laut Dalam' };
 
-  const locationLabel = { ocean: '🌊 Laut', river: '🏞️ Sungai', deep: '🌑 Laut Dalam' };
-  const winMsg = isTrash
-    ? `🗑️ **${username}** malah dapat sampah! Buang dulu bro...`
-    : isMythic
-    ? `🌌 **MYTHIC CATCH!!!** **${username}** dapat **${fishData.name}** yang LEGENDARIS!!! 🎊🎊🎊`
-    : isLegendary
-    ? `🟡 **LEGENDARY!** **${username}** dapat **${fishData.name}**! Luar biasa!!! 🏆`
-    : `🎣 **${username}** dapat tangkapan!`;
+    const winMsg = isTrash
+      ? `🗑️ **${username}** malah dapat sampah! Buang dulu bro...`
+      : isMythic
+      ? `🌌 **MYTHIC CATCH!!!** **${username}** dapat **${fishData.name}** yang LEGENDARIS!!! 🎊🎊🎊`
+      : isLegendary
+      ? `🟡 **LEGENDARY!** **${username}** dapat **${fishData.name}**! Luar biasa!!! 🏆`
+      : `🎣 **${username}** dapat tangkapan!`;
 
-  const lines = [
-    '```ansi',
-    `\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m`,
-    `\u001b[2;34m║  ${headerColor}🎣  FISHING RESULT  🎣\u001b[0m             \u001b[2;34m║\u001b[0m`,
-    `\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m`,
-    '```',
-  ];
-
-  if (isTrash) {
-    lines.push(
-      `> ${fishData.emoji} Narik... narik... dapat **${fishData.name}**? Hadeh.`,
-      `> 🗑️ Sampah gak ada harganya. Buang aja.`
-    );
-  } else {
-lines.push(
+    const lines = [
       '```ansi',
-      `\u001b[1;33m━━━━━━━━━━━━ 🐟 TANGKAPAN ━━━━━━━━━━━━\u001b[0m`,
-      `\u001b[1;36m  ${fishData.emoji}  Nama       :\u001b[0m \u001b[1;37m${fishData.name}\u001b[0m`,
-      fishData.scientificName ? `\u001b[1;36m  🔬  Ilmiah    :\u001b[0m \u001b[2;37m${fishData.scientificName}\u001b[0m` : null,
-      `\u001b[1;36m  ⭐  Rarity    :\u001b[0m ${rarityInfo.color}${rarityInfo.name}\u001b[0m`,
-      `\u001b[1;36m  ⚖️  Berat     :\u001b[0m \u001b[0;37m${weightKg} kg\u001b[0m`,
-      `\u001b[1;36m  🌍  Habitat   :\u001b[0m \u001b[0;37m${fishData.habitat}\u001b[0m`,
-      `\u001b[1;36m  💰  Nilai     :\u001b[0m \u001b[1;32m🪙 ${price.toLocaleString()}\u001b[0m`,
-      `\u001b[1;36m  📍  Lokasi    :\u001b[0m \u001b[0;37m${locationLabel[location] || location}\u001b[0m`,
-      `\u001b[1;36m  🎣  Rod       :\u001b[0m \u001b[0;37m${rod.name}\u001b[0m`,
-      baitUsed ? `\u001b[1;36m  🪱  Bait      :\u001b[0m \u001b[0;37m${baitUsed.name}\u001b[0m` : null,
-      `\u001b[1;36m  🆔  ID        :\u001b[0m \u001b[2;37m${catchId}\u001b[0m`,
-      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '\u001b[1;32m━━━━━━━━━━━━ 📊 STATS ━━━━━━━━━━━━━━\u001b[0m',
-      `\u001b[1;36m  🎒  Inventory :\u001b[0m \u001b[0;37m${inv.length}/30 ikan\u001b[0m`,
-      `\u001b[1;36m  🏆  Total Catch:\u001b[0m \u001b[0;37m${stats.totalCatch}x\u001b[0m`,
-      `\u001b[1;36m  ⏳  Next Cast  :\u001b[0m \u001b[0;37m${fmtDuration(rod.cooldownMs)}\u001b[0m`,
-      `\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
+      `\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m`,
+      `\u001b[2;34m║  ${headerColor}🎣  FISHING RESULT  🎣\u001b[0m             \u001b[2;34m║\u001b[0m`,
+      `\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m`,
       '```',
-      `> 💡 \`/fish-sell start\` buat lelang | \`/aquarium add\` buat koleksi`
-    );
-  }
+    ];
 
-  return new Response(JSON.stringify({
-    type: 4,
-    data: {
-      content: winMsg,
-      embeds: [{
-        color: isMythic ? 0x00FFFF : isLegendary ? 0xFFD700 : isTrash ? 0x808080 : 0x2ECC71,
-        description: lines.filter(Boolean).join('\n'),
-        image: (!isTrash && fishData.imageUrl) ? { url: fishData.imageUrl } : undefined,
-        footer: { text: `OwoBim Fishing System • ${catchId}` },
-        timestamp: new Date().toISOString()
-      }]
+    if (isTrash) {
+      lines.push(
+        `> ${fishData.emoji} Narik... narik... dapat **${fishData.name}**? Hadeh.`,
+        `> 🗑️ Sampah gak ada harganya. Buang aja.`
+      );
+    } else {
+      lines.push(
+        '```ansi',
+        `\u001b[1;33m━━━━━━━━━━━━ 🐟 TANGKAPAN ━━━━━━━━━━━━\u001b[0m`,
+        `\u001b[1;36m  ${fishData.emoji}  Nama       :\u001b[0m \u001b[1;37m${fishData.name}\u001b[0m`,
+        fishData.scientificName ? `\u001b[1;36m  🔬  Ilmiah    :\u001b[0m \u001b[2;37m${fishData.scientificName}\u001b[0m` : null,
+        `\u001b[1;36m  ⭐  Rarity    :\u001b[0m ${rarityInfo.color}${rarityInfo.name}\u001b[0m`,
+        `\u001b[1;36m  ⚖️  Berat     :\u001b[0m \u001b[0;37m${weightKg} kg\u001b[0m`,
+        `\u001b[1;36m  🌍  Habitat   :\u001b[0m \u001b[0;37m${fishData.habitat}\u001b[0m`,
+        `\u001b[1;36m  💰  Nilai     :\u001b[0m \u001b[1;32m🪙 ${price.toLocaleString()}\u001b[0m`,
+        `\u001b[1;36m  📍  Lokasi    :\u001b[0m \u001b[0;37m${locationLabel[location] || location}\u001b[0m`,
+        `\u001b[1;36m  🎣  Rod       :\u001b[0m \u001b[0;37m${rod.name}\u001b[0m`,
+        baitUsed ? `\u001b[1;36m  🪱  Bait      :\u001b[0m \u001b[0;37m${baitUsed.name}\u001b[0m` : null,
+        `\u001b[1;36m  🆔  ID        :\u001b[0m \u001b[2;37m${catchId}\u001b[0m`,
+        '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+        '\u001b[1;32m━━━━━━━━━━━━ 📊 STATS ━━━━━━━━━━━━━━\u001b[0m',
+        `\u001b[1;36m  🎒  Inventory :\u001b[0m \u001b[0;37m${inv.length}/30 ikan\u001b[0m`,
+        `\u001b[1;36m  🏆  Total Catch:\u001b[0m \u001b[0;37m${stats.totalCatch}x\u001b[0m`,
+        `\u001b[1;36m  ⏳  Next Cast  :\u001b[0m \u001b[0;37m${fmtDuration(rod.cooldownMs)}\u001b[0m`,
+        `\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
+        '```',
+        `> 💡 \`/fish-sell start\` buat lelang | \`/aquarium add\` buat koleksi`
+      );
     }
-  }), { headers: { 'Content-Type': 'application/json' } });
+
+    await editMsg(winMsg, [{
+      color: isMythic ? 0x00FFFF : isLegendary ? 0xFFD700 : isTrash ? 0x808080 : 0x2ECC71,
+      description: lines.filter(Boolean).join('\n'),
+      image: (!isTrash && fishData.imageUrl) ? { url: fishData.imageUrl } : undefined,
+      footer: { text: `OwoBim Fishing System • ${catchId}` },
+      timestamp: new Date().toISOString()
+    }]);
+  })());
+
+  return new Response(JSON.stringify({ type: 5 }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
 
 
