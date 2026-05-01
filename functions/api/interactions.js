@@ -6628,7 +6628,7 @@ if (cmd === 'fishing') {
       `\u001b[1;36m  🎒  Inventory :\u001b[0m \u001b[0;37m${inv.length}/30 ikan\u001b[0m`,
       `\u001b[1;36m  🏆  Total Catch:\u001b[0m \u001b[0;37m${stats.totalCatch}x\u001b[0m`,
       `\u001b[1;36m  ⏳  Next Cast  :\u001b[0m \u001b[0;37m${fmtDuration(rod.cooldownMs)}\u001b[0m`,
-      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
+      `\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
       '```',
       `> 💡 \`/fish-sell start\` buat lelang | \`/aquarium add\` buat koleksi`
     ).filter(Boolean);
