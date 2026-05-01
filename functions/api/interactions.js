@@ -6575,7 +6575,7 @@ if (cmd === 'fishing') {
 
   // Set cooldown
   await Promise.all([
-    env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: Math.ceil(rod.cooldownMs / 1000) + 5 }),
+    env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: Math.max(60, Math.ceil(rod.cooldownMs / 1000) + 5) }),
     env.USERS_KV.put(invKey, JSON.stringify(inv)),
     env.USERS_KV.put(statsKey, JSON.stringify(stats)),
     baitUsed ? env.USERS_KV.put(baitKey, JSON.stringify(baits)) : Promise.resolve(),
