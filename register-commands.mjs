@@ -676,6 +676,176 @@ const commands = [
       ]
     }
   ]
+},
+
+
+
+  
+
+
+
+{
+  name: 'fishing',
+  description: '🎣 Mancing ikan dengan berbagai rarity!',
+  options: [
+    {
+      name: 'bait',
+      description: '🪱 Pilih umpan (opsional)',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '🪱 Cacing (gratis)',           value: 'worm'           },
+        { name: '🦐 Udang — 2.000',             value: 'shrimp'         },
+        { name: '🦑 Cumi — 5.000',              value: 'squid'          },
+        { name: '🐠 Ikan Emas — 15.000',        value: 'goldfish'       },
+        { name: '⚡ Legendary Lure — 50.000',   value: 'legendary_lure' }
+      ]
+    },
+    {
+      name: 'location',
+      description: '📍 Pilih lokasi mancing',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '🌊 Laut (default)',   value: 'ocean' },
+        { name: '🏞️ Sungai (-5% rare)', value: 'river' },
+        { name: '🌑 Laut Dalam (+20% rare)', value: 'deep' }
+      ]
+    }
+  ]
+},
+
+{
+  name: 'fish-inventory',
+  description: '🎒 Lihat kantong ikan kamu'
+},
+
+{
+  name: 'fish-sell',
+  description: '🔨 Lelang & jual ikan',
+  options: [
+    {
+      name: 'aksi',
+      description: 'Pilih aksi',
+      type: 3,
+      required: true,
+      choices: [
+        { name: '🔨 start — Mulai lelang',        value: 'start'   },
+        { name: '💰 bid — Pasang penawaran',       value: 'bid'     },
+        { name: '💵 sellall — Jual semua langsung',value: 'sellall' },
+        { name: '🎁 claim — Ambil hasil lelang',   value: 'claim'   },
+        { name: '📋 list — Lihat lelang aktif',    value: 'list'    }
+      ]
+    },
+    { name: 'id',         description: 'ID ikan (FISH-xxx) atau Auction ID (AUC-xxx)', type: 3, required: false },
+    { name: 'harga_awal', description: 'Harga awal lelang',                            type: 4, required: false },
+    { name: 'durasi',     description: 'Durasi lelang (1-24 jam)',                     type: 4, required: false },
+    { name: 'jumlah',     description: 'Jumlah bid',                                   type: 4, required: false },
+    {
+      name: 'rarity',
+      description: 'Filter rarity untuk sellall',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '⚪ Common',     value: 'common'    },
+        { name: '🟢 Uncommon',  value: 'uncommon'  },
+        { name: '🔵 Rare',      value: 'rare'      },
+        { name: '🟣 Epic',      value: 'epic'      },
+        { name: '🟡 Legendary', value: 'legendary' },
+        { name: '🌌 Mythic',    value: 'mythic'    },
+        { name: '🌀 Semua',     value: 'all'       }
+      ]
+    }
+  ]
+},
+
+{
+  name: 'fish-shop',
+  description: '🏪 Beli rod & bait untuk mancing',
+  options: [
+    {
+      name: 'aksi',
+      description: 'Pilih aksi',
+      type: 3,
+      required: true,
+      choices: [
+        { name: '🛒 browse — Lihat toko', value: 'browse' },
+        { name: '💳 buy — Beli item',     value: 'buy'    }
+      ]
+    },
+    {
+      name: 'rod',
+      description: 'Pilih rod yang mau dibeli',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '⚙️ Iron Rod — 15.000',    value: 'iron'    },
+        { name: '✨ Gold Rod — 50.000',    value: 'gold'    },
+        { name: '💎 Diamond Rod — 150.000',value: 'diamond' },
+        { name: '🌌 Mythic Rod — 500.000', value: 'mythic'  }
+      ]
+    },
+    {
+      name: 'bait',
+      description: 'Pilih bait yang mau dibeli',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '🪱 Cacing — 500',             value: 'worm'           },
+        { name: '🦐 Udang — 2.000',            value: 'shrimp'         },
+        { name: '🦑 Cumi — 5.000',             value: 'squid'          },
+        { name: '🐠 Ikan Emas — 15.000',       value: 'goldfish'       },
+        { name: '⚡ Legendary Lure — 50.000',  value: 'legendary_lure' }
+      ]
+    },
+    { name: 'jumlah', description: 'Jumlah bait yang mau dibeli (1-99)', type: 4, required: false }
+  ]
+},
+
+{
+  name: 'aquarium',
+  description: '🐠 Kelola koleksi aquarium ikan kamu',
+  options: [
+    {
+      name: 'aksi',
+      description: 'Pilih aksi',
+      type: 3,
+      required: true,
+      choices: [
+        { name: '👁️ view — Lihat aquarium',          value: 'view'   },
+        { name: '➕ add — Pindahkan ikan ke aquarium', value: 'add'    },
+        { name: '➖ remove — Keluarkan dari aquarium', value: 'remove' }
+      ]
+    },
+    { name: 'id',   description: 'ID ikan (FISH-xxx)', type: 3, required: false },
+    { name: 'user', description: 'Lihat aquarium user lain', type: 6, required: false }
+  ]
+},
+
+{
+  name: 'fish-leaderboard',
+  description: '🏆 Ranking top fisher server',
+  options: [
+    {
+      name: 'filter',
+      description: 'Filter leaderboard',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '🎣 Jumlah Tangkapan', value: 'catch'     },
+        { name: '💰 Total Nilai',      value: 'value'     },
+        { name: '🟡 Legendary Catch',  value: 'legendary' }
+      ]
+    }
+  ]
+},
+
+{
+  name: 'fish-stats',
+  description: '📊 Lihat statistik mancing kamu atau user lain',
+  options: [
+    { name: 'user', description: 'Lihat stats user lain', type: 6, required: false }
+  ]
 }
 
   
