@@ -707,9 +707,9 @@ const commands = [
       type: 3,
       required: false,
       choices: [
-        { name: '🌊 Laut (default)',   value: 'ocean' },
-        { name: '🏞️ Sungai (-5% rare)', value: 'river' },
-        { name: '🌑 Laut Dalam (+20% rare)', value: 'deep' }
+        { name: '🌊 Laut (default)',             value: 'ocean' },
+        { name: '🏞️ Sungai (-5% rare)',          value: 'river' },
+        { name: '🌑 Laut Dalam (+20% rare)',      value: 'deep'  }
       ]
     }
   ]
@@ -730,11 +730,11 @@ const commands = [
       type: 3,
       required: true,
       choices: [
-        { name: '🔨 start — Mulai lelang',        value: 'start'   },
-        { name: '💰 bid — Pasang penawaran',       value: 'bid'     },
-        { name: '💵 sellall — Jual semua langsung',value: 'sellall' },
-        { name: '🎁 claim — Ambil hasil lelang',   value: 'claim'   },
-        { name: '📋 list — Lihat lelang aktif',    value: 'list'    }
+        { name: '🔨 start — Mulai lelang',         value: 'start'   },
+        { name: '💰 bid — Pasang penawaran',        value: 'bid'     },
+        { name: '💵 sellall — Jual semua langsung', value: 'sellall' },
+        { name: '🎁 claim — Ambil hasil lelang',    value: 'claim'   },
+        { name: '📋 list — Lihat lelang aktif',     value: 'list'    }
       ]
     },
     { name: 'id',         description: 'ID ikan (FISH-xxx) atau Auction ID (AUC-xxx)', type: 3, required: false },
@@ -779,10 +779,10 @@ const commands = [
       type: 3,
       required: false,
       choices: [
-        { name: '⚙️ Iron Rod — 15.000',    value: 'iron'    },
-        { name: '✨ Gold Rod — 50.000',    value: 'gold'    },
-        { name: '💎 Diamond Rod — 150.000',value: 'diamond' },
-        { name: '🌌 Mythic Rod — 500.000', value: 'mythic'  }
+        { name: '⚙️ Iron Rod — 15.000',     value: 'iron'    },
+        { name: '✨ Gold Rod — 50.000',     value: 'gold'    },
+        { name: '💎 Diamond Rod — 150.000', value: 'diamond' },
+        { name: '🌌 Mythic Rod — 500.000',  value: 'mythic'  }
       ]
     },
     {
@@ -791,17 +791,18 @@ const commands = [
       type: 3,
       required: false,
       choices: [
-        { name: '🪱 Cacing — 500',             value: 'worm'           },
-        { name: '🦐 Udang — 2.000',            value: 'shrimp'         },
-        { name: '🦑 Cumi — 5.000',             value: 'squid'          },
-        { name: '🐠 Ikan Emas — 15.000',       value: 'goldfish'       },
-        { name: '⚡ Legendary Lure — 50.000',  value: 'legendary_lure' }
+        { name: '🪱 Cacing — 500',            value: 'worm'           },
+        { name: '🦐 Udang — 2.000',           value: 'shrimp'         },
+        { name: '🦑 Cumi — 5.000',            value: 'squid'          },
+        { name: '🐠 Ikan Emas — 15.000',      value: 'goldfish'       },
+        { name: '⚡ Legendary Lure — 50.000', value: 'legendary_lure' }
       ]
     },
     { name: 'jumlah', description: 'Jumlah bait yang mau dibeli (1-99)', type: 4, required: false }
   ]
 },
 
+// [UPDATED] Tambah choice 'info' di aquarium
 {
   name: 'aquarium',
   description: '🐠 Kelola koleksi aquarium ikan kamu',
@@ -812,12 +813,13 @@ const commands = [
       type: 3,
       required: true,
       choices: [
-        { name: '👁️ view — Lihat aquarium',          value: 'view'   },
-        { name: '➕ add — Pindahkan ikan ke aquarium', value: 'add'    },
-        { name: '➖ remove — Keluarkan dari aquarium', value: 'remove' }
+        { name: '👁️ view — Lihat aquarium',           value: 'view'   },
+        { name: '🔍 info — Detail & gambar 1 ikan',    value: 'info'   },
+        { name: '➕ add — Pindahkan ikan ke aquarium',  value: 'add'    },
+        { name: '➖ remove — Keluarkan dari aquarium',  value: 'remove' }
       ]
     },
-    { name: 'id',   description: 'ID ikan (FISH-xxx)', type: 3, required: false },
+    { name: 'id',   description: 'ID ikan (FISH-xxx)',      type: 3, required: false },
     { name: 'user', description: 'Lihat aquarium user lain', type: 6, required: false }
   ]
 },
