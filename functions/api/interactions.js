@@ -6968,7 +6968,7 @@ if (cmd === 'fish-sell') {
             `\u001b[1;36m  ⏰  Sisa Waktu :\u001b[0m \u001b[0;37m${fmtDuration(sisa)}\u001b[0m`,
             `\u001b[1;36m  💳  Saldo Sisa :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
             `\u001b[1;36m  📊  Total Bid  :\u001b[0m \u001b[0;37m${auction.bids.length}x\u001b[0m`,
-            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
             '```',
             `> ⚠️ Jika ada yang bid lebih tinggi, uangmu dikembalikan otomatis.`
           ].join('\n');
