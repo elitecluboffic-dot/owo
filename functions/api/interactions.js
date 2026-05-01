@@ -6233,6 +6233,1143 @@ if (cmd === 'search') {
   });
 }
 
+
+
+
+
+
+
+
+
+
+// ══════════════════════════════════════════════════════════════
+// DATA MASTER
+// ══════════════════════════════════════════════════════════════
+
+const FISHING_RODS = {
+  basic: {
+    id: 'basic', name: '🎣 Basic Rod', price: 0,
+    desc: 'Joran standar, gratis untuk semua',
+    rarityBoost: 0, cooldownMs: 60000, emoji: '🎣'
+  },
+  iron: {
+    id: 'iron', name: '⚙️ Iron Rod', price: 15000,
+    desc: 'Joran besi, sedikit meningkatkan chance rare',
+    rarityBoost: 5, cooldownMs: 50000, emoji: '⚙️'
+  },
+  gold: {
+    id: 'gold', name: '✨ Gold Rod', price: 50000,
+    desc: 'Joran emas, chance rare meningkat signifikan',
+    rarityBoost: 15, cooldownMs: 40000, emoji: '✨'
+  },
+  diamond: {
+    id: 'diamond', name: '💎 Diamond Rod', price: 150000,
+    desc: 'Joran berlian, chance legendary sangat tinggi',
+    rarityBoost: 30, cooldownMs: 30000, emoji: '💎'
+  },
+  mythic: {
+    id: 'mythic', name: '🌌 Mythic Rod', price: 500000,
+    desc: 'Joran mitos, garansi minimal Rare tiap cast',
+    rarityBoost: 50, cooldownMs: 20000, emoji: '🌌'
+  }
+};
+
+const FISHING_BAITS = {
+  worm: {
+    id: 'worm', name: '🪱 Cacing', price: 500, stock: 1,
+    desc: 'Umpan biasa, sedikit boost common fish',
+    rarityBoost: 2, sizeBoost: 0, emoji: '🪱'
+  },
+  shrimp: {
+    id: 'shrimp', name: '🦐 Udang', price: 2000, stock: 1,
+    desc: 'Boost chance uncommon & ukuran ikan',
+    rarityBoost: 8, sizeBoost: 10, emoji: '🦐'
+  },
+  squid: {
+    id: 'squid', name: '🦑 Cumi', price: 5000, stock: 1,
+    desc: 'Boost signifikan untuk rare fish',
+    rarityBoost: 18, sizeBoost: 20, emoji: '🦑'
+  },
+  goldfish: {
+    id: 'goldfish', name: '🐠 Ikan Emas', price: 15000, stock: 1,
+    desc: 'Umpan premium, boost legendary fish',
+    rarityBoost: 35, sizeBoost: 35, emoji: '🐠'
+  },
+  legendary_lure: {
+    id: 'legendary_lure', name: '⚡ Legendary Lure', price: 50000, stock: 1,
+    desc: 'Garansi minimal Epic, massive size boost',
+    rarityBoost: 60, sizeBoost: 50, emoji: '⚡'
+  }
+};
+
+// Rarity tiers
+const RARITY = {
+  trash:     { name: '🗑️ Sampah',    color: '\u001b[2;37m', weight: 20, basePrice: 0     },
+  common:    { name: '⚪ Common',     color: '\u001b[0;37m', weight: 35, basePrice: 200   },
+  uncommon:  { name: '🟢 Uncommon',  color: '\u001b[0;32m', weight: 25, basePrice: 800   },
+  rare:      { name: '🔵 Rare',      color: '\u001b[1;34m', weight: 12, basePrice: 3000  },
+  epic:      { name: '🟣 Epic',      color: '\u001b[1;35m', weight: 5,  basePrice: 12000 },
+  legendary: { name: '🟡 Legendary', color: '\u001b[1;33m', weight: 2,  basePrice: 50000 },
+  mythic:    { name: '🌌 Mythic',    color: '\u001b[1;36m', weight: 1,  basePrice: 200000}
+};
+
+// Ikan sampah (tidak pakai API)
+const TRASH_ITEMS = [
+  { name: 'Botol Plastik', emoji: '🍶' },
+  { name: 'Sepatu Bekas',  emoji: '👟' },
+  { name: 'Kaleng Rusak',  emoji: '🥫' },
+  { name: 'Ban Mobil',     emoji: '🛞' },
+  { name: 'Kantong Plastik', emoji: '🛍️' },
+  { name: 'Ember Bocor',   emoji: '🪣' },
+];
+
+// Ikan fallback jika API gagal
+const FALLBACK_FISH = {
+  common:    [{ name: 'Ikan Mas',      scientificName: 'Carassius auratus',       habitat: 'freshwater', emoji: '🐟' },
+              { name: 'Lele',           scientificName: 'Clarias batrachus',        habitat: 'freshwater', emoji: '🐟' },
+              { name: 'Nila',           scientificName: 'Oreochromis niloticus',    habitat: 'freshwater', emoji: '🐟' }],
+  uncommon:  [{ name: 'Kakap Putih',   scientificName: 'Lates calcarifer',         habitat: 'saltwater',  emoji: '🐠' },
+              { name: 'Bawal',          scientificName: 'Pampus argenteus',         habitat: 'saltwater',  emoji: '🐠' }],
+  rare:      [{ name: 'Marlin',         scientificName: 'Makaira nigricans',        habitat: 'saltwater',  emoji: '🐡' },
+              { name: 'Tenggiri',       scientificName: 'Scomberomorus commerson',  habitat: 'saltwater',  emoji: '🐡' }],
+  epic:      [{ name: 'Napoleon Fish',  scientificName: 'Cheilinus undulatus',      habitat: 'saltwater',  emoji: '🦈' },
+              { name: 'Swordfish',      scientificName: 'Xiphias gladius',          habitat: 'saltwater',  emoji: '🦈' }],
+  legendary: [{ name: 'Giant Tuna',     scientificName: 'Thunnus thynnus',          habitat: 'saltwater',  emoji: '🐋' }],
+  mythic:    [{ name: 'Coelacanth',     scientificName: 'Latimeria chalumnae',      habitat: 'deep sea',   emoji: '🌌' }],
+};
+
+// ══════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ══════════════════════════════════════════════════════════════
+
+// Fetch ikan dari FishWatch NOAA API
+async function fetchFishFromNOAA(rarity) {
+  try {
+    const res = await fetch('https://www.fishwatch.gov/api/species', {
+      headers: { 'User-Agent': 'OwoBimBot/1.0', 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (!res.ok) throw new Error('API down');
+    const all = await res.json();
+    if (!Array.isArray(all) || all.length === 0) throw new Error('Empty');
+
+    // Filter berdasarkan rarity → pakai kriteria berbeda
+    let filtered = all.filter(f => f['Species Name'] && f['Scientific Name']);
+
+    if (rarity === 'trash')     return null; // trash tidak dari API
+    if (rarity === 'common')    filtered = filtered.filter(f => !f['Fishing Rate'] || f['Fishing Rate'].includes('not overfished'));
+    if (rarity === 'uncommon')  filtered = filtered.slice(0, 100);
+    if (rarity === 'rare')      filtered = filtered.filter(f => f['Population'] && f['Population'].includes('below'));
+    if (rarity === 'epic')      filtered = filtered.filter(f => f['Fishing Rate'] && f['Fishing Rate'].includes('overfished'));
+    if (rarity === 'legendary') filtered = filtered.filter(f => f['NOAA Fisheries Region'] && f['NOAA Fisheries Region'].includes('Pacific'));
+    if (rarity === 'mythic')    filtered = filtered.slice(-10); // ambil 10 terakhir (paling langka)
+
+    if (filtered.length === 0) filtered = all;
+
+    const pick = filtered[Math.floor(Math.random() * filtered.length)];
+    return {
+      name:           pick['Species Name']    || pick['Species Aliases'] || 'Unknown Fish',
+      scientificName: pick['Scientific Name'] || '',
+      habitat:        pick['Habitat']         || 'ocean',
+      imageUrl:       pick['Species Illustration Photo']?.src || null,
+      fishingRate:    pick['Fishing Rate']    || '',
+      population:     pick['Population']     || '',
+      emoji:          getHabitatEmoji(pick['Habitat'] || ''),
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+function getHabitatEmoji(habitat) {
+  const h = habitat.toLowerCase();
+  if (h.includes('fresh'))  return '🐟';
+  if (h.includes('deep'))   return '🌊';
+  if (h.includes('coral'))  return '🐠';
+  if (h.includes('reef'))   return '🐡';
+  if (h.includes('pelagic'))return '🦈';
+  return '🐟';
+}
+
+// Tentukan rarity berdasarkan roll + boost
+function rollRarity(totalBoost) {
+  const weights = { ...Object.fromEntries(Object.entries(RARITY).map(([k, v]) => [k, v.weight])) };
+
+  // Apply boost: kurangi weight rendah, tambah weight tinggi
+  const boost = Math.min(totalBoost, 80);
+  weights.trash    = Math.max(1, weights.trash    - boost * 0.3);
+  weights.common   = Math.max(1, weights.common   - boost * 0.4);
+  weights.uncommon = weights.uncommon + boost * 0.2;
+  weights.rare     = weights.rare     + boost * 0.3;
+  weights.epic     = weights.epic     + boost * 0.25;
+  weights.legendary= weights.legendary + boost * 0.15;
+  weights.mythic   = weights.mythic   + boost * 0.1;
+
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  let roll = Math.random() * total;
+
+  for (const [key, w] of Object.entries(weights)) {
+    roll -= w;
+    if (roll <= 0) return key;
+  }
+  return 'common';
+}
+
+// Hitung harga ikan berdasarkan rarity + ukuran
+function calcFishPrice(rarity, weightKg) {
+  const base = RARITY[rarity]?.basePrice || 0;
+  const sizeMultiplier = 1 + (weightKg / 10);
+  return Math.floor(base * sizeMultiplier);
+}
+
+// Generate ukuran ikan random
+function rollFishSize(rarity, sizeBoost) {
+  const ranges = {
+    trash: [0, 0], common: [0.1, 2], uncommon: [0.5, 5],
+    rare: [2, 15], epic: [10, 50], legendary: [30, 150], mythic: [100, 500]
+  };
+  const [min, max] = ranges[rarity] || [0.1, 2];
+  const boost = sizeBoost / 100;
+  const base = min + Math.random() * (max - min);
+  return Math.round((base * (1 + boost)) * 100) / 100;
+}
+
+// Generate auction ID unik
+function genAuctionId() {
+  return `AUC-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
+
+// Format durasi
+function fmtDuration(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  if (h > 0) return `${h}j ${m}m`;
+  if (m > 0) return `${m}m ${s}d`;
+  return `${s}d`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// CMD: fishing — mancing utama
+// ══════════════════════════════════════════════════════════════
+if (cmd === 'fishing') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const useBait = getOption(options, 'bait') || 'none';
+  const location = getOption(options, 'location') || 'ocean'; // ocean / river / deep
+
+  // ── Cek cooldown ──
+  const cdKey     = `fishing:cd:${discordId}`;
+  const rodKey    = `fishing:rod:${discordId}`;
+  const baitKey   = `fishing:bait:${discordId}`;
+  const statsKey  = `fishing:stats:${discordId}`;
+  const invKey    = `fishing:inventory:${discordId}`;
+
+  const [cdRaw, rodRaw, baitRaw, statsRaw, invRaw] = await Promise.all([
+    env.USERS_KV.get(cdKey),
+    env.USERS_KV.get(rodKey),
+    env.USERS_KV.get(baitKey),
+    env.USERS_KV.get(statsKey),
+    env.USERS_KV.get(invKey),
+  ]);
+
+  const rod    = rodRaw ? JSON.parse(rodRaw) : FISHING_RODS.basic;
+  const baits  = baitRaw ? JSON.parse(baitRaw) : {};
+  const stats  = statsRaw ? JSON.parse(statsRaw) : { totalCast: 0, totalCatch: 0, totalValue: 0, biggestFish: null, byRarity: {} };
+  const inv    = invRaw ? JSON.parse(invRaw) : [];
+
+  // Cek cooldown
+  if (cdRaw) {
+    const lastCast = parseInt(cdRaw);
+    const sisa     = rod.cooldownMs - (Date.now() - lastCast);
+    if (sisa > 0) {
+      return respond([
+        `> ${EMOJI} ⏳ Joran kamu masih basah! Tunggu **${fmtDuration(sisa)}** lagi.`,
+        `> 🎣 Rod: **${rod.name}** | Cooldown: **${fmtDuration(rod.cooldownMs)}**`
+      ].join('\n'));
+    }
+  }
+
+  // Cek inventory penuh (max 30 ikan)
+  if (inv.length >= 30) {
+    return respond([
+      `> ${EMOJI} 🎒 Kantong penuh! Kamu punya **${inv.length}/30** ikan.`,
+      `> 💡 Jual lewat \`/fish-sell\` atau simpan di \`/aquarium add\` dulu!`
+    ].join('\n'));
+  }
+
+  // ── Hitung boost dari rod & bait ──
+  let rarityBoost = rod.rarityBoost || 0;
+  let sizeBoost   = 0;
+  let baitUsed    = null;
+
+  if (useBait !== 'none' && FISHING_BAITS[useBait]) {
+    const baitInfo  = FISHING_BAITS[useBait];
+    const baitStock = baits[useBait] || 0;
+    if (baitStock <= 0) {
+      return respond(`> ${EMOJI} ❌ Kamu tidak punya **${baitInfo.name}**!\n> 💡 Beli di \`/fish-shop\``);
+    }
+    rarityBoost += baitInfo.rarityBoost;
+    sizeBoost   += baitInfo.sizeBoost;
+    baits[useBait] = baitStock - 1;
+    baitUsed = baitInfo;
+  }
+
+  // Bonus lokasi
+  const locationBonus = { ocean: 0, river: -5, deep: 20 };
+  rarityBoost += locationBonus[location] || 0;
+
+  // ── Roll rarity & ukuran ──
+  const rarity  = rollRarity(rarityBoost);
+  const weightKg = rollFishSize(rarity, sizeBoost);
+  const rarityInfo = RARITY[rarity];
+
+  // ── Ambil data ikan ──
+  let fishData;
+  if (rarity === 'trash') {
+    const trash = TRASH_ITEMS[Math.floor(Math.random() * TRASH_ITEMS.length)];
+    fishData = { name: trash.name, scientificName: '', emoji: trash.emoji, habitat: 'trash', imageUrl: null };
+  } else {
+    // Coba NOAA API
+    const apiResult = await fetchFishFromNOAA(rarity);
+    if (apiResult) {
+      fishData = apiResult;
+    } else {
+      // Fallback ke data lokal
+      const pool = FALLBACK_FISH[rarity] || FALLBACK_FISH.common;
+      fishData = pool[Math.floor(Math.random() * pool.length)];
+    }
+  }
+
+  const price = calcFishPrice(rarity, weightKg);
+  const catchId = `FISH-${Date.now()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+
+  const fishEntry = {
+    id:             catchId,
+    name:           fishData.name,
+    scientificName: fishData.scientificName || '',
+    emoji:          fishData.emoji || '🐟',
+    rarity,
+    weightKg,
+    price,
+    habitat:        fishData.habitat || 'unknown',
+    imageUrl:       fishData.imageUrl || null,
+    caughtAt:       Date.now(),
+    caughtBy:       username,
+    location,
+    rodUsed:        rod.id,
+    baitUsed:       baitUsed?.id || null,
+  };
+
+  // ── Update inventory & stats ──
+  inv.push(fishEntry);
+
+  stats.totalCast++;
+  if (rarity !== 'trash') {
+    stats.totalCatch++;
+    stats.totalValue += price;
+    stats.byRarity[rarity] = (stats.byRarity[rarity] || 0) + 1;
+    if (!stats.biggestFish || weightKg > stats.biggestFish.weightKg) {
+      stats.biggestFish = { name: fishData.name, weightKg, rarity, caughtAt: Date.now() };
+    }
+  }
+
+  // Set cooldown
+  await Promise.all([
+    env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: Math.ceil(rod.cooldownMs / 1000) + 5 }),
+    env.USERS_KV.put(invKey, JSON.stringify(inv)),
+    env.USERS_KV.put(statsKey, JSON.stringify(stats)),
+    baitUsed ? env.USERS_KV.put(baitKey, JSON.stringify(baits)) : Promise.resolve(),
+  ]);
+
+  // ── Build response ──
+  const isTrash    = rarity === 'trash';
+  const isMythic   = rarity === 'mythic';
+  const isLegendary= rarity === 'legendary';
+  const headerColor = isMythic ? '\u001b[1;36m' : isLegendary ? '\u001b[1;33m' : rarityInfo.color;
+
+  const locationLabel = { ocean: '🌊 Laut', river: '🏞️ Sungai', deep: '🌑 Laut Dalam' };
+  const winMsg = isTrash
+    ? `🗑️ **${username}** malah dapat sampah! Buang dulu bro...`
+    : isMythic
+    ? `🌌 **MYTHIC CATCH!!!** **${username}** dapat **${fishData.name}** yang LEGENDARIS!!! 🎊🎊🎊`
+    : isLegendary
+    ? `🟡 **LEGENDARY!** **${username}** dapat **${fishData.name}**! Luar biasa!!! 🏆`
+    : `🎣 **${username}** dapat tangkapan!`;
+
+  const lines = [
+    '```ansi',
+    `\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m`,
+    `\u001b[2;34m║  ${headerColor}🎣  FISHING RESULT  🎣\u001b[0m             \u001b[2;34m║\u001b[0m`,
+    `\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m`,
+    '```',
+  ];
+
+  if (isTrash) {
+    lines.push(
+      `> ${fishData.emoji} Narik... narik... dapat **${fishData.name}**? Hadeh.`,
+      `> 🗑️ Sampah gak ada harganya. Buang aja.`
+    );
+  } else {
+    lines.push(
+      '```ansi',
+      `\u001b[1;33m━━━━━━━━━━━━ 🐟 TANGKAPAN ━━━━━━━━━━━━\u001b[0m`,
+      `\u001b[1;36m  ${fishData.emoji}  Nama       :\u001b[0m \u001b[1;37m${fishData.name}\u001b[0m`,
+      fishData.scientificName ? `\u001b[1;36m  🔬  Ilmiah    :\u001b[0m \u001b[2;37m${fishData.scientificName}\u001b[0m` : null,
+      `\u001b[1;36m  ⭐  Rarity    :\u001b[0m ${rarityInfo.color}${rarityInfo.name}\u001b[0m`,
+      `\u001b[1;36m  ⚖️  Berat     :\u001b[0m \u001b[0;37m${weightKg} kg\u001b[0m`,
+      `\u001b[1;36m  🌍  Habitat   :\u001b[0m \u001b[0;37m${fishData.habitat}\u001b[0m`,
+      `\u001b[1;36m  💰  Nilai     :\u001b[0m \u001b[1;32m🪙 ${price.toLocaleString()}\u001b[0m`,
+      `\u001b[1;36m  📍  Lokasi    :\u001b[0m \u001b[0;37m${locationLabel[location] || location}\u001b[0m`,
+      `\u001b[1;36m  🎣  Rod       :\u001b[0m \u001b[0;37m${rod.name}\u001b[0m`,
+      baitUsed ? `\u001b[1;36m  🪱  Bait      :\u001b[0m \u001b[0;37m${baitUsed.name}\u001b[0m` : null,
+      `\u001b[1;36m  🆔  ID        :\u001b[0m \u001b[2;37m${catchId}\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[1;32m━━━━━━━━━━━━ 📊 STATS ━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  🎒  Inventory :\u001b[0m \u001b[0;37m${inv.length}/30 ikan\u001b[0m`,
+      `\u001b[1;36m  🏆  Total Catch:\u001b[0m \u001b[0;37m${stats.totalCatch}x\u001b[0m`,
+      `\u001b[1;36m  ⏳  Next Cast  :\u001b[0m \u001b[0;37m${fmtDuration(rod.cooldownMs)}\u001b[0m`,
+      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
+      '```',
+      `> 💡 \`/fish-sell start\` buat lelang | \`/aquarium add\` buat koleksi`
+    ).filter(Boolean);
+  }
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: winMsg,
+      embeds: [{
+        color: isMythic ? 0x00FFFF : isLegendary ? 0xFFD700 : isTrash ? 0x808080 : 0x2ECC71,
+        description: lines.filter(Boolean).join('\n'),
+        image: (!isTrash && fishData.imageUrl) ? { url: fishData.imageUrl } : undefined,
+        footer: { text: `OwoBim Fishing System • ${catchId}` },
+        timestamp: new Date().toISOString()
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// CMD: fish-inventory — lihat kantong ikan
+// ══════════════════════════════════════════════════════════════
+if (cmd === 'fish-inventory') {
+  const EMOJI  = '<a:GifOwoBim:1492599199038967878>';
+  const invRaw = await env.USERS_KV.get(`fishing:inventory:${discordId}`);
+  const inv    = invRaw ? JSON.parse(invRaw) : [];
+
+  if (inv.length === 0) {
+    return respond([
+      `> ${EMOJI} 🎒 Kantong ikanmu kosong!`,
+      `> 💡 Gunakan \`/fishing\` untuk mulai mancing.`
+    ].join('\n'));
+  }
+
+  const sorted = [...inv].sort((a, b) => RARITY[b.rarity]?.basePrice - RARITY[a.rarity]?.basePrice);
+  const totalValue = inv.reduce((s, f) => s + (f.price || 0), 0);
+
+  const rows = sorted.map((f, i) => {
+    const r = RARITY[f.rarity];
+    return `${String(i+1).padStart(2)}. ${f.emoji || '🐟'} **${f.name}** ${r?.name || ''} — ${f.weightKg}kg — 🪙 ${(f.price||0).toLocaleString()} — \`${f.id}\``;
+  }).join('\n');
+
+  return respond([
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+    `\u001b[2;34m║  \u001b[1;33m🎒  FISH INVENTORY  🎒\u001b[0m            \u001b[2;34m║\u001b[0m`,
+    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    rows,
+    '',
+    `> 🎒 **${inv.length}/30** ikan | Total Nilai: 🪙 **${totalValue.toLocaleString()}**`,
+    `> 💡 \`/fish-sell start id:FISH-xxx\` untuk lelang | \`/fish-sell sellall\` jual semua`
+  ].join('\n'));
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// CMD: fish-sell — auction & jual ikan
+// Sub: start | bid | sellall | myauctions | cancel
+// ══════════════════════════════════════════════════════════════
+if (cmd === 'fish-sell') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const sub   = getOption(options, 'aksi') || 'start';
+
+  // ────────────────────────────
+  // SUB: start — mulai lelang
+  // ────────────────────────────
+  if (sub === 'start') {
+    const fishId    = getOption(options, 'id');
+    const startBid  = parseInt(getOption(options, 'harga_awal') || '0');
+    const durationH = parseInt(getOption(options, 'durasi') || '1'); // 1-24 jam
+
+    if (!fishId) return respond(`> ${EMOJI} ❌ Masukkan ID ikan! Cek \`/fish-inventory\``);
+    if (startBid < 0) return respond(`> ${EMOJI} ❌ Harga awal tidak boleh negatif!`);
+    if (durationH < 1 || durationH > 24) return respond(`> ${EMOJI} ❌ Durasi lelang 1-24 jam!`);
+
+    const invRaw = await env.USERS_KV.get(`fishing:inventory:${discordId}`);
+    const inv    = invRaw ? JSON.parse(invRaw) : [];
+    const fishIdx = inv.findIndex(f => f.id === fishId);
+
+    if (fishIdx === -1) return respond(`> ${EMOJI} ❌ Ikan ID **${fishId}** tidak ada di inventory kamu!`);
+
+    const fish       = inv[fishIdx];
+    const rInfo      = RARITY[fish.rarity];
+    const minPrice   = Math.floor(fish.price * 0.1); // min 10% dari nilai
+    const actualStart = Math.max(startBid, minPrice);
+    const auctionId  = genAuctionId();
+    const endTime    = Date.now() + durationH * 3600000;
+
+    // Hapus dari inventory
+    inv.splice(fishIdx, 1);
+
+    const auctionData = {
+      id:          auctionId,
+      fish,
+      sellerId:    discordId,
+      sellerName:  username,
+      startBid:    actualStart,
+      currentBid:  actualStart,
+      highestBidder: null,
+      highestBidderName: null,
+      bids:        [],
+      endTime,
+      createdAt:   Date.now(),
+      channelId,
+      guildId,
+      status:      'active'
+    };
+
+    // Ambil list auction aktif
+    const listRaw = await env.USERS_KV.get('fishing:auctions:active');
+    const auctionList = listRaw ? JSON.parse(listRaw) : [];
+    auctionList.push({ id: auctionId, endTime, sellerId: discordId });
+
+    await Promise.all([
+      env.USERS_KV.put(`fishing:auction:${auctionId}`, JSON.stringify(auctionData), { expirationTtl: 86400 * 2 }),
+      env.USERS_KV.put('fishing:auctions:active', JSON.stringify(auctionList)),
+      env.USERS_KV.put(`fishing:inventory:${discordId}`, JSON.stringify(inv)),
+    ]);
+
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  🔨  LELANG DIMULAI!  🔨             ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} 🔨 **${fish.emoji || '🐟'} ${fish.name}** sekarang dilelang!`,
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━━ 🔨 DETAIL LELANG ━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  🆔  Auction ID :\u001b[0m \u001b[0;37m${auctionId}\u001b[0m`,
+      `\u001b[1;36m  🐟  Ikan       :\u001b[0m \u001b[1;37m${fish.name}\u001b[0m`,
+      `\u001b[1;36m  ⭐  Rarity     :\u001b[0m ${rInfo?.color || ''}${rInfo?.name || fish.rarity}\u001b[0m`,
+      `\u001b[1;36m  ⚖️  Berat      :\u001b[0m \u001b[0;37m${fish.weightKg} kg\u001b[0m`,
+      `\u001b[1;36m  💰  Harga Awal :\u001b[0m \u001b[1;32m🪙 ${actualStart.toLocaleString()}\u001b[0m`,
+      `\u001b[1;36m  💎  Est. Value :\u001b[0m \u001b[0;37m🪙 ${fish.price.toLocaleString()}\u001b[0m`,
+      `\u001b[1;36m  ⏰  Berakhir   :\u001b[0m \u001b[0;37m${durationH} jam dari sekarang\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> 🏷️ User lain bid pakai: \`/fish-sell bid id:${auctionId} jumlah:xxx\``
+    ].join('\n'));
+  }
+
+  // ────────────────────────────
+  // SUB: bid — pasang penawaran
+  // ────────────────────────────
+  if (sub === 'bid') {
+    const auctionId = getOption(options, 'id');
+    const bidAmount = parseInt(getOption(options, 'jumlah') || '0');
+
+    if (!auctionId) return respond(`> ${EMOJI} ❌ Masukkan Auction ID!`);
+    if (!bidAmount || bidAmount <= 0) return respond(`> ${EMOJI} ❌ Jumlah bid tidak valid!`);
+
+    const auctionRaw = await env.USERS_KV.get(`fishing:auction:${auctionId}`);
+    if (!auctionRaw) return respond(`> ${EMOJI} ❌ Lelang **${auctionId}** tidak ditemukan atau sudah berakhir!`);
+
+    const auction = JSON.parse(auctionRaw);
+
+    if (auction.status !== 'active') return respond(`> ${EMOJI} ❌ Lelang ini sudah **${auction.status}**!`);
+    if (Date.now() > auction.endTime) return respond(`> ${EMOJI} ❌ Lelang sudah berakhir!`);
+    if (auction.sellerId === discordId) return respond(`> ${EMOJI} ❌ Tidak bisa bid di lelang sendiri!`);
+    if (bidAmount <= auction.currentBid) {
+      return respond(`> ${EMOJI} ❌ Bid harus lebih dari 🪙 **${auction.currentBid.toLocaleString()}** (bid tertinggi saat ini)!`);
+    }
+    if (bidAmount > user.balance) {
+      return respond(`> ${EMOJI} ❌ Saldo tidak cukup! Kamu punya 🪙 **${user.balance.toLocaleString()}**`);
+    }
+
+    // Refund bidder lama
+    if (auction.highestBidder && auction.highestBidder !== discordId) {
+      const prevBidderStr = await env.USERS_KV.get(`user:${auction.highestBidder}`);
+      if (prevBidderStr) {
+        const prevBidder = JSON.parse(prevBidderStr);
+        prevBidder.balance += auction.currentBid;
+        await env.USERS_KV.put(`user:${auction.highestBidder}`, JSON.stringify(prevBidder));
+      }
+    }
+
+    // Kurangi saldo bidder baru
+    user.balance -= bidAmount;
+    await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user));
+
+    // Update auction
+    auction.currentBid = bidAmount;
+    auction.highestBidder = discordId;
+    auction.highestBidderName = username;
+    auction.bids.push({ bidderId: discordId, bidderName: username, amount: bidAmount, at: Date.now() });
+    if (auction.bids.length > 20) auction.bids = auction.bids.slice(-20);
+
+    await env.USERS_KV.put(`fishing:auction:${auctionId}`, JSON.stringify(auction), { expirationTtl: 86400 * 2 });
+
+    const sisa = auction.endTime - Date.now();
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  💰  BID BERHASIL!  💰               ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} 🏷️ Kamu memimpin lelang **${auction.fish.name}**!`,
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━━ 💰 BID INFO ━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  🆔  Auction    :\u001b[0m \u001b[0;37m${auctionId}\u001b[0m`,
+      `\u001b[1;36m  🐟  Ikan       :\u001b[0m \u001b[1;37m${auction.fish.name}\u001b[0m`,
+      `\u001b[1;36m  💰  Bid Kamu   :\u001b[0m \u001b[1;32m🪙 ${bidAmount.toLocaleString()}\u001b[0m`,
+      `\u001b[1;36m  👑  Posisi     :\u001b[0m \u001b[1;32m#1 TERTINGGI\u001b[0m`,
+      `\u001b[1;36m  ⏰  Sisa Waktu :\u001b[0m \u001b[0;37m${fmtDuration(sisa)}\u001b[0m`,
+      `\u001b[1;36m  💳  Saldo Sisa :\u001b[0m \u001b[0;37m🪙 ${user.balance.toLocaleString()}\u001b[0m`,
+      `\u001b[1;36m  📊  Total Bid  :\u001b[0m \u001b[0;37m${auction.bids.length}x\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> ⚠️ Jika ada yang bid lebih tinggi, uangmu dikembalikan otomatis.`
+    ].join('\n'));
+  }
+
+  // ────────────────────────────
+  // SUB: sellall — jual semua langsung (tanpa lelang)
+  // ────────────────────────────
+  if (sub === 'sellall') {
+    const rarityFilter = getOption(options, 'rarity') || 'all';
+    const invRaw = await env.USERS_KV.get(`fishing:inventory:${discordId}`);
+    const inv    = invRaw ? JSON.parse(invRaw) : [];
+
+    if (inv.length === 0) return respond(`> ${EMOJI} 🎒 Inventory kosong!`);
+
+    let toSell = inv;
+    if (rarityFilter !== 'all') {
+      toSell = inv.filter(f => f.rarity === rarityFilter);
+    }
+    // Jangan jual trash (tidak ada nilainya)
+    toSell = toSell.filter(f => f.rarity !== 'trash');
+
+    if (toSell.length === 0) return respond(`> ${EMOJI} ❌ Tidak ada ikan untuk dijual dengan filter **${rarityFilter}**!`);
+
+    const totalEarned = toSell.reduce((s, f) => s + (f.price || 0), 0);
+    const remaining   = inv.filter(f => !toSell.includes(f));
+
+    user.balance += totalEarned;
+    user.totalEarned = (user.totalEarned || 0) + totalEarned;
+
+    await Promise.all([
+      env.USERS_KV.put(`fishing:inventory:${discordId}`, JSON.stringify(remaining)),
+      env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user)),
+    ]);
+    waitUntil(pushLinkedRole(env, discordId, null, user));
+
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  💰  IKAN TERJUAL!  💰               ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ✅ Berhasil jual **${toSell.length} ikan**!`,
+      `> 🪙 Dapat: **${totalEarned.toLocaleString()} cowoncy**`,
+      `> 💳 Saldo baru: **${user.balance.toLocaleString()} cowoncy**`,
+      `> 🎒 Sisa inventory: **${remaining.length}/30**`
+    ].join('\n'));
+  }
+
+  // ────────────────────────────
+  // SUB: claim — ambil ikan yang dimenangkan / uang dari lelang yang berakhir
+  // ────────────────────────────
+  if (sub === 'claim') {
+    const auctionId = getOption(options, 'id');
+    if (!auctionId) return respond(`> ${EMOJI} ❌ Masukkan Auction ID!`);
+
+    const auctionRaw = await env.USERS_KV.get(`fishing:auction:${auctionId}`);
+    if (!auctionRaw) return respond(`> ${EMOJI} ❌ Lelang tidak ditemukan!`);
+
+    const auction = JSON.parse(auctionRaw);
+    if (Date.now() < auction.endTime) {
+      return respond(`> ${EMOJI} ⏳ Lelang belum berakhir! Sisa: **${fmtDuration(auction.endTime - Date.now())}**`);
+    }
+    if (auction.status === 'claimed') return respond(`> ${EMOJI} ❌ Lelang ini sudah diklaim!`);
+
+    // Seller claim → dapat uang
+    if (discordId === auction.sellerId) {
+      if (!auction.highestBidder) {
+        // Tidak ada pembeli
+        auction.status = 'claimed';
+        // Kembalikan ikan ke inventory
+        const invRaw = await env.USERS_KV.get(`fishing:inventory:${discordId}`);
+        const inv = invRaw ? JSON.parse(invRaw) : [];
+        inv.push(auction.fish);
+        await Promise.all([
+          env.USERS_KV.put(`fishing:auction:${auctionId}`, JSON.stringify(auction)),
+          env.USERS_KV.put(`fishing:inventory:${discordId}`, JSON.stringify(inv)),
+        ]);
+        return respond(`> ${EMOJI} 😔 Tidak ada yang bid! Ikan **${auction.fish.name}** dikembalikan ke inventory.`);
+      }
+
+      const earned = auction.currentBid;
+      user.balance += earned;
+      user.totalEarned = (user.totalEarned || 0) + earned;
+      auction.status = 'claimed';
+      await Promise.all([
+        env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user)),
+        env.USERS_KV.put(`fishing:auction:${auctionId}`, JSON.stringify(auction)),
+      ]);
+      waitUntil(pushLinkedRole(env, discordId, null, user));
+      return respond([
+        `> ${EMOJI} 🎉 Lelang selesai! **${auction.fish.name}** terjual seharga 🪙 **${earned.toLocaleString()}**`,
+        `> 👑 Dibeli oleh: **${auction.highestBidderName}**`,
+        `> 💳 Saldo baru: 🪙 **${user.balance.toLocaleString()}**`
+      ].join('\n'));
+    }
+
+    // Winner claim → dapat ikan
+    if (discordId === auction.highestBidder) {
+      auction.status = 'claimed';
+      const invRaw = await env.USERS_KV.get(`fishing:inventory:${discordId}`);
+      const inv = invRaw ? JSON.parse(invRaw) : [];
+      inv.push(auction.fish);
+      await Promise.all([
+        env.USERS_KV.put(`fishing:auction:${auctionId}`, JSON.stringify(auction)),
+        env.USERS_KV.put(`fishing:inventory:${discordId}`, JSON.stringify(inv)),
+      ]);
+      return respond([
+        `> ${EMOJI} 🎉 Selamat! Kamu memenangkan lelang!`,
+        `> 🐟 **${auction.fish.name}** (${RARITY[auction.fish.rarity]?.name}) sudah masuk inventory!`,
+        `> 💰 Dibayar: 🪙 **${auction.currentBid.toLocaleString()}**`
+      ].join('\n'));
+    }
+
+    return respond(`> ${EMOJI} ❌ Kamu bukan seller maupun pemenang lelang ini!`);
+  }
+
+  // ────────────────────────────
+  // SUB: list — lihat lelang aktif
+  // ────────────────────────────
+  if (sub === 'list') {
+    const listRaw = await env.USERS_KV.get('fishing:auctions:active');
+    const auctionList = listRaw ? JSON.parse(listRaw) : [];
+
+    // Filter yang masih aktif
+    const active = auctionList.filter(a => Date.now() < a.endTime);
+    if (active.length === 0) return respond(`> ${EMOJI} 📭 Tidak ada lelang aktif saat ini!`);
+
+    // Ambil detail 10 terbaru
+    const details = await Promise.all(
+      active.slice(-10).map(a => env.USERS_KV.get(`fishing:auction:${a.id}`))
+    );
+
+    const rows = details.filter(Boolean).map(raw => {
+      const a = JSON.parse(raw);
+      const r = RARITY[a.fish.rarity];
+      const sisa = a.endTime - Date.now();
+      return [
+        `🔨 **${a.fish.emoji || '🐟'} ${a.fish.name}** ${r?.name || ''} | ${a.fish.weightKg}kg`,
+        `> 💰 Bid: 🪙 **${a.currentBid.toLocaleString()}** | 👤 Penjual: **${a.sellerName}** | ⏰ **${fmtDuration(sisa)}** lagi`,
+        `> 🆔 \`${a.id}\` — bid: \`/fish-sell bid id:${a.id} jumlah:xxx\``
+      ].join('\n');
+    }).join('\n\n');
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      `\u001b[2;34m║  \u001b[1;33m🔨  LELANG AKTIF  🔨\u001b[0m               \u001b[2;34m║\u001b[0m`,
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} **${active.length}** lelang sedang berlangsung:`,
+      '',
+      rows
+    ].join('\n'));
+  }
+
+  return respond(`> ❌ Aksi tidak dikenal! Gunakan: \`start\`, \`bid\`, \`sellall\`, \`claim\`, \`list\``);
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// CMD: fish-shop — beli rod & bait
+// ══════════════════════════════════════════════════════════════
+if (cmd === 'fish-shop') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const sub   = getOption(options, 'aksi') || 'browse';
+
+  // ────────────────────────────
+  // SUB: browse — lihat toko
+  // ────────────────────────────
+  if (sub === 'browse') {
+    const rodRaw  = await env.USERS_KV.get(`fishing:rod:${discordId}`);
+    const baitRaw = await env.USERS_KV.get(`fishing:bait:${discordId}`);
+    const rod     = rodRaw ? JSON.parse(rodRaw) : FISHING_RODS.basic;
+    const baits   = baitRaw ? JSON.parse(baitRaw) : {};
+
+    const rodLines = Object.values(FISHING_RODS).map(r => {
+      const owned = rod.id === r.id;
+      return `${owned ? '✅' : '  '} ${r.emoji} **${r.name}** — 🪙 ${r.price.toLocaleString()} | CD: ${fmtDuration(r.cooldownMs)} | Boost: +${r.rarityBoost}%\n  > ${r.desc}`;
+    }).join('\n');
+
+    const baitLines = Object.values(FISHING_BAITS).map(b => {
+      const stock = baits[b.id] || 0;
+      return `${b.emoji} **${b.name}** — 🪙 ${b.price.toLocaleString()} | Rarity +${b.rarityBoost}% | Size +${b.sizeBoost}% | Stok: **${stock}**\n  > ${b.desc}`;
+    }).join('\n');
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      `\u001b[2;34m║  \u001b[1;33m🏪  FISH SHOP  🏪\u001b[0m                 \u001b[2;34m║\u001b[0m`,
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} 💰 Saldo: 🪙 **${user.balance.toLocaleString()}** | Rod aktif: **${rod.name}**`,
+      '',
+      '**🎣 FISHING RODS:**',
+      rodLines,
+      '',
+      '**🪱 BAIT / UMPAN:**',
+      baitLines,
+      '',
+      `> 💡 Beli rod: \`/fish-shop buy rod:gold\``,
+      `> 💡 Beli bait: \`/fish-shop buy bait:squid jumlah:5\``
+    ].join('\n'));
+  }
+
+  // ────────────────────────────
+  // SUB: buy — beli item
+  // ────────────────────────────
+  if (sub === 'buy') {
+    const rodId    = getOption(options, 'rod');
+    const baitId   = getOption(options, 'bait');
+    const qty      = parseInt(getOption(options, 'jumlah') || '1');
+
+    // Beli rod
+    if (rodId) {
+      const rodInfo = FISHING_RODS[rodId];
+      if (!rodInfo) return respond(`> ${EMOJI} ❌ Rod **${rodId}** tidak ada!`);
+      if (rodInfo.price === 0 && rodId === 'basic') return respond(`> ${EMOJI} ℹ️ Basic Rod sudah kamu miliki gratis!`);
+      if (user.balance < rodInfo.price) {
+        return respond(`> ${EMOJI} ❌ Saldo tidak cukup! Butuh 🪙 **${rodInfo.price.toLocaleString()}** tapi kamu punya 🪙 **${user.balance.toLocaleString()}**`);
+      }
+
+      user.balance -= rodInfo.price;
+      await Promise.all([
+        env.USERS_KV.put(`fishing:rod:${discordId}`, JSON.stringify(rodInfo)),
+        env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user)),
+      ]);
+
+      return respond([
+        `> ${EMOJI} ✅ Berhasil beli **${rodInfo.name}**!`,
+        `> 🎣 Sekarang cooldown mancing kamu **${fmtDuration(rodInfo.cooldownMs)}** | Rarity boost **+${rodInfo.rarityBoost}%**`,
+        `> 💳 Saldo: 🪙 **${user.balance.toLocaleString()}**`
+      ].join('\n'));
+    }
+
+    // Beli bait
+    if (baitId) {
+      if (!qty || qty <= 0 || qty > 99) return respond(`> ${EMOJI} ❌ Jumlah bait 1-99!`);
+      const baitInfo = FISHING_BAITS[baitId];
+      if (!baitInfo) return respond(`> ${EMOJI} ❌ Bait **${baitId}** tidak ada!`);
+
+      const totalPrice = baitInfo.price * qty;
+      if (user.balance < totalPrice) {
+        return respond(`> ${EMOJI} ❌ Saldo tidak cukup! Butuh 🪙 **${totalPrice.toLocaleString()}**`);
+      }
+
+      user.balance -= totalPrice;
+      const baitRaw = await env.USERS_KV.get(`fishing:bait:${discordId}`);
+      const baits   = baitRaw ? JSON.parse(baitRaw) : {};
+      baits[baitId] = (baits[baitId] || 0) + qty;
+
+      await Promise.all([
+        env.USERS_KV.put(`fishing:bait:${discordId}`, JSON.stringify(baits)),
+        env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user)),
+      ]);
+
+      return respond([
+        `> ${EMOJI} ✅ Beli **${qty}x ${baitInfo.name}** seharga 🪙 **${totalPrice.toLocaleString()}**!`,
+        `> 🪱 Stok ${baitInfo.name}: **${baits[baitId]}**`,
+        `> 💳 Saldo: 🪙 **${user.balance.toLocaleString()}**`
+      ].join('\n'));
+    }
+
+    return respond(`> ${EMOJI} ❌ Tentukan \`rod:\` atau \`bait:\` yang mau dibeli!`);
+  }
+
+  return respond(`> ❌ Aksi tidak dikenal! Gunakan: \`browse\` atau \`buy\``);
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// CMD: aquarium — koleksi & pelihara ikan
+// Sub: view | add | remove | info
+// ══════════════════════════════════════════════════════════════
+if (cmd === 'aquarium') {
+  const EMOJI  = '<a:GifOwoBim:1492599199038967878>';
+  const sub    = getOption(options, 'aksi') || 'view';
+  const fishId = getOption(options, 'id');
+
+  const targetOpt = options.find(o => o.name === 'user');
+  const targetId  = targetOpt ? String(targetOpt.value) : discordId;
+  const targetUser = targetOpt
+    ? interaction.data.resolved?.users?.[targetId]
+    : (interaction.member?.user || interaction.user);
+  const targetName = targetUser?.username || 'Unknown';
+
+  // ────────────────────────────
+  // SUB: view — lihat aquarium
+  // ────────────────────────────
+  if (sub === 'view') {
+    const aquaRaw = await env.USERS_KV.get(`fishing:aquarium:${targetId}`);
+    const aqua    = aquaRaw ? JSON.parse(aquaRaw) : [];
+
+    if (aqua.length === 0) {
+      return respond([
+        `> ${EMOJI} 🐠 Aquarium **${targetName}** masih kosong!`,
+        `> 💡 Tambah ikan dengan \`/aquarium add id:FISH-xxx\``
+      ].join('\n'));
+    }
+
+    // Hitung nilai total aquarium
+    const totalValue = aqua.reduce((s, f) => s + (f.price || 0), 0);
+
+    // Tampilkan berdasarkan rarity (terbaik duluan)
+    const sorted = [...aqua].sort((a, b) => (RARITY[b.rarity]?.basePrice || 0) - (RARITY[a.rarity]?.basePrice || 0));
+
+    const rows = sorted.map((f, i) => {
+      const r = RARITY[f.rarity];
+      const age = Math.floor((Date.now() - f.caughtAt) / 86400000);
+      return `${String(i + 1).padStart(2)}. ${f.emoji || '🐟'} **${f.name}** ${r?.name || ''} — ${f.weightKg}kg — ${age}h lalu`;
+    }).join('\n');
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      `\u001b[2;34m║  \u001b[1;36m🐠  AQUARIUM ${targetName.slice(0, 12).padEnd(12)}  🐠\u001b[0m \u001b[2;34m║\u001b[0m`,
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      rows,
+      '',
+      `> 🐠 **${aqua.length}/20** ikan | Nilai Koleksi: 🪙 **${totalValue.toLocaleString()}**`,
+      `> 💡 \`/aquarium add id:FISH-xxx\` | \`/aquarium remove id:FISH-xxx\``
+    ].join('\n'));
+  }
+
+  // ────────────────────────────
+  // SUB: add — pindahkan ikan ke aquarium
+  // ────────────────────────────
+  if (sub === 'add') {
+    if (!fishId) return respond(`> ${EMOJI} ❌ Masukkan ID ikan!`);
+
+    const [invRaw, aquaRaw] = await Promise.all([
+      env.USERS_KV.get(`fishing:inventory:${discordId}`),
+      env.USERS_KV.get(`fishing:aquarium:${discordId}`),
+    ]);
+    const inv  = invRaw  ? JSON.parse(invRaw)  : [];
+    const aqua = aquaRaw ? JSON.parse(aquaRaw) : [];
+
+    const fishIdx = inv.findIndex(f => f.id === fishId);
+    if (fishIdx === -1) return respond(`> ${EMOJI} ❌ Ikan ID **${fishId}** tidak ada di inventory!`);
+    if (aqua.length >= 20) return respond(`> ${EMOJI} ❌ Aquarium penuh! Maksimal **20 ikan**.`);
+
+    const fish = inv[fishIdx];
+    if (fish.rarity === 'trash') return respond(`> ${EMOJI} ❌ Tidak bisa simpan sampah di aquarium! 🗑️`);
+
+    inv.splice(fishIdx, 1);
+    aqua.push({ ...fish, addedToAquariumAt: Date.now() });
+
+    await Promise.all([
+      env.USERS_KV.put(`fishing:inventory:${discordId}`, JSON.stringify(inv)),
+      env.USERS_KV.put(`fishing:aquarium:${discordId}`, JSON.stringify(aqua)),
+    ]);
+
+    return respond([
+      `> ${EMOJI} 🐠 **${fish.name}** berhasil dipindah ke aquarium!`,
+      `> 🐠 Aquarium: **${aqua.length}/20** | Inventory: **${inv.length}/30**`
+    ].join('\n'));
+  }
+
+  // ────────────────────────────
+  // SUB: remove — keluarkan dari aquarium
+  // ────────────────────────────
+  if (sub === 'remove') {
+    if (!fishId) return respond(`> ${EMOJI} ❌ Masukkan ID ikan!`);
+
+    const [invRaw, aquaRaw] = await Promise.all([
+      env.USERS_KV.get(`fishing:inventory:${discordId}`),
+      env.USERS_KV.get(`fishing:aquarium:${discordId}`),
+    ]);
+    const inv  = invRaw  ? JSON.parse(invRaw)  : [];
+    const aqua = aquaRaw ? JSON.parse(aquaRaw) : [];
+
+    const fishIdx = aqua.findIndex(f => f.id === fishId);
+    if (fishIdx === -1) return respond(`> ${EMOJI} ❌ Ikan ID **${fishId}** tidak ada di aquarium!`);
+    if (inv.length >= 30) return respond(`> ${EMOJI} ❌ Inventory penuh! Jual dulu beberapa ikan.`);
+
+    const fish = aqua[fishIdx];
+    aqua.splice(fishIdx, 1);
+    inv.push(fish);
+
+    await Promise.all([
+      env.USERS_KV.put(`fishing:inventory:${discordId}`, JSON.stringify(inv)),
+      env.USERS_KV.put(`fishing:aquarium:${discordId}`, JSON.stringify(aqua)),
+    ]);
+
+    return respond([
+      `> ${EMOJI} 🎒 **${fish.name}** dikembalikan ke inventory!`,
+      `> 🐠 Aquarium: **${aqua.length}/20** | Inventory: **${inv.length}/30**`
+    ].join('\n'));
+  }
+
+  return respond(`> ❌ Aksi tidak dikenal! Gunakan: \`view\`, \`add\`, \`remove\``);
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// CMD: fish-leaderboard — top fisher
+// ══════════════════════════════════════════════════════════════
+if (cmd === 'fish-leaderboard') {
+  const EMOJI  = '<a:GifOwoBim:1492599199038967878>';
+  const filter = getOption(options, 'filter') || 'catch'; // catch | value | legendary
+
+  // Scan semua user (menggunakan list prefix)
+  const { keys } = await env.USERS_KV.list({ prefix: 'fishing:stats:' });
+
+  const allStats = [];
+  for (const key of keys) {
+    const raw = await env.USERS_KV.get(key.name);
+    if (!raw) continue;
+    const s   = JSON.parse(raw);
+    const uid = key.name.replace('fishing:stats:', '');
+    allStats.push({ ...s, discordId: uid });
+  }
+
+  // Sort berdasarkan filter
+  let sorted, title;
+  if (filter === 'value') {
+    sorted = allStats.sort((a, b) => (b.totalValue || 0) - (a.totalValue || 0));
+    title  = '💰 Top Fisher by Nilai Tangkapan';
+  } else if (filter === 'legendary') {
+    sorted = allStats.sort((a, b) => ((b.byRarity?.legendary || 0) + (b.byRarity?.mythic || 0)) - ((a.byRarity?.legendary || 0) + (a.byRarity?.mythic || 0)));
+    title  = '🟡 Top Fisher Legendary Catches';
+  } else {
+    sorted = allStats.sort((a, b) => (b.totalCatch || 0) - (a.totalCatch || 0));
+    title  = '🎣 Top Fisher by Total Tangkapan';
+  }
+
+  const medals   = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+  const top10    = sorted.slice(0, 10);
+
+  // Cari rank user sendiri
+  const myRank = sorted.findIndex(s => s.discordId === discordId) + 1;
+  const myStats = sorted.find(s => s.discordId === discordId);
+
+  const rows = top10.map((s, i) => {
+    const valueStr = filter === 'value'
+      ? `🪙 ${(s.totalValue || 0).toLocaleString()}`
+      : filter === 'legendary'
+      ? `🟡 ${(s.byRarity?.legendary || 0)}x Leg. | 🌌 ${(s.byRarity?.mythic || 0)}x Myth.`
+      : `🎣 ${s.totalCatch || 0}x tangkap`;
+
+    const bigFish = s.biggestFish ? `| Terbesar: **${s.biggestFish.name}** ${s.biggestFish.weightKg}kg` : '';
+    return `${medals[i]} <@${s.discordId}> — ${valueStr} ${bigFish}`;
+  }).join('\n');
+
+  return respond([
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+    `\u001b[2;34m║  \u001b[1;33m🏆  FISH LEADERBOARD  🏆\u001b[0m          \u001b[2;34m║\u001b[0m`,
+    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `> ${EMOJI} **${title}**`,
+    '',
+    rows || '> Belum ada data.',
+    '',
+    myStats
+      ? `> 👤 **Rank kamu: #${myRank}** | Catch: ${myStats.totalCatch || 0} | Nilai: 🪙 ${(myStats.totalValue || 0).toLocaleString()}`
+      : `> 👤 Kamu belum pernah mancing! Coba \`/fishing\``,
+    `> 📊 Filter: \`catch\` | \`value\` | \`legendary\``
+  ].join('\n'));
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// CMD: fish-stats — statistik mancing pribadi
+// ══════════════════════════════════════════════════════════════
+if (cmd === 'fish-stats') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+
+  const targetOpt  = options.find(o => o.name === 'user');
+  const targetId   = targetOpt ? String(targetOpt.value) : discordId;
+  const targetUser = targetOpt
+    ? interaction.data.resolved?.users?.[targetId]
+    : (interaction.member?.user || interaction.user);
+  const targetName = targetUser?.username || 'Unknown';
+
+  const [statsRaw, rodRaw, baitRaw, invRaw, aquaRaw] = await Promise.all([
+    env.USERS_KV.get(`fishing:stats:${targetId}`),
+    env.USERS_KV.get(`fishing:rod:${targetId}`),
+    env.USERS_KV.get(`fishing:bait:${targetId}`),
+    env.USERS_KV.get(`fishing:inventory:${targetId}`),
+    env.USERS_KV.get(`fishing:aquarium:${targetId}`),
+  ]);
+
+  const stats = statsRaw ? JSON.parse(statsRaw) : { totalCast: 0, totalCatch: 0, totalValue: 0, biggestFish: null, byRarity: {} };
+  const rod   = rodRaw ? JSON.parse(rodRaw) : FISHING_RODS.basic;
+  const baits = baitRaw ? JSON.parse(baitRaw) : {};
+  const inv   = invRaw ? JSON.parse(invRaw) : [];
+  const aqua  = aquaRaw ? JSON.parse(aquaRaw) : [];
+
+  const catchRate = stats.totalCast > 0 ? ((stats.totalCatch / stats.totalCast) * 100).toFixed(1) : '0.0';
+
+  const rarityBreakdown = Object.entries(RARITY)
+    .filter(([k]) => k !== 'trash')
+    .map(([k, v]) => `${v.color}${v.name}\u001b[0m: ${stats.byRarity?.[k] || 0}x`)
+    .join(' | ');
+
+  const baitSummary = Object.entries(baits)
+    .map(([id, qty]) => `${FISHING_BAITS[id]?.emoji || ''} ${FISHING_BAITS[id]?.name || id}: ${qty}x`)
+    .join(', ') || 'Tidak ada';
+
+  return respond([
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+    `\u001b[2;34m║  \u001b[1;33m📊  FISHING STATS  📊\u001b[0m             \u001b[2;34m║\u001b[0m`,
+    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `${EMOJI} 🎣 **Statistik Mancing ${targetName}**`,
+    '```ansi',
+    '\u001b[1;33m━━━━━━━━━━━━ 🎣 FISHING ━━━━━━━━━━━━━━\u001b[0m',
+    `\u001b[1;36m  🎯  Total Cast      :\u001b[0m \u001b[0;37m${stats.totalCast}x\u001b[0m`,
+    `\u001b[1;36m  🐟  Total Catch     :\u001b[0m \u001b[0;37m${stats.totalCatch}x\u001b[0m`,
+    `\u001b[1;36m  📈  Catch Rate      :\u001b[0m \u001b[0;37m${catchRate}%\u001b[0m`,
+    `\u001b[1;36m  💰  Total Nilai     :\u001b[0m \u001b[1;32m🪙 ${(stats.totalValue || 0).toLocaleString()}\u001b[0m`,
+    stats.biggestFish
+      ? `\u001b[1;36m  🏆  Terbesar        :\u001b[0m \u001b[0;37m${stats.biggestFish.name} (${stats.biggestFish.weightKg}kg) ${RARITY[stats.biggestFish.rarity]?.name || ''}\u001b[0m`
+      : null,
+    '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '\u001b[1;32m━━━━━━━━━━━━ ⭐ RARITY ━━━━━━━━━━━━━━\u001b[0m',
+    `\u001b[0;37m  ${rarityBreakdown}\u001b[0m`,
+    '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '\u001b[1;35m━━━━━━━━━━━━ 🎒 INVENTARIS ━━━━━━━━━━\u001b[0m',
+    `\u001b[1;36m  🎣  Rod Aktif       :\u001b[0m \u001b[0;37m${rod.name}\u001b[0m`,
+    `\u001b[1;36m  🪱  Bait Stok       :\u001b[0m \u001b[0;37m${baitSummary}\u001b[0m`,
+    `\u001b[1;36m  🎒  Inventory       :\u001b[0m \u001b[0;37m${inv.length}/30 ikan\u001b[0m`,
+    `\u001b[1;36m  🐠  Aquarium        :\u001b[0m \u001b[0;37m${aqua.length}/20 ikan\u001b[0m`,
+    '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '```',
+  ].filter(Boolean).join('\n'));
+}
+
   
 
 
