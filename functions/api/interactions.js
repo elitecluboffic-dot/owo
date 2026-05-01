@@ -7435,7 +7435,7 @@ if (cmd === 'fish-leaderboard') {
     myStats
       ? `> 👤 **Rank kamu: #${myRank}** | Catch: ${myStats.totalCatch || 0} | Nilai: 🪙 ${(myStats.totalValue || 0).toLocaleString()}`
       : `> 👤 Kamu belum pernah mancing! Coba \`/fishing\``,
-    `> 📊 Filter: \`catch\` | \`value\` | \`legendary\``
+    `> \uD83D\uDCCA Filter: \`catch\` | \`value\` | \`legendary\``
   ].join('\n'));
 }
 
