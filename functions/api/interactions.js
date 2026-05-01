@@ -6610,7 +6610,7 @@ if (cmd === 'fishing') {
       `> 🗑️ Sampah gak ada harganya. Buang aja.`
     );
   } else {
-    lines.push(
+lines.push(
       '```ansi',
       `\u001b[1;33m━━━━━━━━━━━━ 🐟 TANGKAPAN ━━━━━━━━━━━━\u001b[0m`,
       `\u001b[1;36m  ${fishData.emoji}  Nama       :\u001b[0m \u001b[1;37m${fishData.name}\u001b[0m`,
@@ -6631,7 +6631,7 @@ if (cmd === 'fishing') {
       `\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
       '```',
       `> 💡 \`/fish-sell start\` buat lelang | \`/aquarium add\` buat koleksi`
-    ).filter(Boolean);
+    );
   }
 
   return new Response(JSON.stringify({
