@@ -7185,8 +7185,8 @@ if (cmd === 'aquarium') {
   const sub    = getOption(options, 'aksi') || 'view';
   const fishId = getOption(options, 'id');
 
-  const targetOpt = options.find(o => o.name === 'user');
-  const targetId  = targetOpt ? String(targetOpt.value) : discordId;
+  const targetOpt  = options.find(o => o.name === 'user');
+  const targetId   = targetOpt ? String(targetOpt.value) : discordId;
   const targetUser = targetOpt
     ? interaction.data.resolved?.users?.[targetId]
     : (interaction.member?.user || interaction.user);
@@ -7200,147 +7200,26 @@ if (cmd === 'aquarium') {
     });
   };
 
-  // ────────────────────────────
-  // SUB: view — lihat aquarium
-  // [UPDATED] Pakai embed dengan gambar ikan terbaik
-  // ────────────────────────────
-  if (sub === 'view') {
-    const aquaRaw = await env.USERS_KV.get(`fishing:aquarium:${targetId}`);
-    const aqua    = aquaRaw ? JSON.parse(aquaRaw) : [];
-
-    if (aqua.length === 0) {
-      return respond([
-        `> ${EMOJI} 🐠 Aquarium **${targetName}** masih kosong!`,
-        `> 💡 Tambah ikan dengan \`/aquarium add id:FISH-xxx\``
-      ].join('\n'));
-    }
-
-    const totalValue = aqua.reduce((s, f) => s + (f.price || 0), 0);
-    const sorted = [...aqua].sort((a, b) => (RARITY[b.rarity]?.basePrice || 0) - (RARITY[a.rarity]?.basePrice || 0));
-
-    const rows = sorted.map((f, i) => {
-      const r = RARITY[f.rarity];
-      const age = Math.floor((Date.now() - f.caughtAt) / 86400000);
-      return `${String(i + 1).padStart(2)}. ${f.emoji || '🐟'} **${f.name}** ${r?.name || ''} — ${f.weightKg}kg — ${age}h lalu`;
-    }).join('\n');
-
-    // [NEW] Ambil gambar dari ikan terbaik (index 0 setelah sort)
-    const bestFish = sorted[0];
-    let thumbUrl = bestFish?.imageUrl || null;
-    if (!thumbUrl && bestFish?.scientificName) {
-      thumbUrl = await fetchFishImage(bestFish.scientificName);
-    }
-
-    const aquaDesc = [
-      '```ansi',
-      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-      `\u001b[2;34m║  \u001b[1;36m🐠  AQUARIUM ${targetName.slice(0, 12).padEnd(12)}  🐠\u001b[0m \u001b[2;34m║\u001b[0m`,
-      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
-      '```',
-      rows,
-      '',
-      `> 🐠 **${aqua.length}/20** ikan | Nilai Koleksi: 🪙 **${totalValue.toLocaleString()}**`,
-      `> 💡 \`/aquarium info id:FISH-xxx\` untuk lihat detail & gambar ikan`
-    ].join('\n');
-
-    return await editMsg('', [{
-      color: 0x00BFFF,
-      description: aquaDesc,
-      // [NEW] Thumbnail = gambar ikan terbaik di aquarium
-      thumbnail: thumbUrl ? { url: thumbUrl } : undefined,
-      footer: { text: `OwoBim Aquarium • ${targetName}` },
-      timestamp: new Date().toISOString()
-    }]);
-  }
-
-  // ────────────────────────────
-  // SUB: info — [NEW] detail 1 ikan dengan gambar penuh
-  // ────────────────────────────
-  if (sub === 'info') {
-    if (!fishId) return respond(`> ${EMOJI} ❌ Masukkan ID ikan! Cek \`/aquarium view\``);
-
-    // Cari di aquarium dulu, fallback ke inventory
-    const [aquaRaw, invRaw] = await Promise.all([
-      env.USERS_KV.get(`fishing:aquarium:${targetId}`),
-      env.USERS_KV.get(`fishing:inventory:${targetId}`),
-    ]);
-    const aqua = aquaRaw ? JSON.parse(aquaRaw) : [];
-    const inv  = invRaw  ? JSON.parse(invRaw)  : [];
-
-    const fish = aqua.find(f => f.id === fishId) || inv.find(f => f.id === fishId);
-    if (!fish) return respond(`> ${EMOJI} ❌ Ikan ID **${fishId}** tidak ditemukan!`);
-
-    const r = RARITY[fish.rarity];
-
-    // [NEW] Fetch gambar — coba dari data tersimpan dulu, fallback Wikipedia
-    let imgUrl = fish.imageUrl || null;
-    if (!imgUrl && fish.scientificName) {
-      imgUrl = await fetchFishImage(fish.scientificName);
-    }
-
-    const infoLines = [
-      '```ansi',
-      '\u001b[1;33m━━━━━━━━━━━━ 🐟 DETAIL IKAN ━━━━━━━━━━\u001b[0m',
-      `\u001b[1;36m  ${fish.emoji || '🐟'}  Nama       :\u001b[0m \u001b[1;37m${fish.name}\u001b[0m`,
-      fish.scientificName ? `\u001b[1;36m  🔬  Ilmiah    :\u001b[0m \u001b[2;37m${fish.scientificName}\u001b[0m` : null,
-      `\u001b[1;36m  ⭐  Rarity    :\u001b[0m ${r?.color || ''}${r?.name || fish.rarity}\u001b[0m`,
-      `\u001b[1;36m  ⚖️  Berat     :\u001b[0m \u001b[0;37m${fish.weightKg} kg\u001b[0m`,
-      `\u001b[1;36m  🌍  Habitat   :\u001b[0m \u001b[0;37m${fish.habitat || 'unknown'}\u001b[0m`,
-      `\u001b[1;36m  💰  Nilai     :\u001b[0m \u001b[1;32m🪙 ${fish.price.toLocaleString()}\u001b[0m`,
-      `\u001b[1;36m  📍  Lokasi    :\u001b[0m \u001b[0;37m${fish.location || 'unknown'}\u001b[0m`,
-      `\u001b[1;36m  🎣  Rod       :\u001b[0m \u001b[0;37m${FISHING_RODS[fish.rodUsed]?.name || fish.rodUsed || '-'}\u001b[0m`,
-      fish.baitUsed ? `\u001b[1;36m  🪱  Bait      :\u001b[0m \u001b[0;37m${FISHING_BAITS[fish.baitUsed]?.name || fish.baitUsed}\u001b[0m` : null,
-      `\u001b[1;36m  👤  Ditangkap :\u001b[0m \u001b[0;37m${fish.caughtBy || 'Unknown'}\u001b[0m`,
-      `\u001b[1;36m  📅  Tanggal   :\u001b[0m \u001b[0;37m${new Date(fish.caughtAt).toLocaleDateString('id-ID')}\u001b[0m`,
-      `\u001b[1;36m  🆔  ID        :\u001b[0m \u001b[2;37m${fish.id}\u001b[0m`,
-      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```'
-    ].filter(Boolean).join('\n');
-
-    return await editMsg('', [{
-      color: r ? (
-        fish.rarity === 'mythic' ? 0x00FFFF :
-        fish.rarity === 'legendary' ? 0xFFD700 :
-        fish.rarity === 'epic' ? 0xAA00FF :
-        fish.rarity === 'rare' ? 0x0099FF :
-        fish.rarity === 'uncommon' ? 0x00CC44 : 0xAAAAAA
-      ) : 0x2ECC71,
-      description: infoLines,
-      // [NEW] Gambar penuh ikan tampil di embed info
-      image: imgUrl ? { url: imgUrl } : undefined,
-      footer: { text: `OwoBim Aquarium • ${fish.id}` },
-      timestamp: new Date().toISOString()
-    }]);
-  }
-
-  // ────────────────────────────
-  // SUB: add — pindahkan ikan ke aquarium
-  // ────────────────────────────
+  // add & remove: respond biasa, tidak perlu defer
   if (sub === 'add') {
     if (!fishId) return respond(`> ${EMOJI} ❌ Masukkan ID ikan!`);
-
     const [invRaw, aquaRaw] = await Promise.all([
       env.USERS_KV.get(`fishing:inventory:${discordId}`),
       env.USERS_KV.get(`fishing:aquarium:${discordId}`),
     ]);
     const inv  = invRaw  ? JSON.parse(invRaw)  : [];
     const aqua = aquaRaw ? JSON.parse(aquaRaw) : [];
-
     const fishIdx = inv.findIndex(f => f.id === fishId);
     if (fishIdx === -1) return respond(`> ${EMOJI} ❌ Ikan ID **${fishId}** tidak ada di inventory!`);
     if (aqua.length >= 20) return respond(`> ${EMOJI} ❌ Aquarium penuh! Maksimal **20 ikan**.`);
-
     const fish = inv[fishIdx];
     if (fish.rarity === 'trash') return respond(`> ${EMOJI} ❌ Tidak bisa simpan sampah di aquarium! 🗑️`);
-
     inv.splice(fishIdx, 1);
     aqua.push({ ...fish, addedToAquariumAt: Date.now() });
-
     await Promise.all([
       env.USERS_KV.put(`fishing:inventory:${discordId}`, JSON.stringify(inv)),
       env.USERS_KV.put(`fishing:aquarium:${discordId}`, JSON.stringify(aqua)),
     ]);
-
     return respond([
       `> ${EMOJI} 🐠 **${fish.name}** berhasil dipindah ke aquarium!`,
       `> 🐠 Aquarium: **${aqua.length}/20** | Inventory: **${inv.length}/30**`,
@@ -7348,41 +7227,153 @@ if (cmd === 'aquarium') {
     ].join('\n'));
   }
 
-  // ────────────────────────────
-  // SUB: remove — keluarkan dari aquarium
-  // ────────────────────────────
   if (sub === 'remove') {
     if (!fishId) return respond(`> ${EMOJI} ❌ Masukkan ID ikan!`);
-
     const [invRaw, aquaRaw] = await Promise.all([
       env.USERS_KV.get(`fishing:inventory:${discordId}`),
       env.USERS_KV.get(`fishing:aquarium:${discordId}`),
     ]);
     const inv  = invRaw  ? JSON.parse(invRaw)  : [];
     const aqua = aquaRaw ? JSON.parse(aquaRaw) : [];
-
     const fishIdx = aqua.findIndex(f => f.id === fishId);
     if (fishIdx === -1) return respond(`> ${EMOJI} ❌ Ikan ID **${fishId}** tidak ada di aquarium!`);
     if (inv.length >= 30) return respond(`> ${EMOJI} ❌ Inventory penuh! Jual dulu beberapa ikan.`);
-
     const fish = aqua[fishIdx];
     aqua.splice(fishIdx, 1);
     inv.push(fish);
-
     await Promise.all([
       env.USERS_KV.put(`fishing:inventory:${discordId}`, JSON.stringify(inv)),
       env.USERS_KV.put(`fishing:aquarium:${discordId}`, JSON.stringify(aqua)),
     ]);
-
     return respond([
       `> ${EMOJI} 🎒 **${fish.name}** dikembalikan ke inventory!`,
       `> 🐠 Aquarium: **${aqua.length}/20** | Inventory: **${inv.length}/30**`
     ].join('\n'));
   }
 
+  // view & info: butuh fetch Wikipedia async → WAJIB defer type:5 dulu
+  if (sub === 'view' || sub === 'info') {
+    waitUntil((async () => {
+      try {
+
+        if (sub === 'view') {
+          const aquaRaw = await env.USERS_KV.get(`fishing:aquarium:${targetId}`);
+          const aqua    = aquaRaw ? JSON.parse(aquaRaw) : [];
+
+          if (aqua.length === 0) {
+            return editMsg([
+              `> ${EMOJI} 🐠 Aquarium **${targetName}** masih kosong!`,
+              `> 💡 Tambah ikan dengan \`/aquarium add id:FISH-xxx\``
+            ].join('\n'));
+          }
+
+          const totalValue = aqua.reduce((s, f) => s + (f.price || 0), 0);
+          const sorted = [...aqua].sort((a, b) =>
+            (RARITY[b.rarity]?.basePrice || 0) - (RARITY[a.rarity]?.basePrice || 0)
+          );
+          const rows = sorted.map((f, i) => {
+            const r   = RARITY[f.rarity];
+            const age = Math.floor((Date.now() - f.caughtAt) / 86400000);
+            return `${String(i + 1).padStart(2)}. ${f.emoji || '🐟'} **${f.name}** ${r?.name || ''} — ${f.weightKg}kg — ${age}h lalu`;
+          }).join('\n');
+
+          const bestFish = sorted[0];
+          let thumbUrl = bestFish?.imageUrl || null;
+          if (!thumbUrl && bestFish?.scientificName) {
+            thumbUrl = await fetchFishImage(bestFish.scientificName);
+          }
+
+          const aquaDesc = [
+            '```ansi',
+            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+            `\u001b[2;34m║  \u001b[1;36m🐠  AQUARIUM ${targetName.slice(0, 12).padEnd(12)}  🐠\u001b[0m \u001b[2;34m║\u001b[0m`,
+            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            rows,
+            '',
+            `> 🐠 **${aqua.length}/20** ikan | Nilai Koleksi: 🪙 **${totalValue.toLocaleString()}**`,
+            `> 💡 \`/aquarium info id:FISH-xxx\` untuk lihat detail & gambar ikan`
+          ].join('\n');
+
+          return editMsg('', [{
+            color: 0x00BFFF,
+            description: aquaDesc,
+            thumbnail: thumbUrl ? { url: thumbUrl } : undefined,
+            footer: { text: `OwoBim Aquarium • ${targetName}` },
+            timestamp: new Date().toISOString()
+          }]);
+        }
+
+        if (sub === 'info') {
+          if (!fishId) return editMsg(`> ${EMOJI} ❌ Masukkan ID ikan! Cek \`/aquarium view\``);
+
+          const [aquaRaw, invRaw] = await Promise.all([
+            env.USERS_KV.get(`fishing:aquarium:${targetId}`),
+            env.USERS_KV.get(`fishing:inventory:${targetId}`),
+          ]);
+          const aqua = aquaRaw ? JSON.parse(aquaRaw) : [];
+          const inv  = invRaw  ? JSON.parse(invRaw)  : [];
+
+          const fish = aqua.find(f => f.id === fishId) || inv.find(f => f.id === fishId);
+          if (!fish) return editMsg(`> ${EMOJI} ❌ Ikan ID **${fishId}** tidak ditemukan!`);
+
+          const r = RARITY[fish.rarity];
+
+          let imgUrl = fish.imageUrl || null;
+          if (!imgUrl && fish.scientificName) {
+            imgUrl = await fetchFishImage(fish.scientificName);
+          }
+
+          const infoLines = [
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━━ 🐟 DETAIL IKAN ━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m  ${fish.emoji || '🐟'}  Nama       :\u001b[0m \u001b[1;37m${fish.name}\u001b[0m`,
+            fish.scientificName ? `\u001b[1;36m  🔬  Ilmiah    :\u001b[0m \u001b[2;37m${fish.scientificName}\u001b[0m` : null,
+            `\u001b[1;36m  ⭐  Rarity    :\u001b[0m ${r?.color || ''}${r?.name || fish.rarity}\u001b[0m`,
+            `\u001b[1;36m  ⚖️  Berat     :\u001b[0m \u001b[0;37m${fish.weightKg} kg\u001b[0m`,
+            `\u001b[1;36m  🌍  Habitat   :\u001b[0m \u001b[0;37m${fish.habitat || 'unknown'}\u001b[0m`,
+            `\u001b[1;36m  💰  Nilai     :\u001b[0m \u001b[1;32m🪙 ${fish.price.toLocaleString()}\u001b[0m`,
+            `\u001b[1;36m  📍  Lokasi    :\u001b[0m \u001b[0;37m${fish.location || 'unknown'}\u001b[0m`,
+            `\u001b[1;36m  🎣  Rod       :\u001b[0m \u001b[0;37m${FISHING_RODS[fish.rodUsed]?.name || fish.rodUsed || '-'}\u001b[0m`,
+            fish.baitUsed ? `\u001b[1;36m  🪱  Bait      :\u001b[0m \u001b[0;37m${FISHING_BAITS[fish.baitUsed]?.name || fish.baitUsed}\u001b[0m` : null,
+            `\u001b[1;36m  👤  Ditangkap :\u001b[0m \u001b[0;37m${fish.caughtBy || 'Unknown'}\u001b[0m`,
+            `\u001b[1;36m  📅  Tanggal   :\u001b[0m \u001b[0;37m${new Date(fish.caughtAt).toLocaleDateString('id-ID')}\u001b[0m`,
+            `\u001b[1;36m  🆔  ID        :\u001b[0m \u001b[2;37m${fish.id}\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```'
+          ].filter(Boolean).join('\n');
+
+          return editMsg('', [{
+            color: fish.rarity === 'mythic'    ? 0x00FFFF :
+                   fish.rarity === 'legendary' ? 0xFFD700 :
+                   fish.rarity === 'epic'      ? 0xAA00FF :
+                   fish.rarity === 'rare'      ? 0x0099FF :
+                   fish.rarity === 'uncommon'  ? 0x00CC44 : 0xAAAAAA,
+            description: infoLines,
+            image: imgUrl ? { url: imgUrl } : undefined,
+            footer: { text: `OwoBim Aquarium • ${fish.id}` },
+            timestamp: new Date().toISOString()
+          }]);
+        }
+
+      } catch (err) {
+        await editMsg(`> ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    // WAJIB: kirim type:5 (deferred) sebagai response awal ke Discord
+    return new Response(JSON.stringify({ type: 5 }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   return respond(`> ❌ Aksi tidak dikenal! Gunakan: \`view\`, \`add\`, \`remove\`, \`info\``);
 }
 
+
+
+
+    
 
 // ══════════════════════════════════════════════════════════════
 // CMD: fish-leaderboard — top fisher
