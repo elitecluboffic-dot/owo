@@ -7687,6 +7687,74 @@ if (cmd === 'fish-stats') {
 
 
 
+    if (cmd === 'buycowoncy') {
+  try {
+    const dmCh = await (await fetch('https://discord.com/api/v10/users/@me/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({ recipient_id: discordId })
+    })).json();
+
+    if (!dmCh.id) throw new Error('Gagal buka DM');
+
+    await fetch(`https://discord.com/api/v10/channels/${dmCh.id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({
+        embeds: [{
+          color: 0xF1C40F,
+          title: '🪙 OwoBim Shop — Beli Cowoncy',
+          description: [
+            '```ansi',
+            '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;33m║  🛒  PILIH PAKET COWONCY  🛒        ║\u001b[0m',
+            '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━━ 📦 PAKET TERSEDIA ━━━━━━━\u001b[0m',
+            '\u001b[1;36m 🥉  Starter  :\u001b[0m \u001b[0;37m800 cowoncy — Rp 5.000\u001b[0m',
+            '\u001b[1;36m 🥈  Basic    :\u001b[0m \u001b[0;37m5.000 cowoncy — Rp 30.000\u001b[0m',
+            '\u001b[1;36m 🥇  Premium  :\u001b[0m \u001b[0;37m12.000 cowoncy — Rp 50.000\u001b[0m',
+            '\u001b[1;36m 💎  Ultimate :\u001b[0m \u001b[0;37m25.000 cowoncy — Rp 150.000\u001b[0m',
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            '> 👇 Klik tombol di bawah untuk memilih paket!'
+          ].join('\n'),
+          footer: { text: 'OwoBim Shop • Pembayaran via Transfer Bank' }
+        }],
+        components: [{
+          type: 1,
+          components: [
+            { type: 2, style: 1, label: '🥉 Starter — Rp 5.000',    custom_id: `buy_cowoncy:starter:${discordId}`  },
+            { type: 2, style: 1, label: '🥈 Basic — Rp 30.000',     custom_id: `buy_cowoncy:basic:${discordId}`    },
+            { type: 2, style: 3, label: '🥇 Premium — Rp 50.000',   custom_id: `buy_cowoncy:premium:${discordId}`  },
+            { type: 2, style: 4, label: '💎 Ultimate — Rp 150.000', custom_id: `buy_cowoncy:ultimate:${discordId}` }
+          ]
+        }]
+      })
+    });
+
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  ✅  CEK DM KAMU!  ✅               ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '> 📬 Info pembelian sudah dikirim ke **DM** kamu!',
+      '> 🔒 Transaksi dilakukan secara **privat** di DM.'
+    ].join('\n'));
+
+  } catch (err) {
+    return respond(`❌ Gagal kirim DM! Pastikan DM kamu terbuka.\n> \`${err.message}\``);
+  }
+}
+
+
+
+
+
+
+
     if (cmd === 'addcowoncy') {
   if (discordId !== '1442230317455900823') return respond('❌ Bukan pemilik bot!');
 
