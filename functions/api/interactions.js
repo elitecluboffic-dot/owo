@@ -984,6 +984,19 @@ if (cmd === 'help') {
           ].join("\n")
         },
         {
+          title: "🛒 Shop",
+          color: 0xf1c40f,
+          description: [
+            "• `/buycowoncy` → Beli cowoncy via DM bot 🪙",
+            "  🥉 Starter: 800 cowoncy — Rp 5.000",
+            "  🥈 Basic: 5.000 cowoncy — Rp 30.000",
+            "  🥇 Premium: 12.000 cowoncy — Rp 50.000",
+            "  💎 Ultimate: 25.000 cowoncy — Rp 150.000",
+            "",
+            "> 💡 Ketik `/buycowoncy` → bot kirim DM → pilih paket → transfer → kirim bukti!"
+          ].join("\n")
+        },
+        {
           title: "🎰 Games",
           color: 0xe74c3c,
           description: [
