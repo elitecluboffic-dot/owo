@@ -1197,12 +1197,12 @@ if (warningStr) {
       return respond(`✅ Kamu sudah bekerja keras! +🪙 **25.000**\nSaldo: 🪙 **${user.balance.toLocaleString()}**`);
     }
 
-    if (cmd === 'ping') {
-      const latency = Date.now() - JSON.parse(body === '' ? '{}' : body).id ? 
-        Date.now() - Number(BigInt(interaction.id) >> 22n) - 1420070400000 : 0;
-      return respond(`🏓 Pong! **${latency}ms**`);
-    }
-
+if (cmd === 'ping') {
+  const start = Date.now();
+  await fetch('https://express-files--elitecluboffic1.replit.app/ping');
+  const latency = Date.now() - start;
+  return respond(`🏓 Pong! **${latency}ms**`);
+}
     if (cmd === 'stats') {
       const list = await env.USERS_KV.list({ prefix: 'user:' });
       let totalPlayers = 0;
