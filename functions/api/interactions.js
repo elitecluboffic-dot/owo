@@ -750,6 +750,31 @@ if (cmd === 'help') {
           ].join("\n")
         },
         {
+          title: "🎣 Fishing System",
+          color: 0x1a6b8a,
+          description: [
+            "• `/fishing` → Mancing ikan (cooldown per rod)",
+            "• `/fish-inventory` → Lihat kantong ikan kamu",
+            "• `/fish-sell aksi:start` → Mulai lelang ikan",
+            "• `/fish-sell aksi:bid` → Bid di lelang orang lain",
+            "• `/fish-sell aksi:sellall` → Jual semua ikan langsung",
+            "• `/fish-sell aksi:claim` → Ambil hasil lelang",
+            "• `/fish-sell aksi:list` → Lihat lelang aktif",
+            "• `/fish-shop aksi:browse` → Lihat toko rod & bait",
+            "• `/fish-shop aksi:buy` → Beli rod atau bait",
+            "• `/aquarium aksi:view` → Lihat koleksi aquarium",
+            "• `/aquarium aksi:add` → Pindah ikan ke aquarium",
+            "• `/aquarium aksi:remove` → Keluarkan ikan dari aquarium",
+            "• `/aquarium aksi:info` → Detail & gambar 1 ikan",
+            "• `/fish-leaderboard` → Ranking top fisher",
+            "• `/fish-stats` → Statistik mancing kamu",
+            "",
+            "  🎣 Basic Rod (gratis) | ⚙️ Iron 15rb | ✨ Gold 50rb",
+            "  💎 Diamond 150rb | 🌌 Mythic 500rb",
+            "  ⚪ Common → 🟢 Uncommon → 🔵 Rare → 🟣 Epic → 🟡 Legendary → 🌌 Mythic"
+          ].join("\n")
+        },
+        {
           title: "🛠️ Tools",
           color: 0x9b59b6,
           description: [
