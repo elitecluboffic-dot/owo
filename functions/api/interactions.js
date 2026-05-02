@@ -1199,7 +1199,7 @@ if (warningStr) {
 
 if (cmd === 'ping') {
   const start = Date.now();
-  await fetch('https://express-files--elitecluboffic1.replit.app/ping');
+  await fetch('http://18.191.48.129:3000/ping');
   const latency = Date.now() - start;
   return respond(`🏓 Pong! **${latency}ms**`);
 }
