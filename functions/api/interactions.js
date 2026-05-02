@@ -6782,7 +6782,7 @@ if (cmd === 'fishing') {
 const [cdRaw, rodRaw, baitRaw, statsRaw, invRaw] = await Promise.all([
   env.USERS_KV.get(cdKey),
   env.USERS_KV.get(rodKey),
-  env.USERS_KV.get(baitKey, { cacheTtl: 60 }),
+  env.USERS_KV.get(baitKey),  // ← hapus { cacheTtl: 60 }
   env.USERS_KV.get(statsKey),
   env.USERS_KV.get(invKey),
 ]);
@@ -7339,7 +7339,7 @@ if (cmd === 'fish-shop') {
 
   if (sub === 'browse') {
     const rodRaw  = await env.USERS_KV.get(`fishing:rod:${discordId}`);
-    const baitRaw = await env.USERS_KV.get(`fishing:bait:${discordId}`, { cacheTtl: 60 });
+    const baitRaw = await env.USERS_KV.get(`fishing:bait:${discordId}`);
     const rod     = rodRaw ? JSON.parse(rodRaw) : FISHING_RODS.basic;
     const baits   = baitRaw ? JSON.parse(baitRaw) : {};
 
