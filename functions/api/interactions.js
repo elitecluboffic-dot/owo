@@ -7031,6 +7031,48 @@ if (cmd === 'fish-sell') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const sub   = getOption(options, 'aksi') || 'start';
 
+  // ← TARUH DI SINI JUAL KE BOT
+  if (sub === 'sell') {
+    const fishId = getOption(options, 'id');
+    if (!fishId) return respond(`> ${EMOJI} ❌ Masukkan ID ikan! Cek \`/fish-inventory\``);
+
+    const invRaw = await env.USERS_KV.get(`fishing:inventory:${discordId}`);
+    const inv    = invRaw ? JSON.parse(invRaw) : [];
+    const fishIdx = inv.findIndex(f => f.id === fishId);
+
+    if (fishIdx === -1) return respond(`> ${EMOJI} ❌ Ikan ID **${fishId}** tidak ada di inventory!`);
+
+    const fish = inv[fishIdx];
+    if (fish.rarity === 'trash') return respond(`> ${EMOJI} ❌ Sampah tidak bisa dijual! 🗑️`);
+
+    inv.splice(fishIdx, 1);
+    user.balance += fish.price;
+    user.totalEarned = (user.totalEarned || 0) + fish.price;
+
+    await Promise.all([
+      env.USERS_KV.put(`fishing:inventory:${discordId}`, JSON.stringify(inv)),
+      env.USERS_KV.put(`user:${discordId}`, JSON.stringify(user)),
+    ]);
+    waitUntil(pushLinkedRole(env, discordId, null, user));
+
+    const r = RARITY[fish.rarity];
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  💰  IKAN TERJUAL!  💰               ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ✅ **${fish.emoji || '🐟'} ${fish.name}** berhasil dijual!`,
+      `> ⭐ Rarity: **${r?.name || fish.rarity}** | ⚖️ Berat: **${fish.weightKg}kg**`,
+      `> 🪙 Dapat: **${fish.price.toLocaleString()} cowoncy**`,
+      `> 💳 Saldo baru: **${user.balance.toLocaleString()} cowoncy**`,
+      `> 🎒 Sisa inventory: **${inv.length}/30**`
+    ].join('\n'));
+  }
+
+
+  
+
   if (sub === 'sellall') {
     const rarityFilter = getOption(options, 'rarity') || 'all';
     const invRaw = await env.USERS_KV.get(`fishing:inventory:${discordId}`);
