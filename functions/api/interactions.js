@@ -287,12 +287,11 @@ if (type === 3 && customId.startsWith('rps_pvp:')) {
 
 
 
-  if (customId.startsWith('buy_cowoncy:')) {
+if (customId.startsWith('buy_cowoncy:')) {
   const parts   = customId.split(':');
   const paket   = parts[1];
   const buyerId = parts[2];
 
-  // Pastikan yang klik adalah orangnya sendiri
   if (clickerId !== buyerId) {
     return new Response(JSON.stringify({
       type: 4,
@@ -315,7 +314,6 @@ if (type === 3 && customId.startsWith('rps_pvp:')) {
     }), { headers });
   }
 
-  // Cek order pending yang belum selesai
   const existingOrder = await env.USERS_KV.get(`cowoncy_order_active:${buyerId}`);
   if (existingOrder) {
     const existing = JSON.parse(existingOrder);
@@ -337,7 +335,6 @@ if (type === 3 && customId.startsWith('rps_pvp:')) {
     }), { headers });
   }
 
-  // Buat order ID
   const orderId = `ORD-${Date.now()}-${buyerId.slice(-4)}`;
   const buyerUsername = interaction.member?.user?.username || interaction.user?.username;
   const waktu = new Date().toLocaleString('id-ID', {
@@ -346,28 +343,17 @@ if (type === 3 && customId.startsWith('rps_pvp:')) {
     hour: '2-digit', minute: '2-digit'
   });
 
-  // Simpan order ke KV
   await Promise.all([
     env.USERS_KV.put(`cowoncy_order:${orderId}`, JSON.stringify({
-      orderId,
-      buyerId,
-      buyerUsername,
-      paket,
-      p_nama: p.nama,
-      cowoncy: p.cowoncy,
-      harga: p.harga,
-      status: 'pending_payment',
-      createdAt: Date.now()
+      orderId, buyerId, buyerUsername, paket,
+      p_nama: p.nama, cowoncy: p.cowoncy, harga: p.harga,
+      status: 'pending_payment', createdAt: Date.now()
     }), { expirationTtl: 86400 }),
-
-    // Tandai user punya order aktif
     env.USERS_KV.put(`cowoncy_order_active:${buyerId}`, JSON.stringify({
-      orderId,
-      p_nama: p.nama
+      orderId, p_nama: p.nama
     }), { expirationTtl: 86400 })
   ]);
 
-  // Kirim notif ke owner via webhook
   const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
   if (WEBHOOK) {
     await fetch(WEBHOOK, {
@@ -379,13 +365,13 @@ if (type === 3 && customId.startsWith('rps_pvp:')) {
           color: 0xF1C40F,
           title: '🛒 New Cowoncy Order',
           fields: [
-            { name: '👤 Username',         value: buyerUsername,                                       inline: true  },
-            { name: '🆔 Discord ID',        value: `\`${buyerId}\``,                                   inline: true  },
-            { name: '🎁 Paket',             value: p.nama,                                             inline: true  },
-            { name: '🪙 Cowoncy',           value: `${p.cowoncy.toLocaleString('id-ID')}`,             inline: true  },
-            { name: '💵 Harga',             value: p.harga,                                            inline: true  },
-            { name: '🆔 Order ID',          value: `\`${orderId}\``,                                   inline: true  },
-            { name: '🕐 Waktu',             value: `${waktu} WIB`,                                     inline: false },
+            { name: '👤 Username',    value: buyerUsername,                          inline: true  },
+            { name: '🆔 Discord ID',  value: `\`${buyerId}\``,                       inline: true  },
+            { name: '🎁 Paket',       value: p.nama,                                 inline: true  },
+            { name: '🪙 Cowoncy',     value: `${p.cowoncy.toLocaleString('id-ID')}`, inline: true  },
+            { name: '💵 Harga',       value: p.harga,                                inline: true  },
+            { name: '🆔 Order ID',    value: `\`${orderId}\``,                       inline: true  },
+            { name: '🕐 Waktu',       value: `${waktu} WIB`,                         inline: false },
             {
               name: '⚡ Command Approve',
               value: `\`\`\`/addcowoncy target:${buyerId} jumlah:${p.cowoncy} orderid:${orderId}\`\`\``,
@@ -399,7 +385,6 @@ if (type === 3 && customId.startsWith('rps_pvp:')) {
     });
   }
 
-  // Edit pesan DM — tampilkan info pembayaran
   const messageId = interaction.message.id;
   const channelId = interaction.message.channel_id;
   await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
@@ -430,13 +415,22 @@ if (type === 3 && customId.startsWith('rps_pvp:')) {
           `\u001b[1;36m 👤  A/N       :\u001b[0m \u001b[1;37mBustanul Labib Alwasi\u001b[0m`,
           '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
           '```',
-          '> 📸 **Setelah transfer, kirim bukti screenshot di DM ini!**',
+          '> 📸 **Setelah transfer, klik tombol di bawah untuk kirim bukti!**',
           '> ⏰ Order berlaku selama **24 jam**',
-          `> 🆔 Sertakan Order ID: \`${orderId}\` di pesan bukti transfer`
+          `> 🆔 Order ID: \`${orderId}\``
         ].join('\n'),
         footer: { text: `OwoBim Shop • ${orderId}` }
       }],
-      components: [] // hapus tombol pilih paket
+      // ← INI YANG DIGANTI, tombol bukti transfer
+      components: [{
+        type: 1,
+        components: [{
+          type: 2,
+          style: 1,
+          label: '📸 Kirim Bukti Transfer',
+          custom_id: `bukti_modal:${orderId}:${buyerId}`
+        }]
+      }]
     })
   });
 
@@ -452,13 +446,41 @@ if (type === 3 && customId.startsWith('rps_pvp:')) {
         `> 🛒 Paket **${p.nama}** dipilih!`,
         `> 🆔 Order ID: \`${orderId}\``,
         `> 💳 Info rekening sudah ditampilkan di atas.`,
-        `> 📸 Kirim bukti transfer di DM ini setelah bayar!`
+        `> 📸 Klik tombol **Kirim Bukti Transfer** setelah bayar!`
       ].join('\n'),
       flags: 64
     }
   }), { headers });
 }
 
+
+
+
+  if (customId.startsWith('bukti_modal:')) {
+  const parts   = customId.split(':');
+  const orderId = parts[1];
+  const buyerId = parts[2];
+
+  return new Response(JSON.stringify({
+    type: 9,
+    data: {
+      custom_id: `bukti_submit:${orderId}:${buyerId}`,
+      title: '📸 Bukti Transfer',
+      components: [{
+        type: 1,
+        components: [{
+          type: 4,
+          custom_id: 'link_bukti',
+          label: 'Link Screenshot Bukti Transfer',
+          style: 1,
+          placeholder: 'Paste link bukti transfer gambar di sini (imgur, imgbb, dll)',
+          required: true,
+          max_length: 500
+        }]
+      }]
+    }
+  }), { headers });
+}
 
   
   
@@ -710,6 +732,55 @@ if (customId.startsWith('confess_reply_modal:')) {
     }
   }), { headers });
 }
+
+
+
+
+
+  if (customId.startsWith('bukti_submit:')) {
+  const parts    = customId.split(':');
+  const orderId  = parts[1];
+  const buyerId  = parts[2];
+  const linkBukti = interaction.data.components[0].components[0].value;
+
+  // Kirim ke owner via webhook
+  const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
+  if (WEBHOOK) {
+    await fetch(WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: `<@1442230317455900823> 📸 **BUKTI TRANSFER MASUK!**`,
+        embeds: [{
+          color: 0x2ECC71,
+          title: '📸 Bukti Transfer',
+          fields: [
+            { name: '🆔 Order ID',   value: `\`${orderId}\``,        inline: true },
+            { name: '👤 Buyer',      value: `<@${buyerId}>`,         inline: true },
+            { name: '🔗 Bukti',      value: linkBukti,               inline: false }
+          ],
+          image: { url: linkBukti },
+          timestamp: new Date().toISOString()
+        }]
+      })
+    });
+  }
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: '✅ Bukti transfer berhasil dikirim ke owner! Tunggu konfirmasi ya.',
+      flags: 64
+    }
+  }), { headers });
+}
+
+
+
+
+
+
+  
 
   
   
@@ -7687,7 +7758,7 @@ if (cmd === 'fish-stats') {
 
 
 
-    if (cmd === 'buycowoncy') {
+if (cmd === 'buycowoncy') {
   try {
     const dmCh = await (await fetch('https://discord.com/api/v10/users/@me/channels', {
       method: 'POST',
