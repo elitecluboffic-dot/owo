@@ -732,6 +732,7 @@ const commands = [
       choices: [
         { name: '🔨 start — Mulai lelang',         value: 'start'   },
         { name: '💰 bid — Pasang penawaran',        value: 'bid'     },
+        { name: '🏷️ sell — Jual 1 ikan langsung',  value: 'sell'    },
         { name: '💵 sellall — Jual semua langsung', value: 'sellall' },
         { name: '🎁 claim — Ambil hasil lelang',    value: 'claim'   },
         { name: '📋 list — Lihat lelang aktif',     value: 'list'    }
@@ -802,7 +803,6 @@ const commands = [
   ]
 },
 
-// [UPDATED] Tambah choice 'info' di aquarium
 {
   name: 'aquarium',
   description: '🐠 Kelola koleksi aquarium ikan kamu',
@@ -849,7 +849,6 @@ const commands = [
     { name: 'user', description: 'Lihat stats user lain', type: 6, required: false }
   ]
 },
-
 
 
 
