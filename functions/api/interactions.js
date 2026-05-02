@@ -278,6 +278,189 @@ if (type === 3 && customId.startsWith('rps_pvp:')) {
     }
   }), { headers: { 'Content-Type': 'application/json' } });
 }
+
+
+
+
+  
+
+
+
+
+  if (customId.startsWith('buy_cowoncy:')) {
+  const parts   = customId.split(':');
+  const paket   = parts[1];
+  const buyerId = parts[2];
+
+  // Pastikan yang klik adalah orangnya sendiri
+  if (clickerId !== buyerId) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Ini bukan ordermu!', flags: 64 }
+    }), { headers });
+  }
+
+  const PAKET_INFO = {
+    starter:  { nama: '🥉 Starter',  cowoncy: 800,     harga: 'Rp 5.000'   },
+    basic:    { nama: '🥈 Basic',    cowoncy: 5000,    harga: 'Rp 30.000'  },
+    premium:  { nama: '🥇 Premium',  cowoncy: 12000,   harga: 'Rp 50.000'  },
+    ultimate: { nama: '💎 Ultimate', cowoncy: 25000,   harga: 'Rp 150.000' },
+  };
+
+  const p = PAKET_INFO[paket];
+  if (!p) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Paket tidak valid!', flags: 64 }
+    }), { headers });
+  }
+
+  // Cek order pending yang belum selesai
+  const existingOrder = await env.USERS_KV.get(`cowoncy_order_active:${buyerId}`);
+  if (existingOrder) {
+    const existing = JSON.parse(existingOrder);
+    return new Response(JSON.stringify({
+      type: 4,
+      data: {
+        content: [
+          '```ansi',
+          '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[1;31m║  ⚠️  ORDER MASIH PENDING!  ⚠️        ║\u001b[0m',
+          '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          `> 🆔 Order aktif: \`${existing.orderId}\``,
+          `> 🎁 Paket: **${existing.p_nama}**`,
+          `> ⏳ Tunggu owner konfirmasi order sebelumnya dulu!`
+        ].join('\n'),
+        flags: 64
+      }
+    }), { headers });
+  }
+
+  // Buat order ID
+  const orderId = `ORD-${Date.now()}-${buyerId.slice(-4)}`;
+  const buyerUsername = interaction.member?.user?.username || interaction.user?.username;
+  const waktu = new Date().toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  // Simpan order ke KV
+  await Promise.all([
+    env.USERS_KV.put(`cowoncy_order:${orderId}`, JSON.stringify({
+      orderId,
+      buyerId,
+      buyerUsername,
+      paket,
+      p_nama: p.nama,
+      cowoncy: p.cowoncy,
+      harga: p.harga,
+      status: 'pending_payment',
+      createdAt: Date.now()
+    }), { expirationTtl: 86400 }),
+
+    // Tandai user punya order aktif
+    env.USERS_KV.put(`cowoncy_order_active:${buyerId}`, JSON.stringify({
+      orderId,
+      p_nama: p.nama
+    }), { expirationTtl: 86400 })
+  ]);
+
+  // Kirim notif ke owner via webhook
+  const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
+  if (WEBHOOK) {
+    await fetch(WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: `<@1442230317455900823> 🛒 **ORDER BARU MASUK!**`,
+        embeds: [{
+          color: 0xF1C40F,
+          title: '🛒 New Cowoncy Order',
+          fields: [
+            { name: '👤 Username',         value: buyerUsername,                                       inline: true  },
+            { name: '🆔 Discord ID',        value: `\`${buyerId}\``,                                   inline: true  },
+            { name: '🎁 Paket',             value: p.nama,                                             inline: true  },
+            { name: '🪙 Cowoncy',           value: `${p.cowoncy.toLocaleString('id-ID')}`,             inline: true  },
+            { name: '💵 Harga',             value: p.harga,                                            inline: true  },
+            { name: '🆔 Order ID',          value: `\`${orderId}\``,                                   inline: true  },
+            { name: '🕐 Waktu',             value: `${waktu} WIB`,                                     inline: false },
+            {
+              name: '⚡ Command Approve',
+              value: `\`\`\`/addcowoncy target:${buyerId} jumlah:${p.cowoncy} orderid:${orderId}\`\`\``,
+              inline: false
+            }
+          ],
+          footer: { text: 'OwoBim Shop • Tunggu bukti transfer dari buyer' },
+          timestamp: new Date().toISOString()
+        }]
+      })
+    });
+  }
+
+  // Edit pesan DM — tampilkan info pembayaran
+  const messageId = interaction.message.id;
+  const channelId = interaction.message.channel_id;
+  await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+    body: JSON.stringify({
+      embeds: [{
+        color: 0x2ECC71,
+        title: `${p.nama} — Detail Pembayaran`,
+        description: [
+          '```ansi',
+          '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[1;32m║  💳  INFO PEMBAYARAN  💳             ║\u001b[0m',
+          '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;33m━━━━━━━━━━━━ 📋 DETAIL ORDER ━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m 🆔  Order ID  :\u001b[0m \u001b[0;37m${orderId}\u001b[0m`,
+          `\u001b[1;36m 👤  Username  :\u001b[0m \u001b[0;37m${buyerUsername}\u001b[0m`,
+          `\u001b[1;36m 🪪  Discord ID:\u001b[0m \u001b[1;37m${buyerId}\u001b[0m`,
+          `\u001b[1;36m 🎁  Paket     :\u001b[0m \u001b[0;37m${p.nama}\u001b[0m`,
+          `\u001b[1;36m 🪙  Cowoncy   :\u001b[0m \u001b[1;33m${p.cowoncy.toLocaleString('id-ID')} cowoncy\u001b[0m`,
+          `\u001b[1;36m 💵  Harga     :\u001b[0m \u001b[1;32m${p.harga}\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '\u001b[1;31m━━━━━━━━━━━━ 🏦 REKENING ━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m 🏧  Bank      :\u001b[0m \u001b[1;37mSEABANK\u001b[0m`,
+          `\u001b[1;36m 📋  No. Rek   :\u001b[0m \u001b[1;37m901513579165\u001b[0m`,
+          `\u001b[1;36m 👤  A/N       :\u001b[0m \u001b[1;37mBustanul Labib Alwasi\u001b[0m`,
+          '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```',
+          '> 📸 **Setelah transfer, kirim bukti screenshot di DM ini!**',
+          '> ⏰ Order berlaku selama **24 jam**',
+          `> 🆔 Sertakan Order ID: \`${orderId}\` di pesan bukti transfer`
+        ].join('\n'),
+        footer: { text: `OwoBim Shop • ${orderId}` }
+      }],
+      components: [] // hapus tombol pilih paket
+    })
+  });
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: [
+        '```ansi',
+        '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[1;32m║  ✅  ORDER DIBUAT!  ✅               ║\u001b[0m',
+        '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> 🛒 Paket **${p.nama}** dipilih!`,
+        `> 🆔 Order ID: \`${orderId}\``,
+        `> 💳 Info rekening sudah ditampilkan di atas.`,
+        `> 📸 Kirim bukti transfer di DM ini setelah bayar!`
+      ].join('\n'),
+      flags: 64
+    }
+  }), { headers });
+}
+
+
+  
   
 
 if (clickerId !== '1442230317455900823' && !customId.startsWith('rps_pvp:')) {
@@ -7495,6 +7678,96 @@ if (cmd === 'fish-stats') {
     `\u001b[1;36m  🐠  Aquarium        :\u001b[0m \u001b[0;37m${aqua.length}/20 ikan\u001b[0m`,
     '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
     '```',
+  ].filter(Boolean).join('\n'));
+}
+
+
+
+
+
+
+
+    if (cmd === 'addcowoncy') {
+  if (discordId !== '1442230317455900823') return respond('❌ Bukan pemilik bot!');
+
+  const targetId = getOption(options, 'target');
+  const jumlah   = parseInt(getOption(options, 'jumlah'));
+  const orderId  = getOption(options, 'orderid') || null;
+
+  if (!targetId || !jumlah || jumlah <= 0) return respond('❌ Target atau jumlah tidak valid!');
+
+  const targetStr = await env.USERS_KV.get(`user:${targetId}`);
+  if (!targetStr) return respond('❌ User belum punya akun!');
+
+  let target = JSON.parse(targetStr);
+  target.balance     += jumlah;
+  target.totalEarned  = (target.totalEarned || 0) + jumlah;
+
+  // Update order status + hapus order aktif
+  const deletes = [env.USERS_KV.put(`user:${targetId}`, JSON.stringify(target))];
+
+  if (orderId) {
+    const orderRaw = await env.USERS_KV.get(`cowoncy_order:${orderId}`);
+    if (orderRaw) {
+      const order    = JSON.parse(orderRaw);
+      order.status   = 'completed';
+      order.approvedAt = Date.now();
+      deletes.push(env.USERS_KV.put(`cowoncy_order:${orderId}`, JSON.stringify(order), { expirationTtl: 86400 * 7 }));
+      // Hapus flag order aktif
+      deletes.push(env.USERS_KV.delete(`cowoncy_order_active:${targetId}`));
+    }
+  }
+
+  await Promise.all(deletes);
+  waitUntil(pushLinkedRole(env, targetId, null, target));
+
+  // Kirim DM notif ke buyer
+  try {
+    const dmCh = await (await fetch('https://discord.com/api/v10/users/@me/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({ recipient_id: targetId })
+    })).json();
+
+    await fetch(`https://discord.com/api/v10/channels/${dmCh.id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({
+        embeds: [{
+          color: 0x2ECC71,
+          title: '🎉 Cowoncy Berhasil Ditambahkan!',
+          description: [
+            '```ansi',
+            '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;32m║  🪙  PEMBAYARAN DIKONFIRMASI!  🪙   ║\u001b[0m',
+            '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━━ 📋 DETAIL ━━━━━━━━━━━━━━\u001b[0m',
+            orderId ? `\u001b[1;36m 🆔  Order ID  :\u001b[0m \u001b[0;37m${orderId}\u001b[0m` : null,
+            `\u001b[1;36m 🪙  Ditambah  :\u001b[0m \u001b[1;33m+${jumlah.toLocaleString('id-ID')} cowoncy\u001b[0m`,
+            `\u001b[1;36m 💰  Saldo Baru:\u001b[0m \u001b[1;32m${target.balance.toLocaleString('id-ID')} cowoncy\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            '> ✅ Terima kasih sudah top up di **OwoBim Shop**!',
+            '> 🪙 Selamat menikmati cowoncy kamu!'
+          ].filter(Boolean).join('\n'),
+          footer: { text: 'OwoBim Shop' },
+          timestamp: new Date().toISOString()
+        }]
+      })
+    });
+  } catch (_) {}
+
+  return respond([
+    '```ansi',
+    '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[1;32m║  ✅  COWONCY BERHASIL DITAMBAH!      ║\u001b[0m',
+    '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `> 🪙 **+${jumlah.toLocaleString('id-ID')} cowoncy** ke <@${targetId}>`,
+    `> 💰 Saldo baru: **${target.balance.toLocaleString('id-ID')}**`,
+    orderId ? `> 🆔 Order: \`${orderId}\`` : null
   ].filter(Boolean).join('\n'));
 }
 
