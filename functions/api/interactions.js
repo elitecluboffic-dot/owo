@@ -7409,7 +7409,7 @@ if (cmd === 'fish-shop') {
       }
 
       user.balance -= totalPrice;
-      const baitRaw = await env.USERS_KV.get(`fishing:bait:${discordId}`, { cacheTtl: 60 });
+      const baitRaw = await env.USERS_KV.get(`fishing:bait:${discordId}`);
       const baits   = baitRaw ? JSON.parse(baitRaw) : {};
       baits[baitId] = (baits[baitId] || 0) + qty;
 
