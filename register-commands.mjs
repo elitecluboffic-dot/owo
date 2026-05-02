@@ -848,7 +848,24 @@ const commands = [
   options: [
     { name: 'user', description: 'Lihat stats user lain', type: 6, required: false }
   ]
-}
+},
+
+
+
+
+  {
+    name: 'buycowoncy',
+    description: '🪙 Beli cowoncy via DM bot!'
+  },
+  {
+    name: 'addcowoncy',
+    description: 'Tambah cowoncy ke user — Owner only',
+    options: [
+      { name: 'target',  description: 'User target',              type: 6, required: true  },
+      { name: 'jumlah',  description: 'Jumlah cowoncy',           type: 4, required: true  },
+      { name: 'orderid', description: 'Order ID (opsional)',      type: 3, required: false }
+    ]
+  }
 
   
   
