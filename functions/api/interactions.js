@@ -8645,17 +8645,14 @@ if (cmd === 'download') {
 // ==================== EMAIL OTP ====================
 if (cmd === 'email-otp') {
   const randomId = Math.random().toString(36).substring(2, 15);
-  const tempEmail = `${randomId}@kraxx.my.id`;
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const tempEmail = `${randomId}@kraxx.my.id`;  // ← FIX: markdown corrupt sebelumnya
 
-  // Simpan WAITING — nanti Email Worker yang update
   await env.USERS_KV.put(`otp:${discordId}`, JSON.stringify({
     otp: "WAITING",
     email: tempEmail,
-    createdAt: Date.now()
+    createdAt: Date.now()  // ← FIX: bukan [Date.now](http://...)()
   }), { expirationTtl: 300 });
 
-  // Map email → discordId supaya Email Worker tau mau update siapa
   await env.USERS_KV.put(`email_map:${tempEmail}`, discordId, { expirationTtl: 300 });
 
   return respond([
@@ -8675,8 +8672,7 @@ if (cmd === 'email-otp') {
 
 // ==================== VERIFY OTP ====================
 if (cmd === 'verify-otp') {
-  const inputOtp = options.find(opt => opt.name === 'kode')?.value;
-
+  const inputOtp = options.find(opt => opt.name === 'kode')?.value;  // ← FIX
   if (!inputOtp) {
     return respond('❌ Contoh: `/verify-otp kode:123456`');
   }
@@ -8697,7 +8693,7 @@ if (cmd === 'verify-otp') {
     return respond('⏳ OTP belum masuk. Pastikan website sudah kirim email ke alamat tadi.');
   }
 
-  const elapsed = Date.now() - otpData.createdAt;
+  const elapsed = Date.now() - otpData.createdAt;  // ← FIX
   if (elapsed > 5 * 60 * 1000) {
     await env.USERS_KV.delete(`otp:${discordId}`);
     return respond('⏰ OTP expired. Ulangi `/email-otp`');
@@ -8705,10 +8701,10 @@ if (cmd === 'verify-otp') {
 
   if (String(inputOtp).trim() === String(otpData.otp).trim()) {
     await env.USERS_KV.delete(`otp:${discordId}`);
-    await env.USERS_KV.delete(`email_map:${otpData.email}`);
+    await env.USERS_KV.delete(`email_map:${otpData.email}`);  // ← FIX
     return respond([
       '✅ **OTP TEMBUS!** Verifikasi berhasil.',
-      `> 📧 Email: \`${otpData.email}\``
+      `> 📧 Email: \`${otpData.email}\``  // ← FIX
     ].join('\n'));
   }
 
