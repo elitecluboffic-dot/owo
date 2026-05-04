@@ -2892,7 +2892,9 @@ if (cmd === 'servers') {
   const { keys } = await env.USERS_KV.list({ prefix: 'guild:' });
   if (keys.length === 0) return respond('❌ Belum ada server yang terdaftar!');
 
-  return respond(`Debug: found ${keys.length} keys: ${keys.map(k => k.name).join(', ')}`);
+  // Debug struktur data
+const firstRaw = await env.USERS_KV.get(keys[0].name);
+return respond(`Struktur: ${firstRaw}`);
 
   const servers = [];
   for (const key of keys) {
