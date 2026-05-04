@@ -8642,17 +8642,20 @@ if (cmd === 'download') {
 
 
 
-// ==================== EMAIL OTP ====================
+// ==================== EMAIL OTP (FIXED VERSION) ====================
 if (cmd === 'email-otp') {
   const randomId = Math.random().toString(36).substring(2, 15);
-  const tempEmail = `${randomId}@kraxx.my.id`;  // ← FIX: markdown corrupt sebelumnya
+  // WAJIB lowercase supaya sinkron dengan Email Worker
+  const tempEmail = `${randomId}@kraxx.my.id`.toLowerCase().trim();
 
+  // 1. Simpan Sesi Utama
   await env.USERS_KV.put(`otp:${discordId}`, JSON.stringify({
     otp: "WAITING",
     email: tempEmail,
-    createdAt: Date.now()  // ← FIX: bukan [Date.now](http://...)()
+    createdAt: Date.now()
   }), { expirationTtl: 300 });
 
+  // 2. Simpan Mapping Email ke Discord ID (PENTING!)
   await env.USERS_KV.put(`email_map:${tempEmail}`, discordId, { expirationTtl: 300 });
 
   return respond([
@@ -8663,54 +8666,58 @@ if (cmd === 'email-otp') {
     '```',
     `> 📬 **Email sementara kamu:** \`${tempEmail}\``,
     `> ⏳ **Status:** Menunggu OTP dari website...`,
-    `> ⏳ Berlaku **5 menit**`,
     '',
-    '> Daftar di web pakai email di atas.',
-    '> Setelah OTP masuk, ketik: `/verify-otp kode:123456`'
+    '### 💡 CARA KERJA',
+    '> 1. Daftar di website menggunakan email di atas.',
+    '> 2. **OTP AKAN DIKIRIM KE DM KAMU** secara otomatis oleh bot.',
+    '> 3. Setelah terima DM, ketik command verifikasi di bawah.',
+    '',
+    '> Ketik: `/verify-otp kode:123456` untuk menyelesaikan.'
   ].join('\n'));
 }
 
-// ==================== VERIFY OTP ====================
+// ==================== VERIFY OTP (FIXED VERSION) ====================
 if (cmd === 'verify-otp') {
-  const inputOtp = options.find(opt => opt.name === 'kode')?.value;  // ← FIX
-  if (!inputOtp) {
-    return respond('❌ Contoh: `/verify-otp kode:123456`');
-  }
+  const inputOtp = options.find(opt => opt.name === 'kode')?.value;
+  if (!inputOtp) return respond('❌ Contoh: `/verify-otp kode:123456`');
 
   const otpDataRaw = await env.USERS_KV.get(`otp:${discordId}`);
-  if (!otpDataRaw) {
-    return respond('❌ Gak ada sesi OTP aktif. Ulangi `/email-otp`');
-  }
+  if (!otpDataRaw) return respond('❌ Sesi OTP tidak ditemukan. Silahkan ketik `/email-otp` ulang.');
 
   let otpData;
   try {
     otpData = JSON.parse(otpDataRaw);
   } catch (e) {
-    return respond('❌ Data corrupt. Ulangi `/email-otp`');
+    return respond('❌ Terjadi kesalahan data. Ulangi `/email-otp`.');
   }
 
+  // Jika status masih WAITING
   if (otpData.otp === "WAITING") {
-    return respond('⏳ OTP belum masuk. Pastikan website sudah kirim email ke alamat tadi.');
+    return respond('⏳ OTP belum masuk ke sistem. Silahkan cek DM kamu atau tunggu sebentar.');
   }
 
-  const elapsed = Date.now() - otpData.createdAt;  // ← FIX
+  const elapsed = Date.now() - otpData.createdAt;
   if (elapsed > 5 * 60 * 1000) {
     await env.USERS_KV.delete(`otp:${discordId}`);
-    return respond('⏰ OTP expired. Ulangi `/email-otp`');
+    return respond('⏰ Sesi kedaluwarsa (lebih dari 5 menit). Silahkan minta email baru.');
   }
 
+  // Cek kecocokan OTP
   if (String(inputOtp).trim() === String(otpData.otp).trim()) {
+    const finalEmail = otpData.email;
+    // Hapus data dari KV agar bersih
     await env.USERS_KV.delete(`otp:${discordId}`);
-    await env.USERS_KV.delete(`email_map:${otpData.email}`);  // ← FIX
+    await env.USERS_KV.delete(`email_map:${finalEmail}`);
+    
     return respond([
-      '✅ **OTP TEMBUS!** Verifikasi berhasil.',
-      `> 📧 Email: \`${otpData.email}\``  // ← FIX
+      '✅ **VERIFIKASI BERHASIL!**',
+      `> 📧 Email: \`${finalEmail}\``,
+      '> Selamat, kamu sudah terverifikasi.'
     ].join('\n'));
   }
 
-  return respond('❌ Kode salah! Cek lagi.');
+  return respond('❌ Kode OTP salah! Silahkan periksa kembali kode yang dikirim ke DM kamu.');
 }
-
   
 
 
