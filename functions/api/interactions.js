@@ -482,6 +482,121 @@ if (customId.startsWith('buy_cowoncy:')) {
   }), { headers });
 }
 
+
+
+
+  
+
+  // 💖 Love Random — randomize persentase
+if (customId.startsWith('love_random:')) {
+  const parts   = customId.split(':');
+  const user1Id = parts[1];
+  const user2Id = parts[2];
+ 
+  const [u1Res, u2Res] = await Promise.all([
+    fetch(`https://discord.com/api/v10/users/${user1Id}`, {
+      headers: { 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` }
+    }),
+    fetch(`https://discord.com/api/v10/users/${user2Id}`, {
+      headers: { 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` }
+    })
+  ]);
+ 
+  const u1 = await u1Res.json();
+  const u2 = await u2Res.json();
+ 
+  const lovePct = Math.floor(Math.random() * 101);
+  const { msg, color, heart } = buildLoveResult(lovePct, u1.username, u2.username);
+ 
+  const avatar1 = u1.avatar
+    ? `https://cdn.discordapp.com/avatars/${u1.id}/${u1.avatar}.png?size=256`
+    : `https://cdn.discordapp.com/embed/avatars/0.png`;
+  const avatar2 = u2.avatar
+    ? `https://cdn.discordapp.com/avatars/${u2.id}/${u2.avatar}.png?size=256`
+    : `https://cdn.discordapp.com/embed/avatars/0.png`;
+ 
+  const shipUrl = `https://api.popcat.xyz/ship?user1=${encodeURIComponent(avatar1)}&user2=${encodeURIComponent(avatar2)}`;
+  const barFilled = Math.round(lovePct / 10);
+ 
+  return new Response(JSON.stringify({
+    type: 7, // UPDATE message
+    data: {
+      content: `💌 **${u1.username}** + **${u2.username}** = **${lovePct}% Love** ${heart}`,
+      embeds: [{
+        color,
+        description: [
+          msg,
+          '',
+          `> ${'❤️'.repeat(barFilled)}${'🖤'.repeat(10 - barFilled)} **${lovePct}%**`,
+        ].join('\n'),
+        image: { url: shipUrl },
+        footer: { text: 'OwoBim Love Calculator 💕 • Randomized!' },
+        timestamp: new Date().toISOString()
+      }],
+      components: [{
+        type: 1,
+        components: [
+          { type: 2, style: 1, label: '🎲 Random', custom_id: `love_random:${user1Id}:${user2Id}` },
+          { type: 2, style: 2, label: '🔄 Change User', custom_id: `love_change:${user1Id}` },
+          { type: 2, style: 3, label: '💍 Propose?', custom_id: `love_propose:${user1Id}:${user2Id}` },
+          { type: 2, style: 5, label: '📊 Get Custom Results', url: `https://owo.kraxx.my.id` }
+        ]
+      }]
+    }
+  }), { headers });
+}
+ 
+// 💍 Love Propose — kirim lamaran ke pasangan
+if (customId.startsWith('love_propose:')) {
+  const parts   = customId.split(':');
+  const user1Id = parts[1];
+  const user2Id = parts[2];
+ 
+  if (clickerId !== user1Id) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Ini bukan propose-an kamu!', flags: 64 }
+    }), { headers });
+  }
+ 
+  const u2Res = await fetch(`https://discord.com/api/v10/users/${user2Id}`, {
+    headers: { 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` }
+  });
+  const u2 = await u2Res.json();
+ 
+  try {
+    const dmCh = await (await fetch('https://discord.com/api/v10/users/@me/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({ recipient_id: user2Id })
+    })).json();
+ 
+    await fetch(`https://discord.com/api/v10/channels/${dmCh.id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({
+        content: [
+          '```ansi',
+          '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[1;35m║  💍  KAMU DAPAT PROPOSE!  💍        ║\u001b[0m',
+          '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          `> 💌 <@${user1Id}> melamar kamu! 💍`,
+          `> 💕 Mau terima? Ketik \`/accept-marry\` di server ya!`
+        ].join('\n')
+      })
+    });
+  } catch (_) {}
+ 
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: `> 💍 Propose terkirim ke **${u2.username}**! Semoga diterima ya~ 🤞`,
+      flags: 64
+    }
+  }), { headers });
+}
+
   
   
 
@@ -7991,6 +8106,78 @@ if (cmd === 'buycowoncy') {
   ].filter(Boolean).join('\n'));
 }
 
+
+
+
+
+    if (cmd === 'love') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+ 
+  const targetOption = options.find(o => o.name === 'target');
+  const target2Id    = targetOption ? String(targetOption.value) : null;
+ 
+  if (!target2Id) return respond('❌ Pilih user yang mau dicek love-nya!');
+  if (target2Id === discordId) return respond('❌ Masa cek love sama diri sendiri! 💀');
+ 
+  const user1Info = interaction.member?.user || interaction.user;
+  const user2Info = interaction.data.resolved?.users?.[target2Id];
+  if (!user2Info) return respond('❌ User tidak ditemukan!');
+ 
+  // Persentase konsisten berdasarkan ID, atau random kalau user2 = bot
+  const isRandom  = getOption(options, 'mode') === 'random';
+  const seed      = [...(discordId + target2Id)].reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const lovePct   = isRandom ? Math.floor(Math.random() * 101) : seed % 101;
+ 
+  const { msg, color, heart } = buildLoveResult(lovePct, user1Info.username, user2Info.username);
+ 
+  const avatar1 = user1Info.avatar
+    ? `https://cdn.discordapp.com/avatars/${user1Info.id}/${user1Info.avatar}.png?size=256`
+    : `https://cdn.discordapp.com/embed/avatars/0.png`;
+  const avatar2 = user2Info.avatar
+    ? `https://cdn.discordapp.com/avatars/${user2Info.id}/${user2Info.avatar}.png?size=256`
+    : `https://cdn.discordapp.com/embed/avatars/0.png`;
+ 
+  // Ship image dari popcat (sama kayak yang lo pake di /makequote dll)
+  const shipUrl   = `https://api.popcat.xyz/ship?user1=${encodeURIComponent(avatar1)}&user2=${encodeURIComponent(avatar2)}`;
+  const barFilled = Math.round(lovePct / 10);
+ 
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: `${EMOJI} 💌 **${user1Info.username}** + **${user2Info.username}** = **${lovePct}% Love** ${heart}`,
+      embeds: [{
+        color,
+        description: [
+          msg,
+          '',
+          `> ${'❤️'.repeat(barFilled)}${'🖤'.repeat(10 - barFilled)} **${lovePct}%**`,
+          '',
+          '```ansi',
+          '\u001b[1;35m━━━━━━━━━━ 💕 DETAIL ━━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m 👤  User 1   :\u001b[0m \u001b[0;37m${user1Info.username}\u001b[0m`,
+          `\u001b[1;36m 👤  User 2   :\u001b[0m \u001b[0;37m${user2Info.username}\u001b[0m`,
+          `\u001b[1;36m 💖  Love     :\u001b[0m \u001b[1;35m${lovePct}%\u001b[0m`,
+          `\u001b[1;36m 🎯  Status   :\u001b[0m \u001b[0;37m${getLoveStatus(lovePct)}\u001b[0m`,
+          '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```'
+        ].join('\n'),
+        image: { url: shipUrl },
+        footer: { text: 'OwoBim Love Calculator 💕 • /love target:@user' },
+        timestamp: new Date().toISOString()
+      }],
+      components: [{
+        type: 1,
+        components: [
+          { type: 2, style: 1, label: '🎲 Random',       custom_id: `love_random:${discordId}:${target2Id}` },
+          { type: 2, style: 2, label: '🔄 Change User',  custom_id: `love_change:${discordId}` },
+          { type: 2, style: 3, label: '💍 Propose?',     custom_id: `love_propose:${discordId}:${target2Id}` },
+          { type: 2, style: 5, label: '📊 Custom Results', url: 'https://owo.kraxx.my.id' }
+        ]
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+
   
 
 
@@ -8214,5 +8401,74 @@ function getLevelNumber(totalEarned) {
   if (totalEarned >= 5000)    return 3;
   if (totalEarned >= 2000)    return 2;
   return 1;
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════════════════
+// BAGIAN 3: TAMBAH HELPER FUNCTIONS
+// Taruh di bawah bareng helper lain (dekat getOption, respond, dll)
+// ═══════════════════════════════════════════════════════════════════
+ 
+function buildLoveResult(pct, name1, name2) {
+  if (pct === 100) return {
+    msg:   `💯 **${name1}** dan **${name2}** adalah SOULMATE sejati! Cinta sempurna! 💍`,
+    color: 0xFF1493, heart: '💯'
+  };
+  if (pct >= 90) return {
+    msg:   `🔥 **${name1}** dan **${name2}** gila-gilaan saling suka... pure chaotic love 🔥`,
+    color: 0xFF69B4, heart: '🔥'
+  };
+  if (pct >= 80) return {
+    msg:   `💕 **${name1}** dan **${name2}** sangat cocok! Love is blooming! 🌸`,
+    color: 0xFF69B4, heart: '💕'
+  };
+  if (pct >= 70) return {
+    msg:   `💖 **${name1}** dan **${name2}** punya chemistry kuat! Lumayan nih~ 😍`,
+    color: 0xFF8C94, heart: '💖'
+  };
+  if (pct >= 60) return {
+    msg:   `😊 **${name1}** dan **${name2}** lumayan cocok! Ada harapan nih~ 💫`,
+    color: 0xFFABAB, heart: '😊'
+  };
+  if (pct >= 50) return {
+    msg:   `🤔 **${name1}** dan **${name2}** fifty-fifty... bisa jadi lebih! 🎲`,
+    color: 0xFFD700, heart: '🤔'
+  };
+  if (pct >= 40) return {
+    msg:   `😅 **${name1}** dan **${name2}** masih perlu usaha lebih keras! 💪`,
+    color: 0xFF8C00, heart: '😅'
+  };
+  if (pct >= 30) return {
+    msg:   `💔 **${name1}** dan **${name2}** masih figuring things out... that's totally fine 💔`,
+    color: 0x808080, heart: '💔'
+  };
+  if (pct >= 20) return {
+    msg:   `❄️ **${name1}** dan **${name2}** kayak kutub utara dan selatan... beda banget! 🥶`,
+    color: 0x6495ED, heart: '❄️'
+  };
+  if (pct >= 10) return {
+    msg:   `😬 **${name1}** dan **${name2}** butuh mukjizat buat nyambung! 🙏`,
+    color: 0x4169E1, heart: '😬'
+  };
+  return {
+    msg:   `💀 **${name1}** dan **${name2}** ibarat air dan api... gak bisa bersatu! 💀`,
+    color: 0x000000, heart: '💀'
+  };
+}
+ 
+function getLoveStatus(pct) {
+  if (pct === 100) return '🌟 Perfect Match';
+  if (pct >= 90)   return '🔥 Soulmate Level';
+  if (pct >= 80)   return '💍 Siap Nikah';
+  if (pct >= 70)   return '💑 Pasangan Ideal';
+  if (pct >= 60)   return '😊 Cocok Banget';
+  if (pct >= 50)   return '🎲 Fifty-Fifty';
+  if (pct >= 40)   return '🤞 Ada Harapan';
+  if (pct >= 30)   return '💔 Perlu Usaha';
+  if (pct >= 20)   return '❄️ Kurang Cocok';
+  if (pct >= 10)   return '😬 Sangat Beda';
+  return '💀 Not Meant To Be';
 }
 
