@@ -8182,7 +8182,7 @@ if (cmd === 'buycowoncy') {
 
 
 
-    if (cmd === 'download') {
+if (cmd === 'download') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
   const url   = getOption(options, 'url');
 
@@ -8191,9 +8191,9 @@ if (cmd === 'buycowoncy') {
   }
 
   // Deteksi platform
-  const isTikTok   = url.includes('tiktok.com') || url.includes('vm.tiktok.com');
-  const isReels    = url.includes('instagram.com/reel') || url.includes('instagram.com/p/');
-  const isYouTube  = url.includes('youtube.com/shorts') || url.includes('youtu.be');
+  const isTikTok  = url.includes('tiktok.com') || url.includes('vm.tiktok.com');
+  const isReels   = url.includes('instagram.com/reel') || url.includes('instagram.com/p/');
+  const isYouTube = url.includes('youtube.com/shorts') || url.includes('youtu.be');
 
   if (!isTikTok && !isReels && !isYouTube) {
     return respond([
@@ -8206,8 +8206,8 @@ if (cmd === 'buycowoncy') {
   }
 
   // Cooldown 15 detik per user
-  const cdKey     = `download_cd:${discordId}`;
-  const lastDl    = await env.USERS_KV.get(cdKey);
+  const cdKey  = `download_cd:${discordId}`;
+  const lastDl = await env.USERS_KV.get(cdKey);
   if (lastDl) {
     const sisa = 15000 - (Date.now() - parseInt(lastDl));
     if (sisa > 0) {
@@ -8227,138 +8227,264 @@ if (cmd === 'buycowoncy') {
     };
 
     try {
-      let videoUrl  = null;
-      let thumbUrl  = null;
-      let title     = 'Video';
-      let author    = 'Unknown';
-      let duration  = 0;
-      let platform  = '';
+      let videoUrl = null;
+      let thumbUrl = null;
+      let title    = 'Video';
+      let author   = 'Unknown';
+      let duration = 0;
+      let platform = '';
 
-      // ══════════════════════════════════
-      // TIKTOK — pakai tikwm.com (gratis)
-      // ══════════════════════════════════
+      // ══════════════════════════════════════════════════
+      // TIKTOK — Chain: tikwm → RapidAPI → cobalt.tools
+      // ══════════════════════════════════════════════════
       if (isTikTok) {
         platform = 'TikTok';
-        const res  = await fetch('https://www.tikwm.com/api/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'Mozilla/5.0'
-          },
-          body: new URLSearchParams({
-            url:    url,
-            hd:     '1'   // minta kualitas HD
-          })
-        });
-        const data = await res.json();
 
-        if (data.code !== 0 || !data.data) {
-          return await editMsg([
-            `> ${EMOJI} ❌ Gagal download TikTok!`,
-            `> 💡 Pastikan URL valid dan video tidak private.`,
-            `> 🔍 Error: \`${data.msg || 'Unknown error'}\``
-          ].join('\n'));
-        }
-
-        // tikwm return play (no watermark) dan wmplay (with watermark)
-        videoUrl = data.data.hdplay || data.data.play;
-        thumbUrl = data.data.cover  || data.data.origin_cover;
-        title    = data.data.title  || 'TikTok Video';
-        author   = data.data.author?.nickname || data.data.author?.unique_id || 'Unknown';
-        duration = data.data.duration || 0;
-      }
-
-      // ══════════════════════════════════
-      // INSTAGRAM REELS — pakai snapinsta / instavideosave
-      // ══════════════════════════════════
-      else if (isReels) {
-        platform = 'Instagram Reels';
-
-        // Pakai API savefrom style via RapidAPI
-        // Kalau punya RapidAPI key, taruh di env.RAPIDAPI_KEY
-        // Kalau tidak, pakai scraper alternatif
-        const apiKey = env.RAPIDAPI_KEY;
-
-        if (apiKey) {
-          // Pakai RapidAPI Instagram downloader
-          const res = await fetch(`https://instagram-downloader-download-instagram-videos-stories.p.rapidapi.com/index?url=${encodeURIComponent(url)}`, {
-            headers: {
-              'X-RapidAPI-Key': apiKey,
-              'X-RapidAPI-Host': 'instagram-downloader-download-instagram-videos-stories.p.rapidapi.com'
-            }
-          });
-          const data = await res.json();
-
-          if (data.media) {
-            videoUrl = data.media;
-            title    = data.title || 'Instagram Reel';
-            author   = data.author || 'Unknown';
-          } else {
-            return await editMsg([
-              `> ${EMOJI} ❌ Gagal download Instagram Reels!`,
-              `> 💡 Pastikan video tidak private/akun tidak dikunci.`
-            ].join('\n'));
-          }
-
-        } else {
-          // Fallback gratis tanpa key — pakai savefrom.net style
-          const res = await fetch('https://www.saveig.app/api/post', {
+        // [1] Coba tikwm.com dulu
+        try {
+          const res  = await fetch('https://www.tikwm.com/api/', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
               'User-Agent': 'Mozilla/5.0'
             },
-            body: new URLSearchParams({ url })
+            body: new URLSearchParams({ url, hd: '1' })
           });
           const data = await res.json();
-
-          if (data?.data?.[0]?.url) {
-            videoUrl = data.data[0].url;
-            thumbUrl = data.data[0].thumbnail || null;
-            title    = 'Instagram Reel';
-            author   = 'Instagram User';
-          } else {
-            return await editMsg([
-              `> ${EMOJI} ❌ Gagal download Instagram Reels!`,
-              `> 💡 Tambahkan \`RAPIDAPI_KEY\` di Cloudflare env untuk hasil lebih stabil.`
-            ].join('\n'));
+          if (data.code === 0 && data.data?.play) {
+            videoUrl = data.data.hdplay || data.data.play;
+            thumbUrl = data.data.cover  || data.data.origin_cover;
+            title    = data.data.title  || 'TikTok Video';
+            author   = data.data.author?.nickname || data.data.author?.unique_id || 'Unknown';
+            duration = data.data.duration || 0;
           }
+        } catch (_) {}
+
+        // [2] Fallback ke RapidAPI kalau ada key
+        if (!videoUrl && env.RAPIDAPI_KEY) {
+          try {
+            const res  = await fetch(
+              `https://tiktok-video-no-watermark2.p.rapidapi.com/?url=${encodeURIComponent(url)}&hd=1`,
+              {
+                headers: {
+                  'X-RapidAPI-Key':  env.RAPIDAPI_KEY,
+                  'X-RapidAPI-Host': 'tiktok-video-no-watermark2.p.rapidapi.com'
+                }
+              }
+            );
+            const data = await res.json();
+            if (data.data?.play) {
+              videoUrl = data.data.hdplay || data.data.play;
+              thumbUrl = data.data.cover  || null;
+              title    = data.data.title  || 'TikTok Video';
+              author   = data.data.author?.nickname || 'Unknown';
+              duration = data.data.duration || 0;
+            }
+          } catch (_) {}
+        }
+
+        // [3] Fallback ke cobalt.tools
+        if (!videoUrl) {
+          try {
+            const res  = await fetch('https://api.cobalt.tools/api/json', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                url,
+                vQuality: '720',
+                filenamePattern: 'pretty',
+                isNoTTWatermark: true
+              })
+            });
+            const data = await res.json();
+            if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
+              videoUrl = data.url;
+              title    = 'TikTok Video';
+              author   = 'TikTok';
+            } else if (data.status === 'picker' && data.picker?.[0]?.url) {
+              videoUrl = data.picker[0].url;
+              title    = 'TikTok Video';
+            }
+          } catch (_) {}
+        }
+
+        if (!videoUrl) {
+          return await editMsg([
+            `> ${EMOJI} ❌ Gagal download TikTok!`,
+            `> 💡 Semua API sedang limit. Coba lagi besok atau gunakan URL lain.`,
+            `> 🔄 *Tip: Tambahkan \`RAPIDAPI_KEY\` di Cloudflare env untuk fallback ekstra.*`
+          ].join('\n'));
         }
       }
 
-      // ══════════════════════════════════
-      // YOUTUBE SHORTS — pakai cobalt.tools API
-      // ══════════════════════════════════
+      // ══════════════════════════════════════════════════════════
+      // INSTAGRAM REELS — Chain: RapidAPI → saveig.app → cobalt
+      // ══════════════════════════════════════════════════════════
+      else if (isReels) {
+        platform = 'Instagram Reels';
+
+        // [1] Coba RapidAPI kalau ada key
+        if (env.RAPIDAPI_KEY) {
+          try {
+            const res  = await fetch(
+              `https://instagram-downloader-download-instagram-videos-stories.p.rapidapi.com/index?url=${encodeURIComponent(url)}`,
+              {
+                headers: {
+                  'X-RapidAPI-Key':  env.RAPIDAPI_KEY,
+                  'X-RapidAPI-Host': 'instagram-downloader-download-instagram-videos-stories.p.rapidapi.com'
+                }
+              }
+            );
+            const data = await res.json();
+            if (data.media) {
+              videoUrl = data.media;
+              title    = data.title  || 'Instagram Reel';
+              author   = data.author || 'Unknown';
+            }
+          } catch (_) {}
+        }
+
+        // [2] Fallback ke saveig.app (gratis)
+        if (!videoUrl) {
+          try {
+            const res  = await fetch('https://www.saveig.app/api/post', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Mozilla/5.0'
+              },
+              body: new URLSearchParams({ url })
+            });
+            const data = await res.json();
+            if (data?.data?.[0]?.url) {
+              videoUrl = data.data[0].url;
+              thumbUrl = data.data[0].thumbnail || null;
+              title    = 'Instagram Reel';
+              author   = 'Instagram User';
+            }
+          } catch (_) {}
+        }
+
+        // [3] Fallback ke cobalt.tools
+        if (!videoUrl) {
+          try {
+            const res  = await fetch('https://api.cobalt.tools/api/json', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                url,
+                vQuality: '720',
+                filenamePattern: 'pretty'
+              })
+            });
+            const data = await res.json();
+            if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
+              videoUrl = data.url;
+              title    = 'Instagram Reel';
+              author   = 'Instagram';
+            } else if (data.status === 'picker' && data.picker?.[0]?.url) {
+              videoUrl = data.picker[0].url;
+              title    = 'Instagram Reel';
+            }
+          } catch (_) {}
+        }
+
+        if (!videoUrl) {
+          return await editMsg([
+            `> ${EMOJI} ❌ Gagal download Instagram Reels!`,
+            `> 💡 Pastikan video tidak private/akun tidak dikunci.`,
+            `> 🔄 *Tip: Tambahkan \`RAPIDAPI_KEY\` di Cloudflare env untuk hasil lebih stabil.*`
+          ].join('\n'));
+        }
+      }
+
+      // ══════════════════════════════════════════════════════
+      // YOUTUBE SHORTS — Chain: cobalt.tools → yt-dlp style
+      // ══════════════════════════════════════════════════════
       else if (isYouTube) {
         platform = 'YouTube Shorts';
 
-        const res = await fetch('https://api.cobalt.tools/api/json', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            url:          url,
-            vQuality:     '720',
-            filenamePattern: 'pretty',
-            isNoTTWatermark: true
-          })
-        });
-        const data = await res.json();
+        // [1] Coba cobalt.tools
+        try {
+          const res  = await fetch('https://api.cobalt.tools/api/json', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              url,
+              vQuality: '720',
+              filenamePattern: 'pretty',
+              isNoTTWatermark: true
+            })
+          });
+          const data = await res.json();
+          if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
+            videoUrl = data.url;
+            title    = 'YouTube Shorts';
+            author   = 'YouTube';
+          } else if (data.status === 'picker' && data.picker?.[0]?.url) {
+            videoUrl = data.picker[0].url;
+            title    = 'YouTube Shorts';
+          }
+        } catch (_) {}
 
-        if (data.status === 'stream' || data.status === 'redirect') {
-          videoUrl = data.url;
-          title    = 'YouTube Shorts';
-          author   = 'YouTube';
-        } else if (data.status === 'picker') {
-          videoUrl = data.picker?.[0]?.url || null;
-          title    = 'YouTube Shorts';
-        } else {
+        // [2] Fallback ke y2mate style API
+        if (!videoUrl) {
+          try {
+            const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
+            if (videoId) {
+              const res  = await fetch('https://www.y2mate.com/mates/analyzeV2/ajax', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded',
+                  'User-Agent': 'Mozilla/5.0'
+                },
+                body: new URLSearchParams({
+                  k_query: `https://www.youtube.com/watch?v=${videoId}`,
+                  k_page: 'home',
+                  hl: 'id',
+                  q_auto: '1'
+                })
+              });
+              const data = await res.json();
+              // y2mate return link di data.links.mp4
+              const links = data?.links?.mp4;
+              if (links) {
+                const best = Object.values(links).find(v => v.q === '720p') ||
+                             Object.values(links).find(v => v.q === '480p') ||
+                             Object.values(links)[0];
+                if (best?.k) {
+                  // Convert key ke link download
+                  const convRes  = await fetch('https://www.y2mate.com/mates/convertV2/index', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ vid: videoId, k: best.k })
+                  });
+                  const convData = await convRes.json();
+                  if (convData.dlink) {
+                    videoUrl = convData.dlink;
+                    title    = data.title || 'YouTube Shorts';
+                    author   = 'YouTube';
+                  }
+                }
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (!videoUrl) {
           return await editMsg([
             `> ${EMOJI} ❌ Gagal download YouTube Shorts!`,
             `> 💡 Coba lagi dalam beberapa detik.`,
-            `> 🔍 Status: \`${data.status || 'unknown'}\``
+            `> 🔄 *cobalt.tools dan y2mate sedang tidak bisa diakses.*`
           ].join('\n'));
         }
       }
@@ -8367,17 +8493,16 @@ if (cmd === 'buycowoncy') {
         return await editMsg(`> ${EMOJI} ❌ Tidak bisa ambil link video. Coba lagi!`);
       }
 
-      // Cek ukuran file sebelum kirim
-      // Discord limit attachment = 25MB untuk free bot
+      // ══════════════════════════════
+      // CEK UKURAN FILE
+      // ══════════════════════════════
       let fileSize = 'Unknown';
       try {
-        const headRes = await fetch(videoUrl, { method: 'HEAD' });
+        const headRes       = await fetch(videoUrl, { method: 'HEAD' });
         const contentLength = headRes.headers.get('content-length');
         if (contentLength) {
           const mb = (parseInt(contentLength) / 1024 / 1024).toFixed(2);
           fileSize = `${mb} MB`;
-
-          // Kalau lebih dari 24MB, kasih link aja
           if (parseInt(contentLength) > 24 * 1024 * 1024) {
             return await editMsg([
               `> ${EMOJI} ⚠️ File terlalu besar (**${mb} MB**) untuk dikirim langsung!`,
@@ -8402,7 +8527,9 @@ if (cmd === 'buycowoncy') {
         hour: '2-digit', minute: '2-digit'
       });
 
-      // Kirim hasil
+      // ══════════════════════════════
+      // KIRIM HASIL
+      // ══════════════════════════════
       await editMsg([
         '```ansi',
         '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
