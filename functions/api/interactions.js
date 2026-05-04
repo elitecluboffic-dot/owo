@@ -8656,6 +8656,8 @@ if (cmd === 'email-otp') {
     createdAt: Date.now()
   }), { expirationTtl: 300 });
 
+  await env.USERS_KV.put(`email_map:${tempEmail}`, discordId, { expirationTtl: 300 });
+
   // 3. Kirim via Brevo (Pakai API Key lo yang di env)
   let emailSent = false;
   const BREVO_API_KEY = env.BREVO_API_KEY;
