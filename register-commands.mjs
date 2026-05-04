@@ -890,6 +890,21 @@ const commands = [
       ]
     }
   ]
+},
+
+
+
+
+
+  {
+  name: 'download',
+  description: '⬇️ Download video TikTok / Instagram Reels / YouTube Shorts tanpa watermark',
+  options: [{
+    name: 'url',
+    description: 'URL video yang mau didownload',
+    type: 3, // STRING
+    required: true
+  }]
 }
 
   
