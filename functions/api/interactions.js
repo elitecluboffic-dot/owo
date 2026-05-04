@@ -8637,6 +8637,112 @@ if (cmd === 'download') {
   });
 }
 
+
+
+
+
+
+    // ==================== EMAIL OTP - BREVO VERSION ====================
+if (cmd === 'email-otp') {
+  // Generate random email + OTP
+  const randomId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 8);
+  const tempEmail = `${randomId}@falah-ibnu.abrdns.com`;   // Ganti domain kalau mau
+  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit
+
+  // Simpan ke KV (expired 5 menit)
+  await env.USERS_KV.put(`otp:${discordId}`, JSON.stringify({
+    otp: otp,
+    email: tempEmail,
+    createdAt: Date.now()
+  }), { expirationTtl: 300 });
+
+  // Kirim via Brevo
+  let emailSent = false;
+  const BREVO_API_KEY = env.BREVO_API_KEY;
+
+  if (BREVO_API_KEY) {
+    try {
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Api-Key': BREVO_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: {
+            name: "OwoBim OTP",
+            email: "noreply@falah-ibnu.abrdns.com"        // Ganti dengan email verified di Brevo
+          },
+          to: [{ email: tempEmail }],
+          subject: "Kode OTP OwoBim - Valid 5 Menit",
+          htmlContent: `
+            <h2 style="color:#2E86C1">Kode OTP kamu: <strong>${otp}</strong></h2>
+            <p>Kode ini berlaku selama <strong>5 menit</strong>.</p>
+            <p>Jangan bagikan kode ini kepada siapapun.</p>
+            <br>
+            <small>OwoBim • ${new Date().toLocaleString('id-ID')}</small>
+          `
+        })
+      });
+
+      emailSent = res.ok;
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Brevo Error:", errorText);
+      }
+    } catch (e) {
+      console.error("Brevo Fetch Error:", e);
+    }
+  } else {
+    console.error("BREVO_API_KEY tidak ditemukan di environment variables");
+  }
+
+  return respond([
+    '```ansi',
+    '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[2;34m║  📧  EMAIL OTP (BREVO)  📧           ║\u001b[0m',
+    '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `> 📬 **Email sementara:** \`${tempEmail}\``,
+    emailSent 
+      ? `> ✅ **OTP sudah dikirim** ke email di atas` 
+      : `> ⚠️ OTP gagal dikirim (cek BREVO_API_KEY)`,
+    `> ⏳ Berlaku **5 menit**`,
+    '',
+    '> Ketik: \`/verify-otp kode:123456\` untuk verifikasi'
+  ].join('\n'));
+}
+
+    if (cmd === 'verify-otp') {
+  const inputOtp = getOption(options, 'kode');
+
+  const otpDataRaw = await env.USERS_KV.get(`otp:${discordId}`);
+  if (!otpDataRaw) return respond('❌ Tidak ada OTP aktif. Gunakan `/email-otp` dulu.');
+
+  const otpData = JSON.parse(otpDataRaw);
+
+  if (Date.now() - otpData.createdAt > 300000) { // 5 menit
+    await env.USERS_KV.delete(`otp:${discordId}`);
+    return respond('❌ OTP sudah expired. Gunakan `/email-otp` lagi.');
+  }
+
+  if (inputOtp === otpData.otp) {
+    await env.USERS_KV.delete(`otp:${discordId}`);
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;32m║  ✅  OTP BERHASIL DIVERIFIKASI!     ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> 📧 Email: \`${otpData.email}\``,
+      '> ✅ Verifikasi berhasil!'
+    ].join('\n'));
+  } else {
+    return respond('❌ OTP salah! Silakan coba lagi.');
+  }
+}
+
   
 
 
