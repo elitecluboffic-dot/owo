@@ -864,7 +864,33 @@ const commands = [
       { name: 'jumlah',  description: 'Jumlah cowoncy',           type: 4, required: true  },
       { name: 'orderid', description: 'Order ID (opsional)',      type: 3, required: false }
     ]
-  }
+  },
+
+
+
+
+  {
+  name: 'love',
+  description: '💕 Cek persentase love antara dua orang!',
+  options: [
+    {
+      name: 'target',
+      description: 'User yang mau dicek love-nya',
+      type: 6, // USER
+      required: true
+    },
+    {
+      name: 'mode',
+      description: 'Mode kalkulasi',
+      type: 3, // STRING
+      required: false,
+      choices: [
+        { name: '🔢 Konsisten (selalu sama)', value: 'fixed' },
+        { name: '🎲 Random (acak tiap cek)', value: 'random' }
+      ]
+    }
+  ]
+}
 
   
   
