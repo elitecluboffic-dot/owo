@@ -625,6 +625,69 @@ if (customId.startsWith('love_propose:')) {
   }), { headers });
 }
 
+
+  
+
+
+
+  if (customId.startsWith('servers_page:')) {
+  if (clickerId !== '1442230317455900823') {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Bukan Pemilik Bot!', flags: 64 }
+    }), { headers });
+  }
+
+  const page = parseInt(customId.split(':')[1]);
+  const { keys } = await env.USERS_KV.list({ prefix: 'guild:' });
+
+  const servers = [];
+  for (const key of keys) {
+    const raw = await env.USERS_KV.get(key.name);
+    if (raw) servers.push(JSON.parse(raw));
+  }
+
+  servers.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+  const perPage   = 5;
+  const totalPage = Math.ceil(servers.length / perPage);
+  const medals    = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+  const start     = page * perPage;
+
+  const fields = servers.slice(start, start + perPage).map((data, i) => {
+    const waktu = new Date(data.updatedAt).toLocaleDateString('id-ID', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    });
+    return {
+      name: `${medals[i] || `${start + i + 1}.`} \`${data.guildId}\``,
+      value: `📢 <#${data.channelId}> • 🕐 ${waktu}`,
+      inline: false
+    };
+  });
+
+  return new Response(JSON.stringify({
+    type: 7, // UPDATE
+    data: {
+      embeds: [{
+        color: 0x5865F2,
+        title: '🌐 OWO BIM — Server List',
+        description: `🌍 **Total:** \`${servers.length}\` server`,
+        fields,
+        footer: { text: `Halaman ${page + 1} dari ${totalPage} • Hanya kamu yang bisa melihat ini` },
+        timestamp: new Date().toISOString()
+      }],
+      components: [{
+        type: 1,
+        components: [
+          { type: 2, style: 2, label: '◀ Prev', custom_id: `servers_page:${page - 1}`, disabled: page === 0 },
+          { type: 2, style: 2, label: `${page + 1} / ${totalPage}`, custom_id: 'servers_info', disabled: true },
+          { type: 2, style: 2, label: 'Next ▶', custom_id: `servers_page:${page + 1}`, disabled: page >= totalPage - 1 }
+        ]
+      }]
+    }
+  }), { headers });
+}
+
   
   
 
@@ -2819,54 +2882,66 @@ if (cmd === 'pat') {
 
 
 
+
+    
+
+
+
 if (cmd === 'servers') {
   if (discordId !== '1442230317455900823') return respond('❌ Bukan Pemilik Bot!');
-
   const { keys } = await env.USERS_KV.list({ prefix: 'guild:' });
   if (keys.length === 0) return respond('❌ Belum ada server yang terdaftar!');
 
-  // Ambil data semua server
   const servers = [];
   for (const key of keys) {
     const raw = await env.USERS_KV.get(key.name);
-    if (raw) {
-      const data = JSON.parse(raw);
-      servers.push(data);
-    }
+    if (raw) servers.push(JSON.parse(raw));
   }
 
-  // Sort by updatedAt terbaru
   servers.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-  const medals = ['🥇','🥈','🥉'];
-  const serverList = servers.map((data, i) => {
+  const page      = 0;
+  const perPage   = 5;
+  const totalPage = Math.ceil(servers.length / perPage);
+  const medals    = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+  const newest    = new Date(servers[0]?.updatedAt).toLocaleDateString('id-ID');
+  const oldest    = new Date(servers[servers.length - 1]?.updatedAt).toLocaleDateString('id-ID');
+
+  const fields = servers.slice(0, perPage).map((data, i) => {
     const waktu = new Date(data.updatedAt).toLocaleDateString('id-ID', {
       day: '2-digit', month: 'short', year: 'numeric'
     });
-    const rank = medals[i] || `${i + 1}.`;
-    return `${rank} \`${data.guildId}\`\n┗ 📢 <#${data.channelId}> • 🕐 ${waktu}`;
+    return {
+      name: `${medals[i]} \`${data.guildId}\``,
+      value: `📢 <#${data.channelId}> • 🕐 ${waktu}`,
+      inline: false
+    };
   });
 
-  // Stats
-  const newest = new Date(servers[0]?.updatedAt).toLocaleDateString('id-ID');
-  const oldest = new Date(servers[servers.length - 1]?.updatedAt).toLocaleDateString('id-ID');
+  const components = totalPage > 1 ? [{
+    type: 1,
+    components: [
+      { type: 2, style: 2, label: '◀ Prev', custom_id: `servers_page:${page - 1}`, disabled: true },
+      { type: 2, style: 2, label: `1 / ${totalPage}`, custom_id: 'servers_info', disabled: true },
+      { type: 2, style: 2, label: 'Next ▶', custom_id: `servers_page:${page + 1}`, disabled: false }
+    ]
+  }] : [];
 
-  return respond([
-    '```ansi',
-    '\u001b[2;34m╔══════════════════════════════════════════╗\u001b[0m',
-    '\u001b[2;34m║  \u001b[1;33m🌐  OWO BIM — SERVER LIST  🌐\u001b[0m  \u001b[2;34m║\u001b[0m',
-    '\u001b[2;34m╚══════════════════════════════════════════╝\u001b[0m',
-    '```',
-    `> 🌍 **Total Server:** \`${servers.length}\``,
-    `> 🆕 **Terbaru:** ${newest} • 🕰️ **Terlama:** ${oldest}`,
-    '',
-    '```ansi',
-    '\u001b[1;32m━━━━━━━━━━ DAFTAR SERVER ━━━━━━━━━━\u001b[0m',
-    '```',
-    serverList.join('\n\n'),
-    '',
-    `> 👑 *Hanya kamu yang bisa melihat ini* <@${discordId}>`
-  ].join('\n'));
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      flags: 64,
+      embeds: [{
+        color: 0x5865F2,
+        title: '🌐 OWO BIM — Server List',
+        description: `🌍 **Total:** \`${servers.length}\` server\n🆕 **Terbaru:** ${newest} • 🕰️ **Terlama:** ${oldest}`,
+        fields,
+        footer: { text: `Halaman 1 dari ${totalPage} • Hanya kamu yang bisa melihat ini` },
+        timestamp: new Date().toISOString()
+      }],
+      components
+    }
+  }), { headers });
 }
 
 
