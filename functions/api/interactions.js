@@ -597,6 +597,34 @@ if (customId.startsWith('love_propose:')) {
   }), { headers });
 }
 
+
+
+
+  if (customId.startsWith('love_change:')) {
+  const user1Id = customId.split(':')[1];
+
+  return new Response(JSON.stringify({
+    type: 9, // MODAL
+    data: {
+      title: '🔄 Ganti Pasangan Love',
+      custom_id: `love_change_submit:${user1Id}`,
+      components: [{
+        type: 1,
+        components: [{
+          type: 4, // TEXT_INPUT
+          custom_id: 'target_user_id',
+          label: 'Masukkan User ID target',
+          style: 1, // SHORT
+          placeholder: 'Contoh: 123456789012345678',
+          min_length: 17,
+          max_length: 19,
+          required: true
+        }]
+      }]
+    }
+  }), { headers });
+}
+
   
   
 
@@ -886,6 +914,97 @@ if (customId.startsWith('confess_reply_modal:')) {
     data: {
       content: '✅ Bukti transfer berhasil dikirim ke owner! Tunggu konfirmasi ya.',
       flags: 64
+    }
+  }), { headers });
+}
+
+
+
+
+  
+
+
+
+
+
+  if (customId.startsWith('love_change_submit:')) {
+  const user1Id = customId.split(':')[1];
+  const user2Id = interaction.data.components[0].components[0].value.trim();
+
+  if (user1Id === user2Id) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Masa cek love sama diri sendiri! 💀', flags: 64 }
+    }), { headers });
+  }
+
+  // Fetch kedua user
+  const [u1Res, u2Res] = await Promise.all([
+    fetch(`https://discord.com/api/v10/users/${user1Id}`, {
+      headers: { 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` }
+    }),
+    fetch(`https://discord.com/api/v10/users/${user2Id}`, {
+      headers: { 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` }
+    })
+  ]);
+
+  const u1 = await u1Res.json();
+  const u2 = await u2Res.json();
+
+  // Validasi user2 valid
+  if (!u2.id) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ User ID tidak ditemukan! Pastikan ID-nya benar.', flags: 64 }
+    }), { headers });
+  }
+
+  const seed    = [...(user1Id + user2Id)].reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const lovePct = seed % 101;
+  const { msg, color, heart } = buildLoveResult(lovePct, u1.username, u2.username);
+
+  const avatar1   = u1.avatar
+    ? `https://cdn.discordapp.com/avatars/${u1.id}/${u1.avatar}.png?size=256`
+    : `https://cdn.discordapp.com/embed/avatars/0.png`;
+  const avatar2   = u2.avatar
+    ? `https://cdn.discordapp.com/avatars/${u2.id}/${u2.avatar}.png?size=256`
+    : `https://cdn.discordapp.com/embed/avatars/0.png`;
+  const shipUrl   = `https://api.popcat.xyz/ship?user1=${encodeURIComponent(avatar1)}&user2=${encodeURIComponent(avatar2)}`;
+  const barFilled = Math.round(lovePct / 10);
+
+  return new Response(JSON.stringify({
+    type: 7, // UPDATE message
+    data: {
+      content: `💌 **${u1.username}** + **${u2.username}** = **${lovePct}% Love** ${heart}`,
+      embeds: [{
+        color,
+        description: [
+          msg,
+          '',
+          `> ${'❤️'.repeat(barFilled)}${'🖤'.repeat(10 - barFilled)} **${lovePct}%**`,
+          '',
+          '```ansi',
+          '\u001b[1;35m━━━━━━━━━━ 💕 DETAIL ━━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m 👤  User 1   :\u001b[0m \u001b[0;37m${u1.username}\u001b[0m`,
+          `\u001b[1;36m 👤  User 2   :\u001b[0m \u001b[0;37m${u2.username}\u001b[0m`,
+          `\u001b[1;36m 💖  Love     :\u001b[0m \u001b[1;35m${lovePct}%\u001b[0m`,
+          `\u001b[1;36m 🎯  Status   :\u001b[0m \u001b[0;37m${getLoveStatus(lovePct)}\u001b[0m`,
+          '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```'
+        ].join('\n'),
+        image: { url: shipUrl },
+        footer: { text: 'OwoBim Love Calculator 💕 • /love target:@user' },
+        timestamp: new Date().toISOString()
+      }],
+      components: [{
+        type: 1,
+        components: [
+          { type: 2, style: 1, label: '🎲 Random',          custom_id: `love_random:${user1Id}:${user2Id}` },
+          { type: 2, style: 2, label: '🔄 Change User',     custom_id: `love_change:${user1Id}` },
+          { type: 2, style: 3, label: '💍 Propose?',        custom_id: `love_propose:${user1Id}:${user2Id}` },
+          { type: 2, style: 5, label: '📊 Custom Results',  url: 'https://owo.kraxx.my.id' }
+        ]
+      }]
     }
   }), { headers });
 }
