@@ -8646,7 +8646,7 @@ if (cmd === 'download') {
 if (cmd === 'email-otp') {
   // Generate random email + OTP
   const randomId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 8);
-  const tempEmail = `${randomId}@tempmail.kraxx.my.id`;   // Ganti domain kalau mau
+  const tempEmail = `${randomId}@kraxx.my.id`;   // Ganti domain kalau mau
   const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit
 
   // Simpan ke KV (expired 5 menit)
