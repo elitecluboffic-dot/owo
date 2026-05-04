@@ -910,23 +910,22 @@ const commands = [
 
 
 
-  {
+{
   name: 'email-otp',
-  description: '📧 Generate email sementara + kirim OTP via API OwoBim'
+  description: '📧 Generate email sementara untuk menerima OTP otomatis'
 },
 {
   name: 'verify-otp',
-  description: '🔑 Verifikasi kode OTP yang dikirim ke email',
+  description: '🔑 Verifikasi kode OTP yang ditangkap otomatis oleh sistem',
   options: [
     {
       name: 'kode',
-      description: 'Masukkan 6 digit OTP',
-      type: 3,        // STRING
+      description: 'Masukkan 6 digit kode OTP yang lo terima',
+      type: 3, // STRING
       required: true
     }
   ]
 }
-
   
   
   
