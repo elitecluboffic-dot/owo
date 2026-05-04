@@ -8642,88 +8642,77 @@ if (cmd === 'download') {
 
 
 
-// ==================== EMAIL OTP - BREVO VERSION (FIXED) ====================
+// ==================== EMAIL OTP ====================
 if (cmd === 'email-otp') {
-  // 1. Generate random email + OTP awal (buat pancingan Brevo)
   const randomId = Math.random().toString(36).substring(2, 15);
   const tempEmail = `${randomId}@kraxx.my.id`;
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // 2. Simpan ke KV (Status WAITING supaya nanti ditimpa Email Worker)
+  // Simpan WAITING — nanti Email Worker yang update
   await env.USERS_KV.put(`otp:${discordId}`, JSON.stringify({
-    otp: "WAITING", 
+    otp: "WAITING",
     email: tempEmail,
     createdAt: Date.now()
   }), { expirationTtl: 300 });
 
+  // Map email → discordId supaya Email Worker tau mau update siapa
   await env.USERS_KV.put(`email_map:${tempEmail}`, discordId, { expirationTtl: 300 });
 
-  // 3. Kirim via Brevo (Pakai API Key lo yang di env)
-  let emailSent = false;
-  const BREVO_API_KEY = env.BREVO_API_KEY;
-
-  if (BREVO_API_KEY) {
-    try {
-      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Api-Key': BREVO_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: { name: "OwoBim OTP", email: "noreply@kraxx.my.id" },
-          to: [{ email: tempEmail }],
-          subject: "Kode OTP OwoBim - Valid 5 Menit",
-          htmlContent: `
-            <h2 style="color:#2E86C1">Kode OTP kamu: <strong>${otp}</strong></h2>
-            <p>Kode ini berlaku selama 5 menit.</p>
-            <br>
-            <small>OwoBim • ${new Date().toLocaleString('id-ID')}</small>
-          `
-        })
-      });
-      emailSent = res.ok;
-    } catch (e) {
-      console.error("Brevo Error:", e);
-    }
-  }
-
-  // 4. Respon ke Discord (Menunggu OTP beneran masuk)
   return respond([
     '```ansi',
     '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
-    '\u001b[2;34m║  📧  EMAIL OTP (OWOBIM BOT)  📧           ║\u001b[0m',
+    '\u001b[2;34m║  📧  EMAIL OTP (OWOBIM BOT)          ║\u001b[0m',
     '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
     '```',
-    `> 📬 **Email sementara:** \`${tempEmail}\``,
-    `> ⏳ **Status:** Menunggu OTP ...`,
-    emailSent ? `> ✅ **Sistem Ready** (API EMAIL OWOBIM Connected)` : `> ⚠️ **Sistem Ready** (Manual Mode)`,
+    `> 📬 **Email sementara kamu:** \`${tempEmail}\``,
+    `> ⏳ **Status:** Menunggu OTP dari website...`,
     `> ⏳ Berlaku **5 menit**`,
     '',
-    '> *Daftar di web pakai email di atas, lalu verifikasi di bawah:*',
-    '> Ketik: \`/verify-otp kode:123456\`'
+    '> Daftar di web pakai email di atas.',
+    '> Setelah OTP masuk, ketik: `/verify-otp kode:123456`'
   ].join('\n'));
 }
 
-// ==================== VERIFY OTP (PASTIKAN ADA INI JUGA) ====================
+// ==================== VERIFY OTP ====================
 if (cmd === 'verify-otp') {
   const inputOtp = options.find(opt => opt.name === 'kode')?.value;
+
+  if (!inputOtp) {
+    return respond('❌ Contoh: `/verify-otp kode:123456`');
+  }
+
   const otpDataRaw = await env.USERS_KV.get(`otp:${discordId}`);
-  
-  if (!otpDataRaw) return respond('❌ Gak ada sesi OTP, nyet. Ulangi `/email-otp`.');
-  const otpData = JSON.parse(otpDataRaw);
+  if (!otpDataRaw) {
+    return respond('❌ Gak ada sesi OTP aktif. Ulangi `/email-otp`');
+  }
+
+  let otpData;
+  try {
+    otpData = JSON.parse(otpDataRaw);
+  } catch (e) {
+    return respond('❌ Data corrupt. Ulangi `/email-otp`');
+  }
 
   if (otpData.otp === "WAITING") {
-    return respond('⏳ OTP belum masuk ke email lo. Cek web tujuan udah kirim belum?');
+    return respond('⏳ OTP belum masuk. Pastikan website sudah kirim email ke alamat tadi.');
   }
 
-  if (String(inputOtp) === String(otpData.otp)) {
+  const elapsed = Date.now() - otpData.createdAt;
+  if (elapsed > 5 * 60 * 1000) {
     await env.USERS_KV.delete(`otp:${discordId}`);
-    return respond('✅ **OTP TEMBUS!** Verifikasi berhasil.');
-  } else {
-    return respond('❌ Kode salah, cek lagi yang bener!');
+    return respond('⏰ OTP expired. Ulangi `/email-otp`');
   }
+
+  if (String(inputOtp).trim() === String(otpData.otp).trim()) {
+    await env.USERS_KV.delete(`otp:${discordId}`);
+    await env.USERS_KV.delete(`email_map:${otpData.email}`);
+    return respond([
+      '✅ **OTP TEMBUS!** Verifikasi berhasil.',
+      `> 📧 Email: \`${otpData.email}\``
+    ].join('\n'));
+  }
+
+  return respond('❌ Kode salah! Cek lagi.');
 }
 
   
