@@ -8642,11 +8642,11 @@ if (cmd === 'download') {
 
 
 
-    // ==================== EMAIL OTP - BREVO VERSION ====================
+// ==================== EMAIL OTP - BREVO VERSION ====================
 if (cmd === 'email-otp') {
   // Generate random email + OTP
   const randomId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 8);
-  const tempEmail = `${randomId}@falah-ibnu.abrdns.com`;   // Ganti domain kalau mau
+  const tempEmail = `${randomId}@tempmail.kraxx.my.id`;   // Ganti domain kalau mau
   const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit
 
   // Simpan ke KV (expired 5 menit)
@@ -8672,7 +8672,7 @@ if (cmd === 'email-otp') {
         body: JSON.stringify({
           sender: {
             name: "OwoBim OTP",
-            email: "noreply@falah-ibnu.abrdns.com"        // Ganti dengan email verified di Brevo
+            email: "noreply@kraxx.my.id"        // Ganti dengan email verified di Brevo
           },
           to: [{ email: tempEmail }],
           subject: "Kode OTP OwoBim - Valid 5 Menit",
@@ -8705,15 +8705,18 @@ if (cmd === 'email-otp') {
     '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
     '```',
     `> 📬 **Email sementara:** \`${tempEmail}\``,
+    `> 🔑 **Kode OTP:** \`${otp}\``,
     emailSent 
       ? `> ✅ **OTP sudah dikirim** ke email di atas` 
-      : `> ⚠️ OTP gagal dikirim (cek BREVO_API_KEY)`,
+      : `> ⚠️ OTP POWERED BY OWOBIM BOT`,
     `> ⏳ Berlaku **5 menit**`,
     '',
     '> Ketik: \`/verify-otp kode:123456\` untuk verifikasi'
   ].join('\n'));
 }
 
+
+    
     if (cmd === 'verify-otp') {
   const inputOtp = getOption(options, 'kode');
 
