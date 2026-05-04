@@ -8218,11 +8218,30 @@ if (cmd === 'download') {
 
   // Defer dulu
   waitUntil((async () => {
+
+    // Edit pesan original (content only)
     const editMsg = async (content) => {
       await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
+        body: JSON.stringify({ content, components: [] })
+      });
+    };
+
+    // Edit pesan original dengan tombol
+    const editMsgWithButtons = async (content, buttons) => {
+      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content,
+          components: [
+            {
+              type: 1, // Action Row
+              components: buttons
+            }
+          ]
+        })
       });
     };
 
@@ -8251,12 +8270,25 @@ if (cmd === 'download') {
             body: new URLSearchParams({ url, hd: '1' })
           });
           const data = await res.json();
-          if (data.code === 0 && data.data?.play) {
-            videoUrl = data.data.hdplay || data.data.play;
-            thumbUrl = data.data.cover  || data.data.origin_cover;
-            title    = data.data.title  || 'TikTok Video';
-            author   = data.data.author?.nickname || data.data.author?.unique_id || 'Unknown';
-            duration = data.data.duration || 0;
+          if (data.code === 0 && data.data) {
+            const d = data.data;
+
+            // Filter: hindari URL audio/musik
+            const candidates = [d.hdplay, d.play, d.wmplay].filter(u =>
+              u &&
+              !u.includes('music') &&
+              !u.includes('audio_mpeg') &&
+              !u.includes('ies-music') &&
+              !u.includes('mime_type=audio')
+            );
+
+            if (candidates.length > 0) {
+              videoUrl = candidates[0];
+              thumbUrl = d.cover || d.origin_cover;
+              title    = d.title || 'TikTok Video';
+              author   = d.author?.nickname || d.author?.unique_id || 'Unknown';
+              duration = d.duration || 0;
+            }
           }
         } catch (_) {}
 
@@ -8273,12 +8305,22 @@ if (cmd === 'download') {
               }
             );
             const data = await res.json();
-            if (data.data?.play) {
-              videoUrl = data.data.hdplay || data.data.play;
-              thumbUrl = data.data.cover  || null;
-              title    = data.data.title  || 'TikTok Video';
-              author   = data.data.author?.nickname || 'Unknown';
-              duration = data.data.duration || 0;
+            if (data.data) {
+              const d = data.data;
+              const candidates = [d.hdplay, d.play, d.wmplay].filter(u =>
+                u &&
+                !u.includes('music') &&
+                !u.includes('audio_mpeg') &&
+                !u.includes('ies-music') &&
+                !u.includes('mime_type=audio')
+              );
+              if (candidates.length > 0) {
+                videoUrl = candidates[0];
+                thumbUrl = d.cover || null;
+                title    = d.title || 'TikTok Video';
+                author   = d.author?.nickname || 'Unknown';
+                duration = d.duration || 0;
+              }
             }
           } catch (_) {}
         }
@@ -8405,7 +8447,7 @@ if (cmd === 'download') {
       }
 
       // ══════════════════════════════════════════════════════
-      // YOUTUBE SHORTS — Chain: cobalt.tools → yt-dlp style
+      // YOUTUBE SHORTS — Chain: cobalt.tools → y2mate
       // ══════════════════════════════════════════════════════
       else if (isYouTube) {
         platform = 'YouTube Shorts';
@@ -8436,7 +8478,7 @@ if (cmd === 'download') {
           }
         } catch (_) {}
 
-        // [2] Fallback ke y2mate style API
+        // [2] Fallback ke y2mate
         if (!videoUrl) {
           try {
             const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
@@ -8455,14 +8497,12 @@ if (cmd === 'download') {
                 })
               });
               const data = await res.json();
-              // y2mate return link di data.links.mp4
               const links = data?.links?.mp4;
               if (links) {
                 const best = Object.values(links).find(v => v.q === '720p') ||
                              Object.values(links).find(v => v.q === '480p') ||
                              Object.values(links)[0];
                 if (best?.k) {
-                  // Convert key ke link download
                   const convRes  = await fetch('https://www.y2mate.com/mates/convertV2/index', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -8494,22 +8534,28 @@ if (cmd === 'download') {
       }
 
       // ══════════════════════════════
-      // CEK UKURAN FILE
+      // CEK UKURAN FILE (pakai Range)
       // ══════════════════════════════
       let fileSize = 'Unknown';
+      let fileSizeBytes = 0;
       try {
-        const headRes       = await fetch(videoUrl, { method: 'HEAD' });
-        const contentLength = headRes.headers.get('content-length');
-        if (contentLength) {
-          const mb = (parseInt(contentLength) / 1024 / 1024).toFixed(2);
+        const headRes = await fetch(videoUrl, {
+          method: 'GET',
+          headers: { 'Range': 'bytes=0-0' }
+        });
+        // Coba content-range dulu (response dari Range request)
+        const contentRange = headRes.headers.get('content-range');
+        if (contentRange) {
+          fileSizeBytes = parseInt(contentRange.split('/')[1]);
+        }
+        // Fallback ke content-length
+        if (!fileSizeBytes) {
+          const cl = headRes.headers.get('content-length');
+          if (cl) fileSizeBytes = parseInt(cl);
+        }
+        if (fileSizeBytes && !isNaN(fileSizeBytes)) {
+          const mb = (fileSizeBytes / 1024 / 1024).toFixed(2);
           fileSize = `${mb} MB`;
-          if (parseInt(contentLength) > 24 * 1024 * 1024) {
-            return await editMsg([
-              `> ${EMOJI} ⚠️ File terlalu besar (**${mb} MB**) untuk dikirim langsung!`,
-              `> 🔗 Download manual: ${videoUrl}`,
-              `> 💡 Discord limit attachment 25MB.`
-            ].join('\n'));
-          }
         }
       } catch (_) {}
 
@@ -8527,10 +8573,37 @@ if (cmd === 'download') {
         hour: '2-digit', minute: '2-digit'
       });
 
-      // ══════════════════════════════
-      // KIRIM HASIL
-      // ══════════════════════════════
-      await editMsg([
+      // ══════════════════════════════════════════
+      // KIRIM HASIL + TOMBOL DOWNLOAD & THUMBNAIL
+      // ══════════════════════════════════════════
+      const buttons = [
+        {
+          type: 2,        // Button
+          style: 5,       // Link button
+          label: '⬇️ Download Video',
+          url: videoUrl
+        }
+      ];
+
+      // Tambah tombol thumbnail kalau ada
+      if (thumbUrl) {
+        buttons.push({
+          type: 2,
+          style: 5,
+          label: '🖼️ Thumbnail',
+          url: thumbUrl
+        });
+      }
+
+      // Tambah tombol URL original
+      buttons.push({
+        type: 2,
+        style: 5,
+        label: '🔗 Sumber',
+        url: url
+      });
+
+      const content = [
         '```ansi',
         '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
         `\u001b[2;34m║  \u001b[1;33m⬇️  VIDEO DOWNLOADER  ⬇️\u001b[0m          \u001b[2;34m║\u001b[0m`,
@@ -8548,11 +8621,11 @@ if (cmd === 'download') {
         `\u001b[1;36m 🕐  Waktu     :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
         '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
         '```',
-        `> 🔗 **Link Download:** ${videoUrl}`,
-        thumbUrl ? `> 🖼️ **Thumbnail:** ${thumbUrl}` : null,
         `> ⚠️ *Link berlaku sementara, segera download!*`,
         `> 🤖 *Powered by OwoBim Downloader* ${EMOJI}`
-      ].filter(Boolean).join('\n'));
+      ].filter(Boolean).join('\n');
+
+      await editMsgWithButtons(content, buttons);
 
     } catch (err) {
       await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\`\n> Coba lagi atau pastikan URL valid.`);
