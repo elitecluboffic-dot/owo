@@ -905,6 +905,26 @@ const commands = [
     type: 3, // STRING
     required: true
   }]
+},
+
+
+
+
+  {
+  name: 'email-otp',
+  description: '📧 Generate email sementara + kirim OTP via API OwoBim'
+},
+{
+  name: 'verify-otp',
+  description: '🔑 Verifikasi kode OTP yang dikirim ke email',
+  options: [
+    {
+      name: 'kode',
+      description: 'Masukkan 6 digit OTP',
+      type: 3,        // STRING
+      required: true
+    }
+  ]
 }
 
   
