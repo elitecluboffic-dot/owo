@@ -8704,6 +8704,417 @@ if (cmd === 'verify-otp') {
 
   return respond('❌ Kode OTP salah! Silahkan periksa kembali kode yang dikirim ke DM kamu.');
 }
+
+
+
+
+
+
+
+    
+// ══════════════════════════════════════════════════════════════════════
+// CMD: imagine — AI Image Generator
+// Provider Chain: Pollinations.ai → Together AI → Hugging Face → Stability AI
+// Env vars: TOGETHER_API_KEY, HUGGINGFACE_API_KEY, STABILITY_API_KEY
+// Cooldown: 60 detik per user
+// ══════════════════════════════════════════════════════════════════════
+if (cmd === 'imagine') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+
+  const prompt    = getOption(options, 'prompt');
+  const negPrompt = getOption(options, 'negative') || 'blurry, low quality, deformed, ugly, bad anatomy, watermark, text, nsfw';
+  const ratio     = getOption(options, 'ratio') || '1:1';
+
+  if (!prompt || prompt.trim() === '') {
+    return respond(`> ${EMOJI} ❌ Masukkan prompt gambar!\n> 💡 Contoh: \`/imagine prompt:a beautiful sunset over ocean, ultra realistic\``);
+  }
+
+  if (prompt.length > 800) {
+    return respond(`> ${EMOJI} ❌ Prompt terlalu panjang! Maksimal **800 karakter**. (kamu: **${prompt.length}**)`);
+  }
+
+  // ── Cooldown 60 detik per user ──
+  const cdKey   = `imagine_cd:${discordId}`;
+  const lastGen = await env.USERS_KV.get(cdKey);
+  if (lastGen) {
+    const sisa = 60000 - (Date.now() - parseInt(lastGen));
+    if (sisa > 0) {
+      return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi sebelum generate image baru.`);
+    }
+  }
+
+  // ── Simpan cooldown DULU sebelum defer ──
+  await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 65 });
+
+  // ── Resolve dimensi berdasarkan ratio ──
+  const RATIO_MAP = {
+    '1:1':  { width: 1024, height: 1024 },
+    '16:9': { width: 1344, height: 768  },
+    '9:16': { width: 768,  height: 1344 },
+    '4:3':  { width: 1152, height: 896  },
+    '3:4':  { width: 896,  height: 1152 },
+  };
+  const dims = RATIO_MAP[ratio] || RATIO_MAP['1:1'];
+
+  // ── Defer response agar tidak timeout ──
+  waitUntil((async () => {
+
+    // ── Helper: edit original deferred message ──
+    const editMsg = async (content, embeds) => {
+      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(embeds ? { content, embeds } : { content })
+      });
+    };
+
+    // ── Helper: build embed description ──
+    const buildDesc = (prov, mdl) => {
+      const waktu = new Date().toLocaleString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        day: '2-digit', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+      return [
+        '```ansi',
+        '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[1;35m║  🎨  AI IMAGE GENERATOR  🎨         ║\u001b[0m',
+        '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        '```ansi',
+        '\u001b[1;33m━━━━━━━━━━━━ 📋 DETAIL ━━━━━━━━━━━━━━\u001b[0m',
+        `\u001b[1;36m  ✍️  Prompt   :\u001b[0m \u001b[0;37m${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}\u001b[0m`,
+        `\u001b[1;36m  🤖  Provider :\u001b[0m \u001b[0;37m${prov}\u001b[0m`,
+        `\u001b[1;36m  🧠  Model    :\u001b[0m \u001b[0;37m${mdl}\u001b[0m`,
+        `\u001b[1;36m  📐  Rasio    :\u001b[0m \u001b[0;37m${ratio} (${dims.width}×${dims.height}px)\u001b[0m`,
+        `\u001b[1;36m  👤  Dibuat   :\u001b[0m \u001b[0;37m${username}\u001b[0m`,
+        `\u001b[1;36m  🕐  Waktu    :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+        '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+        '```',
+      ].join('\n');
+    };
+
+    // ── Helper: kirim via URL langsung (Pollinations) ──
+    const sendImageUrl = async (imgUrl, prov, mdl) => {
+      await editMsg('', [{
+        color:       0x9B59B6,
+        title:       '🎨 AI Image Generated!',
+        description: buildDesc(prov, mdl),
+        image:       { url: imgUrl },
+        footer:      { text: `OwoBim AI Image • ${prov} × ${mdl}` },
+        timestamp:   new Date().toISOString(),
+      }]);
+    };
+
+    // ── Helper: kirim via base64 upload (HF, Together, Stability) ──
+    const sendImageBase64 = async (imageBase64, prov, mdl) => {
+      const base64Data = imageBase64.split(',')[1];
+      const mimeType   = imageBase64.split(';')[0].split(':')[1] || 'image/png';
+      const ext        = mimeType.includes('webp') ? 'webp' : 'png';
+      const binaryStr  = atob(base64Data);
+      const bytes      = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+      const filename = `owobim_imagine_${Date.now()}.${ext}`;
+      const blob     = new Blob([bytes], { type: mimeType });
+      const form     = new FormData();
+
+      const payload = {
+        content: '',
+        embeds: [{
+          color:       0x9B59B6,
+          title:       '🎨 AI Image Generated!',
+          description: buildDesc(prov, mdl),
+          image:       { url: `attachment://${filename}` },
+          footer:      { text: `OwoBim AI Image • ${prov} × ${mdl}` },
+          timestamp:   new Date().toISOString(),
+        }],
+        attachments: [{ id: '0', filename }],
+      };
+
+      form.append('payload_json', JSON.stringify(payload));
+      form.append('files[0]', blob, filename);
+
+      const uploadRes = await fetch(
+        `https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`,
+        {
+          method:  'PATCH',
+          headers: { 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+          body:    form,
+        }
+      );
+
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text().catch(() => '');
+        console.error('[IMAGINE] Discord upload error:', uploadRes.status, errText.slice(0, 300));
+        throw new Error(`Discord upload failed: ${uploadRes.status}`);
+      }
+    };
+
+    try {
+      let success  = false;
+      let provider = null;
+      let model    = null;
+
+      // ════════════════════════════════════════════════════════
+      // [1] POLLINATIONS.AI — PRIMARY
+      // ✅ 100% gratis, no API key, unlimited
+      // Direct URL embed — tidak perlu upload apapun
+      // ════════════════════════════════════════════════════════
+      if (!success) {
+        try {
+          const seed            = Math.floor(Math.random() * 999999);
+          const encodedPrompt   = encodeURIComponent(prompt);
+          const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dims.width}&height=${dims.height}&seed=${seed}&model=flux&nologo=true&enhance=true`;
+
+          // Fetch image untuk verifikasi bisa diakses + cek bukan error
+          const testRes = await fetch(pollinationsUrl, {
+            method: 'GET',
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            signal: AbortSignal.timeout(28000),
+          });
+
+          if (testRes.ok) {
+            const ct = testRes.headers.get('content-type') || '';
+            if (ct.startsWith('image/')) {
+              await sendImageUrl(pollinationsUrl, 'Pollinations.ai', 'FLUX');
+              provider = 'Pollinations.ai';
+              model    = 'FLUX';
+              success  = true;
+            } else {
+              console.error('[IMAGINE] Pollinations.ai returned non-image content-type:', ct);
+            }
+          } else {
+            console.error('[IMAGINE] Pollinations.ai HTTP error:', testRes.status);
+          }
+        } catch (e) {
+          console.error('[IMAGINE] Pollinations.ai exception:', e.message);
+        }
+      }
+
+      // ════════════════════════════════════════════════════════
+      // [2] TOGETHER AI — FALLBACK 1
+      // ✅ FLUX.1 Schnell Free = gratis tanpa limit ketat
+      // Butuh env: TOGETHER_API_KEY
+      // ════════════════════════════════════════════════════════
+      if (!success && env.TOGETHER_API_KEY) {
+        try {
+          const res = await fetch('https://api.together.xyz/v1/images/generations', {
+            method:  'POST',
+            headers: {
+              'Authorization': `Bearer ${env.TOGETHER_API_KEY}`,
+              'Content-Type':  'application/json',
+            },
+            body: JSON.stringify({
+              model:           'black-forest-labs/FLUX.1-schnell-Free',
+              prompt:          `${prompt}. High quality, highly detailed, sharp focus.`,
+              width:            dims.width,
+              height:           dims.height,
+              steps:            4,
+              n:                1,
+              response_format: 'b64_json',
+            }),
+            signal: AbortSignal.timeout(50000),
+          });
+
+          const json = await res.json();
+
+          if (res.ok && json?.data?.[0]?.b64_json) {
+            await sendImageBase64(
+              `data:image/png;base64,${json.data[0].b64_json}`,
+              'Together AI',
+              'FLUX.1 Schnell'
+            );
+            provider = 'Together AI';
+            model    = 'FLUX.1 Schnell';
+            success  = true;
+          } else {
+            console.error('[IMAGINE] Together AI error:', res.status, JSON.stringify(json).slice(0, 200));
+          }
+        } catch (e) {
+          console.error('[IMAGINE] Together AI exception:', e.message);
+        }
+      }
+
+      // ════════════════════════════════════════════════════════
+      // [3] HUGGING FACE — FALLBACK 2
+      // ✅ Free tier, coba 3 model secara berurutan
+      // Butuh env: HUGGINGFACE_API_KEY
+      // ════════════════════════════════════════════════════════
+      if (!success && env.HUGGINGFACE_API_KEY) {
+        const HF_MODELS = [
+          { id: 'black-forest-labs/FLUX.1-dev',                    steps: 25 },
+          { id: 'stabilityai/stable-diffusion-xl-base-1.0',        steps: 30 },
+          { id: 'runwayml/stable-diffusion-v1-5',                   steps: 30 },
+        ];
+
+        for (const hfModel of HF_MODELS) {
+          if (success) break;
+          try {
+            // HF max resolusi 1024x1024
+            const hfWidth  = Math.min(dims.width,  1024);
+            const hfHeight = Math.min(dims.height, 1024);
+
+            const res = await fetch(
+              `https://api-inference.huggingface.co/models/${hfModel.id}`,
+              {
+                method:  'POST',
+                headers: {
+                  'Authorization':    `Bearer ${env.HUGGINGFACE_API_KEY}`,
+                  'Content-Type':     'application/json',
+                  'x-wait-for-model': 'true',
+                },
+                body: JSON.stringify({
+                  inputs: prompt,
+                  parameters: {
+                    negative_prompt:     negPrompt,
+                    width:               hfWidth,
+                    height:              hfHeight,
+                    num_inference_steps: hfModel.steps,
+                    guidance_scale:      7.5,
+                  },
+                }),
+                signal: AbortSignal.timeout(55000),
+              }
+            );
+
+            if (res.ok) {
+              const contentType = res.headers.get('content-type') || 'image/png';
+
+              // HF kadang return JSON error walaupun status 200
+              if (contentType.includes('application/json')) {
+                const errJson = await res.json();
+                console.error('[IMAGINE] HF JSON error:', JSON.stringify(errJson).slice(0, 200));
+                continue;
+              }
+
+              if (!contentType.startsWith('image/')) {
+                console.error('[IMAGINE] HF non-image response:', contentType);
+                continue;
+              }
+
+              const buffer = await res.arrayBuffer();
+              const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+              const mdlName = hfModel.id.split('/').pop();
+
+              await sendImageBase64(
+                `data:${contentType};base64,${base64}`,
+                'Hugging Face',
+                mdlName
+              );
+              provider = 'Hugging Face';
+              model    = mdlName;
+              success  = true;
+
+            } else {
+              const errText = await res.text().catch(() => '');
+              console.error(`[IMAGINE] HF ${hfModel.id} error:`, res.status, errText.slice(0, 150));
+            }
+          } catch (eInner) {
+            console.error(`[IMAGINE] HF ${hfModel.id} exception:`, eInner.message);
+          }
+        }
+      }
+
+      // ════════════════════════════════════════════════════════
+      // [4] STABILITY AI — FALLBACK 3 (berbayar)
+      // Butuh env: STABILITY_API_KEY
+      // ════════════════════════════════════════════════════════
+      if (!success && env.STABILITY_API_KEY) {
+        try {
+          const formData = new FormData();
+          formData.append('prompt',          prompt);
+          formData.append('negative_prompt', negPrompt);
+          formData.append('output_format',   'webp');
+          formData.append('width',           String(dims.width));
+          formData.append('height',          String(dims.height));
+          formData.append('cfg_scale',       '7');
+          formData.append('steps',           '30');
+
+          const res = await fetch(
+            'https://api.stability.ai/v2beta/stable-image/generate/sd3',
+            {
+              method:  'POST',
+              headers: {
+                'Authorization': `Bearer ${env.STABILITY_API_KEY}`,
+                'Accept':        'image/*',
+              },
+              body:   formData,
+              signal: AbortSignal.timeout(55000),
+            }
+          );
+
+          if (res.ok) {
+            const contentType = res.headers.get('content-type') || 'image/webp';
+            const buffer      = await res.arrayBuffer();
+            const base64      = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+
+            await sendImageBase64(
+              `data:${contentType};base64,${base64}`,
+              'Stability AI',
+              'SD 3.5 Large'
+            );
+            provider = 'Stability AI';
+            model    = 'SD 3.5 Large';
+            success  = true;
+          } else {
+            const errText = await res.text().catch(() => '');
+            console.error('[IMAGINE] Stability AI error:', res.status, errText.slice(0, 200));
+          }
+        } catch (e) {
+          console.error('[IMAGINE] Stability AI exception:', e.message);
+        }
+      }
+
+      // ── Semua provider gagal ──
+      if (!success) {
+        await env.USERS_KV.delete(cdKey);
+        return await editMsg([
+          `> ${EMOJI} ❌ Semua provider gagal generate gambar!`,
+          `> `,
+          `> 💡 **Kemungkinan penyebab:**`,
+          `> • Prompt mengandung konten yang diblokir`,
+          `> • Quota API habis atau server down`,
+          `> • Coba prompt yang berbeda`,
+          `> `,
+          `> ⏳ Cooldown direset, silahkan coba lagi!`
+        ].join('\n'));
+      }
+
+      // ── Update stats per user (background) ──
+      try {
+        const statsKey = `imagine_stats:${discordId}`;
+        const statsRaw = await env.USERS_KV.get(statsKey);
+        const stats    = statsRaw
+          ? JSON.parse(statsRaw)
+          : { total: 0, byProvider: {}, lastPrompt: null, lastAt: null };
+
+        stats.total++;
+        stats.byProvider[provider] = (stats.byProvider[provider] || 0) + 1;
+        stats.lastPrompt = prompt.slice(0, 100);
+        stats.lastAt     = Date.now();
+
+        await env.USERS_KV.put(statsKey, JSON.stringify(stats), { expirationTtl: 86400 * 90 });
+      } catch (_) {}
+
+    } catch (err) {
+      console.error('[IMAGINE] Fatal error:', err.message);
+      await env.USERS_KV.delete(cdKey).catch(() => {});
+      await editMsg([
+        `> ${EMOJI} ❌ Terjadi error internal: \`${err.message}\``,
+        `> ⏳ Cooldown direset, silahkan coba lagi.`
+      ].join('\n'));
+    }
+
+  })());
+
+  return new Response(JSON.stringify({ type: 5 }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+// ══════════════════════════════════════════════════════════════════════
+// END OF CMD: imagine
+// ══════════════════════════════════════════════════════════════════════
   
 
 
