@@ -8568,7 +8568,7 @@ else if (isReels) {
   platform = 'Instagram Reels';
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
     const res  = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
@@ -8614,7 +8614,7 @@ else if (isYouTube) {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
     const res  = await fetch(`https://youtube-video-and-shorts-downloader.p.rapidapi.com/download.php?id=${videoId}`, {
