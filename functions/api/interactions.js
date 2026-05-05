@@ -8646,69 +8646,41 @@ if (!videoUrl) {
 else if (isYouTube) {
   platform = 'YouTube Shorts';
 
-  if (!env.RAPIDAPI_KEY) {
-    return await editMsg(`> ${EMOJI} ❌ RAPIDAPI_KEY belum diset di Cloudflare env!`);
-  }
+  const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
+  let r1 = '', r2 = '', r3 = '';
 
-  // [1] yt-api via RapidAPI
+  // Debug RapidAPI
   try {
-    const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
-    if (videoId) {
-      const res  = await fetch(`https://yt-api.p.rapidapi.com/dl?id=${videoId}`, {
-        headers: {
-          'X-RapidAPI-Key':  env.RAPIDAPI_KEY,
-          'X-RapidAPI-Host': 'yt-api.p.rapidapi.com'
-        }
-      });
-      const data = await res.json();
-      if (data?.formats) {
-        const fmt = data.formats.find(f => f.qualityLabel === '720p' && f.hasVideo) ||
-                    data.formats.find(f => f.hasVideo) ||
-                    data.formats[0];
-        if (fmt?.url) {
-          videoUrl = fmt.url;
-          title    = data.title        || 'YouTube Shorts';
-          author   = data.channelTitle || 'YouTube';
-        }
+    const res  = await fetch(`https://yt-api.p.rapidapi.com/dl?id=${videoId}`, {
+      headers: {
+        'X-RapidAPI-Key':  env.RAPIDAPI_KEY || 'KOSONG',
+        'X-RapidAPI-Host': 'yt-api.p.rapidapi.com'
       }
-    }
-  } catch (_) {}
+    });
+    const data = await res.json();
+    r1 = JSON.stringify(data).slice(0, 200);
+  } catch (e) { r1 = e.message; }
 
-  // [2] Fallback invidious multi-instance
-  if (!videoUrl) {
-    try {
-      const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
-      if (videoId) {
-        const instances = [
-          `https://inv.nadeko.net/api/v1/videos/${videoId}`,
-          `https://invidious.privacydev.net/api/v1/videos/${videoId}`,
-          `https://iv.datura.network/api/v1/videos/${videoId}`
-        ];
-        for (const instanceUrl of instances) {
-          if (videoUrl) break;
-          try {
-            const res  = await fetch(instanceUrl);
-            const data = await res.json();
-            const fmt  = data?.formatStreams?.find(f => f.qualityLabel === '720p') ||
-                         data?.formatStreams?.find(f => f.qualityLabel === '480p') ||
-                         data?.formatStreams?.[0];
-            if (fmt?.url) {
-              videoUrl = fmt.url;
-              title    = data.title  || 'YouTube Shorts';
-              author   = data.author || 'YouTube';
-            }
-          } catch (_) {}
-        }
-      }
-    } catch (_) {}
-  }
+  // Debug invidious
+  try {
+    const res  = await fetch(`https://inv.nadeko.net/api/v1/videos/${videoId}`);
+    const text = await res.text();
+    r2 = text.slice(0, 200);
+  } catch (e) { r2 = e.message; }
 
-  if (!videoUrl) {
-    return await editMsg([
-      `> ${EMOJI} ❌ Gagal download YouTube Shorts!`,
-      `> 💡 Coba lagi dalam beberapa detik.`
-    ].join('\n'));
-  }
+  // Debug piped
+  try {
+    const res  = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`);
+    const text = await res.text();
+    r3 = text.slice(0, 200);
+  } catch (e) { r3 = e.message; }
+
+  return await editMsg([
+    `> 🔍 **Debug YouTube:**`,
+    `> rapidapi: \`${r1}\``,
+    `> invidious: \`${r2}\``,
+    `> piped: \`${r3}\``
+  ].join('\n'));
 }
 
       if (!videoUrl) {
