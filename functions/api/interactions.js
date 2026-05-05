@@ -8646,103 +8646,49 @@ if (!videoUrl) {
       else if (isYouTube) {
         platform = 'YouTube Shorts';
 
-        // [1] Coba cobalt.tools
-        try {
-          const res  = await fetch('https://api.cobalt.tools/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              url,
-              videoQuality: '720',
-              filenameStyle: 'pretty'
-            })
-          });
-          const data = await res.json();
-          if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
-            videoUrl = data.url;
-            title    = 'YouTube Shorts';
-            author   = 'YouTube';
-          } else if (data.status === 'picker' && data.picker?.[0]?.url) {
-            videoUrl = data.picker[0].url;
-            title    = 'YouTube Shorts';
-          }
-        } catch (_) {}
+// [1] Coba cobalt.tools
+let cobaltErr = '';
+try {
+  const res  = await fetch('https://api.cobalt.tools/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({ url, videoQuality: '720', filenameStyle: 'pretty' })
+  });
+  const data = await res.json();
+  cobaltErr = JSON.stringify(data).slice(0, 100);
+  if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
+    videoUrl = data.url;
+    title = 'YouTube Shorts';
+    author = 'YouTube';
+  }
+} catch (e) { cobaltErr = e.message; }
 
-        // [2] Fallback ke invidious
-        if (!videoUrl) {
-          try {
-            const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
-            if (videoId) {
-              const res  = await fetch(`https://invidious.io.lol/api/v1/videos/${videoId}`);
-              const data = await res.json();
-              const fmt  = data?.formatStreams?.find(f => f.qualityLabel === '720p') ||
-                           data?.formatStreams?.find(f => f.qualityLabel === '480p') ||
-                           data?.formatStreams?.[0];
-              if (fmt?.url) {
-                videoUrl = fmt.url;
-                title    = data.title  || 'YouTube Shorts';
-                author   = data.author || 'YouTube';
-              }
-            }
-          } catch (_) {}
-        }
+// [2] invidious
+let invErr = '';
+try {
+  const videoId = url.match(/shorts\/([^?&/]+)/)?.[1];
+  const res = await fetch(`https://invidious.io.lol/api/v1/videos/${videoId}`);
+  const data = await res.json();
+  invErr = JSON.stringify(data).slice(0, 100);
+} catch (e) { invErr = e.message; }
 
-        // [3] Fallback ke yt-api
+// [3] piped
+let pipedErr = '';
+try {
+  const videoId = url.match(/shorts\/([^?&/]+)/)?.[1];
+  const res = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`);
+  const data = await res.json();
+  pipedErr = JSON.stringify(data).slice(0, 100);
+} catch (e) { pipedErr = e.message; }
+
 if (!videoUrl) {
-  try {
-    const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
-    if (videoId) {
-      const res  = await fetch(`https://yt-api.p.rapidapi.com/dl?id=${videoId}`, {
-        headers: {
-          'X-RapidAPI-Key':  env.RAPIDAPI_KEY || '',
-          'X-RapidAPI-Host': 'yt-api.p.rapidapi.com'
-        }
-      });
-      const data = await res.json();
-      if (data?.formats) {
-        const fmt = data.formats.find(f => f.qualityLabel === '720p' && f.hasVideo) ||
-                    data.formats.find(f => f.hasVideo) ||
-                    data.formats[0];
-        if (fmt?.url) {
-          videoUrl = fmt.url;
-          title    = data.title  || 'YouTube Shorts';
-          author   = data.channelTitle || 'YouTube';
-        }
-      }
-    }
-  } catch (_) {}
+  return await editMsg([
+    `> ❌ Semua API gagal!`,
+    `> cobalt: \`${cobaltErr}\``,
+    `> invidious: \`${invErr}\``,
+    `> piped: \`${pipedErr}\``
+  ].join('\n'));
 }
-
-        // [4] Fallback ke piped.video
-if (!videoUrl) {
-  try {
-    const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
-    if (videoId) {
-      const res  = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`);
-      const data = await res.json();
-      const fmt  = data?.videoStreams?.find(f => f.quality === '720p') ||
-                   data?.videoStreams?.find(f => f.quality === '480p') ||
-                   data?.videoStreams?.[0];
-      if (fmt?.url) {
-        videoUrl = fmt.url;
-        title    = data.title    || 'YouTube Shorts';
-        author   = data.uploader || 'YouTube';
-      }
-    }
-  } catch (_) {}
-}
-
-        if (!videoUrl) {
-          return await editMsg([
-            `> ${EMOJI} ❌ Gagal download YouTube Shorts!`,
-            `> 💡 Coba lagi dalam beberapa detik.`,
-            `> 🔄 *cobalt.tools dan invidious sedang tidak bisa diakses.*`
-          ].join('\n'));
-        }
-      }
 
       if (!videoUrl) {
         return await editMsg(`> ${EMOJI} ❌ Tidak bisa ambil link video. Coba lagi!`);
