@@ -8563,54 +8563,27 @@ if (!videoUrl) {
 else if (isReels) {
   platform = 'Instagram Reels';
 
-  let r1 = '', r2 = '', r3 = '';
-
-  // Debug RapidAPI
   try {
-    const res  = await fetch(
-      `https://instagram-downloader-download-instagram-videos-stories.p.rapidapi.com/index?url=${encodeURIComponent(url)}`,
-      {
-        headers: {
-          'X-RapidAPI-Key':  env.RAPIDAPI_KEY,
-          'X-RapidAPI-Host': 'instagram-downloader-download-instagram-videos-stories.p.rapidapi.com'
-        }
-      }
-    );
-    const data = await res.json();
-    r1 = JSON.stringify(data).slice(0, 200);
-  } catch (e) { r1 = e.message; }
-
-  // Debug snapinsta
-  try {
-    const res  = await fetch('https://snapinsta.app/api', {
-      method: 'POST',
+    const res  = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0'
-      },
-      body: new URLSearchParams({ url, lang: 'id' })
-    });
-    const text = await res.text();
-    r2 = text.slice(0, 200);
-  } catch (e) { r2 = e.message; }
-
-  // Debug cobalt
-  try {
-    const res  = await fetch('https://api.cobalt.tools/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ url, videoQuality: '720', filenameStyle: 'pretty' })
+        'Content-Type':    'application/json',
+        'x-rapidapi-key':  env.RAPIDAPI_KEY,
+        'x-rapidapi-host': 'instagram-reels-downloader-api.p.rapidapi.com'
+      }
     });
     const data = await res.json();
-    r3 = JSON.stringify(data).slice(0, 200);
-  } catch (e) { r3 = e.message; }
+    return await editMsg(`> Debug: \`${JSON.stringify(data).slice(0, 500)}\``);
+  } catch (e) {
+    return await editMsg(`> Error: \`${e.message}\``);
+  }
 
-  return await editMsg([
-    `> 🔍 **Debug Instagram:**`,
-    `> rapidapi: \`${r1}\``,
-    `> snapinsta: \`${r2}\``,
-    `> cobalt: \`${r3}\``
-  ].join('\n'));
+  if (!videoUrl) {
+    return await editMsg([
+      `> ${EMOJI} ❌ Gagal download Instagram Reels!`,
+      `> 💡 Pastikan video tidak private/akun tidak dikunci.`,
+      `> 🔄 *Tip: Tambahkan \`RAPIDAPI_KEY\` di Cloudflare env untuk hasil lebih stabil.*`
+    ].join('\n'));
+  }
 }
 
       // ══════════════════════════════════════════════════════
