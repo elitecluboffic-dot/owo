@@ -8561,78 +8561,77 @@ if (!videoUrl) {
         }
       }
 
+
       // ══════════════════════════════════════════════════════════
-      // INSTAGRAM REELS — Chain: RapidAPI → snapinsta → cobalt
+      // INSTAGRAM REELS — Full Fix Version
       // ══════════════════════════════════════════════════════════
-else if (isReels) {
-  platform = 'Instagram Reels';
-  
-  // 1. Inisialisasi AbortController & Timeout dengan benar
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 20000); // Gunakan nama unik seperti timeoutId
+      else if (isReels) {
+        platform = 'Instagram Reels';
+        
+        // Gunakan nama unik (igController/igTimeout) agar tidak bentrok dengan blok lain
+        const igController = new AbortController();
+        const igTimeout = setTimeout(() => igController.abort(), 20000); 
 
-  try {
-    // 2. Lakukan Fetch
-    const res = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
-      method: 'GET',
-      signal: controller.signal, // Jangan lupa pasang signal-nya di sini
-      headers: {
-        'x-rapidapi-key': env.RAPIDAPI_KEY,
-        'x-rapidapi-host': 'instagram-reels-downloader-api.p.rapidapi.com'
+        try {
+          const res = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
+            method: 'GET',
+            signal: igController.signal,
+            headers: {
+              'x-rapidapi-key': env.RAPIDAPI_KEY,
+              'x-rapidapi-host': 'instagram-reels-downloader-api.p.rapidapi.com'
+            }
+          });
+
+          // SEGERA matikan timeout setelah fetch selesai
+          clearTimeout(igTimeout);
+
+          if (!res.ok) {
+            const errorText = await res.text();
+            return await editMsg(`> ${EMOJI} API HTTP Error: \`${res.status}\`\n> Detail: \`${errorText.slice(0, 100)}\``);
+          }
+
+          const data = await res.json();
+
+          if (!data) {
+            return await editMsg(`> ${EMOJI} Debug: API mengembalikan data kosong.`);
+          }
+
+          // Ekstraksi data secara fleksibel (mengantisipasi perubahan struktur API)
+          const resultData = data.data || data.result || data;
+          const medias = resultData?.medias || resultData?.links;
+
+          if (medias) {
+            // Jika medias array, cari video. Jika objek, langsung ambil.
+            const media = Array.isArray(medias) 
+              ? (medias.find(m => m.type === 'video' || m.extension === 'mp4') || medias[0])
+              : medias;
+            
+            videoUrl = media?.url || media?.link || media?.download_url;
+            
+            if (videoUrl) {
+              title    = resultData?.title || resultData?.caption || 'Instagram Reel';
+              author   = resultData?.author?.username || resultData?.author || 'Instagram User';
+              thumbUrl = resultData?.thumbnail || resultData?.cover || null;
+            } else {
+              return await editMsg(`> ${EMOJI} Debug: Link video tidak ditemukan.\n> JSON: \`${JSON.stringify(media).slice(0, 100)}\``);
+            }
+          } else {
+            return await editMsg(`> ${EMOJI} Debug: Struktur data \`medias\` tidak ditemukan.\n> Raw: \`${JSON.stringify(data).slice(0, 150)}\``);
+          }
+
+        } catch (e) {
+          // Pastikan timeout dibersihkan jika terjadi error di tengah jalan
+          clearTimeout(igTimeout);
+
+          if (e.name === 'AbortError') {
+            return await editMsg(`> ${EMOJI} Error: Request Timeout (API Instagram tidak merespon dalam 20 detik).`);
+          }
+          // Ini yang krusial: Jika ada error lain, kirim pesannya ke Discord agar tidak loading terus
+          return await editMsg(`> ${EMOJI} IG Catch Error: \`${e.message}\``);
+        }
       }
-    });
 
-    // 3. SEGERA bersihkan timeout setelah fetch selesai
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      return await editMsg(`> API HTTP Error: \`${res.status}\`\n> Detail: \`${errorText.slice(0, 100)}\``);
-    }
-
-    const data = await res.json();
-
-    if (!data) {
-      return await editMsg(`> Debug: API return data kosong.`);
-    }
-
-    // 4. Ekstraksi Data (Flexible Path)
-    const resultData = data.data || data.result || data;
-    const medias = resultData?.medias || resultData?.links || (Array.isArray(resultData) ? resultData : null);
-
-    if (medias && (Array.isArray(medias) ? medias.length > 0 : true)) {
-      // Jika medias adalah array, cari video. Jika objek tunggal, langsung ambil.
-      const media = Array.isArray(medias) 
-        ? (medias.find(m => m.type === 'video' || m.extension === 'mp4') || medias[0])
-        : medias;
-      
-      videoUrl = media?.url || media?.link || media?.download_url;
-      
-      if (videoUrl) {
-        title    = resultData?.title || resultData?.caption || 'Instagram Reel';
-        thumbUrl = resultData?.thumbnail || resultData?.cover || null;
-      } else {
-        return await editMsg(`> Debug: Link download tidak ditemukan.\n> JSON: \`${JSON.stringify(media).slice(0, 100)}\``);
-      }
-    } else {
-      return await editMsg(`> Debug: Struktur medias tidak sesuai.\n> Raw: \`${JSON.stringify(data).slice(0, 150)}\``);
-    }
-
-  } catch (e) {
-    // 5. Bersihkan timeout di catch juga untuk mencegah memory leak
-    clearTimeout(timeoutId);
-
-    if (e.name === 'AbortError') {
-      return await editMsg(`> Error: Request Timeout (IG API tidak merespon dalam 20 detik).`);
-    }
-    return await editMsg(`> IG Catch Error: \`${e.message}\``);
-  }
-
-  // 6. Cek Akhir
-  if (!videoUrl) {
-    return await editMsg(`> Debug: Proses selesai tapi videoUrl kosong.`);
-  }
-}
+        
       // ══════════════════════════════════════════════════════
       // YOUTUBE SHORTS — Chain: cobalt.tools → invidious
       // ══════════════════════════════════════════════════════
@@ -8669,8 +8668,9 @@ else if (isYouTube) {
         author   = 'YouTube';
       }
     }
-  } catch (e) {
-    clearTimeout(timeout);
+} catch (e) {
+    clearTimeout(timeout); // Pastikan 'timeout' di sini merujuk ke let/const di blok youtube
+    console.error("YT Error:", e.message);
   }
 
   if (!videoUrl) {
