@@ -8652,19 +8652,20 @@ else if (isYouTube) {
   }
 
   // [1] youtube-shorts-video-downloader via RapidAPI
-try {
-    const res  = await fetch(`https://youtube-shorts-video-downloader-and-converter.p.rapidapi.com/download-short-mp4/${videoId}?quality=720p`, {
+  try {
+    const res = await fetch(`https://youtube-shorts-video-downloader-and-converter.p.rapidapi.com/download-short-mp4/${videoId}?quality=720p`, {
       headers: {
         'Content-Type':    'application/json',
         'x-rapidapi-key':  env.RAPIDAPI_KEY,
         'x-rapidapi-host': 'youtube-shorts-video-downloader-and-converter.p.rapidapi.com'
       }
     });
-    const data = await res.json();
-    return await editMsg(`> Debug: \`${JSON.stringify(data).slice(0, 500)}\``);
-  } catch (e) {
-    return await editMsg(`> Error: \`${e.message}\``);
-  }
+    if (res.ok && res.headers.get('content-type')?.includes('video')) {
+      videoUrl = res.url;
+      title    = 'YouTube Shorts';
+      author   = 'YouTube';
+    }
+  } catch (_) {}
 
   if (!videoUrl) {
     return await editMsg([
