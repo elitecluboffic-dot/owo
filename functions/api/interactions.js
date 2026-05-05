@@ -8572,7 +8572,7 @@ else if (isReels) {
       }
     });
     const data = await res.json();
-    return await editMsg(`> Debug: \`${JSON.stringify(data).slice(0, 1000)}\``);
+    return await editMsg(`> Debug: \`${JSON.stringify(data).slice(0, 1700)}\``);
   } catch (e) {
     return await editMsg(`> Error: \`${e.message}\``);
   }
