@@ -8565,72 +8565,65 @@ if (!videoUrl) {
       // ══════════════════════════════════════════════════════════
       // INSTAGRAM REELS — Full Fix Version
       // ══════════════════════════════════════════════════════════
-      else if (isReels) {
-        platform = 'Instagram Reels';
-        
-        // Gunakan nama unik (igController/igTimeout) agar tidak bentrok dengan blok lain
-        const igController = new AbortController();
-        const igTimeout = setTimeout(() => igController.abort(), 20000); 
+else if (isReels) {
+  platform = 'Instagram Reels';
+  
+  const igController = new AbortController();
+  const igTimeout = setTimeout(() => igController.abort(), 20000);
 
-        try {
-          const res = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
-            method: 'GET',
-            signal: igController.signal,
-            headers: {
-              'x-rapidapi-key': env.RAPIDAPI_KEY,
-              'x-rapidapi-host': 'instagram-reels-downloader-api.p.rapidapi.com'
-            }
-          });
-
-          // SEGERA matikan timeout setelah fetch selesai
-          clearTimeout(igTimeout);
-
-          if (!res.ok) {
-            const errorText = await res.text();
-            return await editMsg(`> ${EMOJI} API HTTP Error: \`${res.status}\`\n> Detail: \`${errorText.slice(0, 100)}\``);
-          }
-
-          const data = await res.json();
-
-          if (!data) {
-            return await editMsg(`> ${EMOJI} Debug: API mengembalikan data kosong.`);
-          }
-
-          // Ekstraksi data secara fleksibel (mengantisipasi perubahan struktur API)
-          const resultData = data.data || data.result || data;
-          const medias = resultData?.medias || resultData?.links;
-
-          if (medias) {
-            // Jika medias array, cari video. Jika objek, langsung ambil.
-            const media = Array.isArray(medias) 
-              ? (medias.find(m => m.type === 'video' || m.extension === 'mp4') || medias[0])
-              : medias;
-            
-            videoUrl = media?.url || media?.link || media?.download_url;
-            
-            if (videoUrl) {
-              title    = resultData?.title || resultData?.caption || 'Instagram Reel';
-              author   = resultData?.author?.username || resultData?.author || 'Instagram User';
-              thumbUrl = resultData?.thumbnail || resultData?.cover || null;
-            } else {
-              return await editMsg(`> ${EMOJI} Debug: Link video tidak ditemukan.\n> JSON: \`${JSON.stringify(media).slice(0, 100)}\``);
-            }
-          } else {
-            return await editMsg(`> ${EMOJI} Debug: Struktur data \`medias\` tidak ditemukan.\n> Raw: \`${JSON.stringify(data).slice(0, 150)}\``);
-          }
-
-        } catch (e) {
-          // Pastikan timeout dibersihkan jika terjadi error di tengah jalan
-          clearTimeout(igTimeout);
-
-          if (e.name === 'AbortError') {
-            return await editMsg(`> ${EMOJI} Error: Request Timeout (API Instagram tidak merespon dalam 20 detik).`);
-          }
-          // Ini yang krusial: Jika ada error lain, kirim pesannya ke Discord agar tidak loading terus
-          return await editMsg(`> ${EMOJI} IG Catch Error: \`${e.message}\``);
-        }
+  try {
+    const res = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
+      method: 'GET',
+      signal: igController.signal,
+      headers: {
+        'x-rapidapi-key':  env.RAPIDAPI_KEY,
+        'x-rapidapi-host': 'instagram-reels-downloader-api.p.rapidapi.com'
       }
+    });
+    clearTimeout(igTimeout);
 
+    if (!res.ok) {
+      const errorText = await res.text();
+      return await editMsg(`> ${EMOJI} ❌ API HTTP Error: \`${res.status}\`\n> \`${errorText.slice(0, 100)}\``);
+    }
+
+    const data = await res.json();
+    if (!data) return await editMsg(`> ${EMOJI} ❌ API mengembalikan data kosong.`);
+
+    const resultData = data.data || data.result || data;
+    const medias     = resultData?.medias || resultData?.links;
+
+    if (medias && Array.isArray(medias)) {
+      const media = medias.find(m => m.type === 'video' && m.extension === 'mp4') ||
+                    medias.find(m => m.extension === 'mp4') ||
+                    medias.find(m => m.type === 'video') ||
+                    medias[0];
+
+      videoUrl = media?.url || media?.link || media?.download_url || null;
+
+      if (videoUrl) {
+        title    = resultData?.title    || resultData?.caption || 'Instagram Reel';
+        author   = resultData?.author?.username || resultData?.author || 'Instagram User';
+        thumbUrl = resultData?.thumbnail || resultData?.cover  || null;
+      } else {
+        return await editMsg(`> ${EMOJI} ❌ Link video tidak ditemukan.\n> \`${JSON.stringify(media).slice(0, 200)}\``);
+      }
+    } else {
+      return await editMsg(`> ${EMOJI} ❌ Field medias tidak ditemukan.\n> \`${JSON.stringify(data).slice(0, 200)}\``);
+    }
+
+  } catch (e) {
+    clearTimeout(igTimeout);
+    if (e.name === 'AbortError') {
+      return await editMsg(`> ${EMOJI} ❌ Timeout! API tidak merespon dalam 20 detik.`);
+    }
+    return await editMsg(`> ${EMOJI} ❌ IG Error: \`${e.message}\``);
+  }
+
+  if (!videoUrl) {
+    return await editMsg(`> ${EMOJI} ❌ Gagal download Instagram Reels!\n> 💡 Pastikan video tidak private.`);
+  }
+}
         
       // ══════════════════════════════════════════════════════
       // YOUTUBE SHORTS — Chain: cobalt.tools → invidious
