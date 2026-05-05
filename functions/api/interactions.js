@@ -8566,10 +8566,8 @@ if (!videoUrl) {
       // ══════════════════════════════════════════════════════════
 else if (isReels) {
   platform = 'Instagram Reels';
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
-
   try {
     const res  = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
       signal: controller.signal,
@@ -8588,17 +8586,18 @@ else if (isReels) {
         title    = data.data.title    || 'Instagram Reel';
         author   = data.data.author   || 'Instagram User';
         thumbUrl = data.data.thumbnail || null;
+      } else {
+        return await editMsg(`> Debug: media ada tapi url kosong: \`${JSON.stringify(media).slice(0, 200)}\``);
       }
+    } else {
+      return await editMsg(`> Debug: \`${JSON.stringify(data).slice(0, 300)}\``);
     }
   } catch (e) {
     clearTimeout(timeout);
+    return await editMsg(`> IG Error: \`${e.message}\``);
   }
-
   if (!videoUrl) {
-    return await editMsg([
-      `> ${EMOJI} ❌ Gagal download Instagram Reels!`,
-      `> 💡 Pastikan video tidak private/akun tidak dikunci.`
-    ].join('\n'));
+    return await editMsg(`> Debug: videoUrl masih kosong setelah semua proses.`);
   }
 }
 
