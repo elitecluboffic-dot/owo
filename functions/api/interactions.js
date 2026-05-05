@@ -8386,17 +8386,13 @@ if (cmd === 'download') {
   }
 
   // Deteksi platform
-  const isTikTok  = url.includes('tiktok.com') || url.includes('vm.tiktok.com');
-  const isReels   = url.includes('instagram.com/reel') || url.includes('instagram.com/p/');
-  const isYouTube = url.includes('youtube.com/shorts') || url.includes('youtu.be');
+  const isTikTok = url.includes('tiktok.com') || url.includes('vm.tiktok.com');
 
-  if (!isTikTok && !isReels && !isYouTube) {
+  if (!isTikTok) {
     return respond([
       `> ${EMOJI} ❌ URL tidak didukung!`,
       `> 💡 Yang didukung:`,
-      `> • TikTok: \`https://www.tiktok.com/@user/video/...\``,
-      `> • Instagram Reels: \`https://www.instagram.com/reel/...\``,
-      `> • YouTube Shorts: \`https://youtube.com/shorts/...\``
+      `> • TikTok: \`https://www.tiktok.com/@user/video/...\``
     ].join('\n'));
   }
 
@@ -8411,14 +8407,13 @@ if (cmd === 'download') {
   }
   await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
 
-// Return defer DULU ke Discord
+  // Return defer DULU ke Discord
   const deferResponse = new Response(JSON.stringify({ type: 5 }), {
     headers: { 'Content-Type': 'application/json' }
   });
 
   waitUntil((async () => {
 
-    // Edit pesan original (content only)
     const editMsg = async (content) => {
       await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
         method: 'PATCH',
@@ -8427,19 +8422,13 @@ if (cmd === 'download') {
       });
     };
 
-    // Edit pesan original dengan tombol
     const editMsgWithButtons = async (content, buttons) => {
       await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content,
-          components: [
-            {
-              type: 1, // Action Row
-              components: buttons
-            }
-          ]
+          components: [{ type: 1, components: buttons }]
         })
       });
     };
@@ -8450,29 +8439,57 @@ if (cmd === 'download') {
       let title    = 'Video';
       let author   = 'Unknown';
       let duration = 0;
-      let platform = '';
+      const platform = 'TikTok';
 
       // ══════════════════════════════════════════════════
       // TIKTOK — Chain: tikwm → RapidAPI → cobalt.tools
       // ══════════════════════════════════════════════════
-      if (isTikTok) {
-        platform = 'TikTok';
 
-        // [1] Coba tikwm.com dulu
+      // [1] Coba tikwm.com dulu
+      try {
+        const res  = await fetch('https://www.tikwm.com/api/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'Mozilla/5.0'
+          },
+          body: new URLSearchParams({ url, hd: '1' })
+        });
+        const data = await res.json();
+        if (data.code === 0 && data.data) {
+          const d = data.data;
+          const candidates = [d.hdplay, d.play, d.wmplay].filter(u =>
+            u &&
+            !u.includes('music') &&
+            !u.includes('audio_mpeg') &&
+            !u.includes('ies-music') &&
+            !u.includes('mime_type=audio')
+          );
+          if (candidates.length > 0) {
+            videoUrl = candidates[0];
+            thumbUrl = d.cover || d.origin_cover;
+            title    = d.title || 'TikTok Video';
+            author   = d.author?.nickname || d.author?.unique_id || 'Unknown';
+            duration = d.duration || 0;
+          }
+        }
+      } catch (_) {}
+
+      // [2] Fallback ke RapidAPI
+      if (!videoUrl && env.RAPIDAPI_KEY) {
         try {
-          const res  = await fetch('https://www.tikwm.com/api/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'User-Agent': 'Mozilla/5.0'
-            },
-            body: new URLSearchParams({ url, hd: '1' })
-          });
+          const res  = await fetch(
+            `https://tiktok-video-no-watermark2.p.rapidapi.com/?url=${encodeURIComponent(url)}&hd=1`,
+            {
+              headers: {
+                'X-RapidAPI-Key':  env.RAPIDAPI_KEY,
+                'X-RapidAPI-Host': 'tiktok-video-no-watermark2.p.rapidapi.com'
+              }
+            }
+          );
           const data = await res.json();
-          if (data.code === 0 && data.data) {
+          if (data.data) {
             const d = data.data;
-
-            // Filter: hindari URL audio/musik
             const candidates = [d.hdplay, d.play, d.wmplay].filter(u =>
               u &&
               !u.includes('music') &&
@@ -8480,203 +8497,52 @@ if (cmd === 'download') {
               !u.includes('ies-music') &&
               !u.includes('mime_type=audio')
             );
-
             if (candidates.length > 0) {
               videoUrl = candidates[0];
-              thumbUrl = d.cover || d.origin_cover;
+              thumbUrl = d.cover || null;
               title    = d.title || 'TikTok Video';
-              author   = d.author?.nickname || d.author?.unique_id || 'Unknown';
+              author   = d.author?.nickname || 'Unknown';
               duration = d.duration || 0;
             }
           }
         } catch (_) {}
-
-        // [2] Fallback ke RapidAPI kalau ada key
-        if (!videoUrl && env.RAPIDAPI_KEY) {
-          try {
-            const res  = await fetch(
-              `https://tiktok-video-no-watermark2.p.rapidapi.com/?url=${encodeURIComponent(url)}&hd=1`,
-              {
-                headers: {
-                  'X-RapidAPI-Key':  env.RAPIDAPI_KEY,
-                  'X-RapidAPI-Host': 'tiktok-video-no-watermark2.p.rapidapi.com'
-                }
-              }
-            );
-            const data = await res.json();
-            if (data.data) {
-              const d = data.data;
-              const candidates = [d.hdplay, d.play, d.wmplay].filter(u =>
-                u &&
-                !u.includes('music') &&
-                !u.includes('audio_mpeg') &&
-                !u.includes('ies-music') &&
-                !u.includes('mime_type=audio')
-              );
-              if (candidates.length > 0) {
-                videoUrl = candidates[0];
-                thumbUrl = d.cover || null;
-                title    = d.title || 'TikTok Video';
-                author   = d.author?.nickname || 'Unknown';
-                duration = d.duration || 0;
-              }
-            }
-          } catch (_) {}
-        }
-
-// [3] Fallback ke cobalt.tools
-if (!videoUrl) {
-  try {
-    const res  = await fetch('https://api.cobalt.tools/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        url,
-        videoQuality: '720',
-        filenameStyle: 'pretty',
-        disableTTWatermark: true
-      })
-    });
-    const data = await res.json();
-    if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
-      videoUrl = data.url;
-      title    = 'TikTok Video';
-      author   = 'TikTok';
-    } else if (data.status === 'picker' && data.picker?.[0]?.url) {
-      videoUrl = data.picker[0].url;
-      title    = 'TikTok Video';
-    }
-  } catch (_) {}
-}
-
-        if (!videoUrl) {
-          return await editMsg([
-            `> ${EMOJI} ❌ Gagal download TikTok!`,
-            `> 💡 Semua API sedang limit. Coba lagi besok atau gunakan URL lain.`,
-            `> 🔄 *Tip: Tambahkan \`RAPIDAPI_KEY\` di Cloudflare env untuk fallback ekstra.*`
-          ].join('\n'));
-        }
       }
 
-
-      // ══════════════════════════════════════════════════════════
-      // INSTAGRAM REELS — Full Fix Version
-      // ══════════════════════════════════════════════════════════
-else if (isReels) {
-  platform = 'Instagram Reels';
-  
-  const igController = new AbortController();
-  const igTimeout = setTimeout(() => igController.abort(), 28000);
-
-  try {
-    const res = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
-      method: 'GET',
-      signal: igController.signal,
-      headers: {
-        'x-rapidapi-key':  env.RAPIDAPI_KEY,
-        'x-rapidapi-host': 'instagram-reels-downloader-api.p.rapidapi.com'
+      // [3] Fallback ke cobalt.tools
+      if (!videoUrl) {
+        try {
+          const res  = await fetch('https://api.cobalt.tools/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              url,
+              videoQuality: '720',
+              filenameStyle: 'pretty',
+              disableTTWatermark: true
+            })
+          });
+          const data = await res.json();
+          if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
+            videoUrl = data.url;
+            title    = 'TikTok Video';
+            author   = 'TikTok';
+          } else if (data.status === 'picker' && data.picker?.[0]?.url) {
+            videoUrl = data.picker[0].url;
+            title    = 'TikTok Video';
+          }
+        } catch (_) {}
       }
-    });
-    clearTimeout(igTimeout);
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      return await editMsg(`> ${EMOJI} ❌ API HTTP Error: \`${res.status}\`\n> \`${errorText.slice(0, 100)}\``);
-    }
-
-    const data = await res.json();
-    if (!data) return await editMsg(`> ${EMOJI} ❌ API mengembalikan data kosong.`);
-
-    const resultData = data.data || data.result || data;
-    const medias     = resultData?.medias || resultData?.links;
-
-    if (medias && Array.isArray(medias)) {
-      const media = medias.find(m => m.type === 'video' && m.extension === 'mp4') ||
-                    medias.find(m => m.extension === 'mp4') ||
-                    medias.find(m => m.type === 'video') ||
-                    medias[0];
-
-      videoUrl = media?.url || media?.link || media?.download_url || null;
-
-      if (videoUrl) {
-        title    = resultData?.title    || resultData?.caption || 'Instagram Reel';
-        author   = resultData?.author?.username || resultData?.author || 'Instagram User';
-        thumbUrl = resultData?.thumbnail || resultData?.cover  || null;
-      } else {
-        return await editMsg(`> ${EMOJI} ❌ Link video tidak ditemukan.\n> \`${JSON.stringify(media).slice(0, 200)}\``);
+      if (!videoUrl) {
+        return await editMsg([
+          `> ${EMOJI} ❌ Gagal download TikTok!`,
+          `> 💡 Semua API sedang limit. Coba lagi besok atau gunakan URL lain.`,
+          `> 🔄 *Tip: Tambahkan \`RAPIDAPI_KEY\` di Cloudflare env untuk fallback ekstra.*`
+        ].join('\n'));
       }
-    } else {
-      return await editMsg(`> ${EMOJI} ❌ Field medias tidak ditemukan.\n> \`${JSON.stringify(data).slice(0, 200)}\``);
-    }
-
-  } catch (e) {
-    clearTimeout(igTimeout);
-    if (e.name === 'AbortError') {
-      return await editMsg(`> ${EMOJI} ❌ Timeout! API tidak merespon dalam 20 detik.`);
-    }
-    return await editMsg(`> ${EMOJI} ❌ IG Error: \`${e.message}\``);
-  }
-
-  if (!videoUrl) {
-    return await editMsg(`> ${EMOJI} ❌ Gagal download Instagram Reels!\n> 💡 Pastikan video tidak private.`);
-  }
-}
-        
-      // ══════════════════════════════════════════════════════
-      // YOUTUBE SHORTS — Chain: cobalt.tools → invidious
-      // ══════════════════════════════════════════════════════
-else if (isYouTube) {
-  platform = 'YouTube Shorts';
-  const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
-
-  if (!videoId) {
-    return await editMsg(`> ${EMOJI} ❌ Tidak bisa ambil video ID dari URL!`);
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-
-  try {
-    const res  = await fetch(`https://youtube-video-and-shorts-downloader.p.rapidapi.com/download.php?id=${videoId}`, {
-      signal: controller.signal,
-      headers: {
-        'Content-Type':    'application/json',
-        'x-rapidapi-key':  env.RAPIDAPI_KEY,
-        'x-rapidapi-host': 'youtube-video-and-shorts-downloader.p.rapidapi.com'
-      }
-    });
-    clearTimeout(timeout);
-    const data = await res.json();
-    if (data?.status === 'ok' && data?.results) {
-      const fmt = data.results.find(f => f.mime?.includes('video') && f.quality === '720p') ||
-                  data.results.find(f => f.mime?.includes('video') && f.quality === '480p') ||
-                  data.results.find(f => f.mime?.includes('video')) ||
-                  data.results[0];
-      if (fmt?.url) {
-        videoUrl = fmt.url;
-        title    = data.title || 'YouTube Shorts';
-        author   = 'YouTube';
-      }
-    }
-} catch (e) {
-    clearTimeout(timeout); // Pastikan 'timeout' di sini merujuk ke let/const di blok youtube
-    console.error("YT Error:", e.message);
-  }
-
-  if (!videoUrl) {
-    return await editMsg([
-      `> ${EMOJI} ❌ Gagal download YouTube Shorts!`,
-      `> 💡 Coba lagi dalam beberapa detik.`
-    ].join('\n'));
-  }
-}
-
-if (!videoUrl) {
-  return await editMsg(`> ${EMOJI} ❌ Tidak bisa ambil link video. Coba lagi!`);
-}
 
       // ══════════════════════════════
       // CEK UKURAN FILE (pakai Range)
@@ -8688,19 +8554,16 @@ if (!videoUrl) {
           method: 'GET',
           headers: { 'Range': 'bytes=0-0' }
         });
-        // Coba content-range dulu (response dari Range request)
         const contentRange = headRes.headers.get('content-range');
         if (contentRange) {
           fileSizeBytes = parseInt(contentRange.split('/')[1]);
         }
-        // Fallback ke content-length
         if (!fileSizeBytes) {
           const cl = headRes.headers.get('content-length');
           if (cl) fileSizeBytes = parseInt(cl);
         }
         if (fileSizeBytes && !isNaN(fileSizeBytes)) {
-          const mb = (fileSizeBytes / 1024 / 1024).toFixed(2);
-          fileSize = `${mb} MB`;
+          fileSize = `${(fileSizeBytes / 1024 / 1024).toFixed(2)} MB`;
         }
       } catch (_) {}
 
@@ -8722,31 +8585,12 @@ if (!videoUrl) {
       // KIRIM HASIL + TOMBOL DOWNLOAD & THUMBNAIL
       // ══════════════════════════════════════════
       const buttons = [
-        {
-          type: 2,        // Button
-          style: 5,       // Link button
-          label: '⬇️ Download Video',
-          url: videoUrl
-        }
+        { type: 2, style: 5, label: '⬇️ Download Video', url: videoUrl }
       ];
-
-      // Tambah tombol thumbnail kalau ada
       if (thumbUrl) {
-        buttons.push({
-          type: 2,
-          style: 5,
-          label: '🖼️ Thumbnail',
-          url: thumbUrl
-        });
+        buttons.push({ type: 2, style: 5, label: '🖼️ Thumbnail', url: thumbUrl });
       }
-
-      // Tambah tombol URL original
-      buttons.push({
-        type: 2,
-        style: 5,
-        label: '🔗 Sumber',
-        url: url
-      });
+      buttons.push({ type: 2, style: 5, label: '🔗 Sumber', url: url });
 
       const content = [
         '```ansi',
@@ -8777,9 +8621,8 @@ if (!videoUrl) {
     }
   })());
 
-return deferResponse;
+  return deferResponse;
 }
-
 
 
 
