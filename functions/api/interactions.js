@@ -8660,9 +8660,24 @@ else if (isYouTube) {
       }
     });
     const data = await res.json();
-    return await editMsg(`> Debug: \`${JSON.stringify(data).slice(0, 500)}\``);
-  } catch (e) {
-    return await editMsg(`> Error: \`${e.message}\``);
+    if (data?.status === 'ok' && data?.results) {
+      const fmt = data.results.find(f => f.mime?.includes('video') && f.quality === '720p') ||
+                  data.results.find(f => f.mime?.includes('video') && f.quality === '480p') ||
+                  data.results.find(f => f.mime?.includes('video')) ||
+                  data.results[0];
+      if (fmt?.url) {
+        videoUrl = fmt.url;
+        title    = data.title || 'YouTube Shorts';
+        author   = 'YouTube';
+      }
+    }
+  } catch (_) {}
+
+  if (!videoUrl) {
+    return await editMsg([
+      `> ${EMOJI} ❌ Gagal download YouTube Shorts!`,
+      `> 💡 Coba lagi dalam beberapa detik.`
+    ].join('\n'));
   }
 }
 
