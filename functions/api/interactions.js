@@ -8411,7 +8411,11 @@ if (cmd === 'download') {
   }
   await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
 
-  // Defer dulu
+// Return defer DULU ke Discord
+  const deferResponse = new Response(JSON.stringify({ type: 5 }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+
   waitUntil((async () => {
 
     // Edit pesan original (content only)
@@ -8735,9 +8739,7 @@ if (!videoUrl) {
     }
   })());
 
-  return new Response(JSON.stringify({ type: 5 }), {
-    headers: { 'Content-Type': 'application/json' }
-  });
+return deferResponse;
 }
 
 
