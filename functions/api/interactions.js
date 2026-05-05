@@ -8652,7 +8652,7 @@ else if (isYouTube) {
   }
 
   // [1] youtube-shorts-video-downloader via RapidAPI
-  try {
+try {
     const res  = await fetch(`https://youtube-shorts-video-downloader-and-converter.p.rapidapi.com/download-short-mp4/${videoId}?quality=720p`, {
       headers: {
         'Content-Type':    'application/json',
@@ -8661,12 +8661,10 @@ else if (isYouTube) {
       }
     });
     const data = await res.json();
-    if (data?.url || data?.download_url || data?.link) {
-      videoUrl = data.url || data.download_url || data.link;
-      title    = data.title  || 'YouTube Shorts';
-      author   = data.author || data.channel || 'YouTube';
-    }
-  } catch (_) {}
+    return await editMsg(`> Debug: \`${JSON.stringify(data).slice(0, 500)}\``);
+  } catch (e) {
+    return await editMsg(`> Error: \`${e.message}\``);
+  }
 
   if (!videoUrl) {
     return await editMsg([
