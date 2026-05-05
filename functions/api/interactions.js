@@ -8567,40 +8567,71 @@ if (!videoUrl) {
 else if (isReels) {
   platform = 'Instagram Reels';
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  // Naikkan ke 20 detik jika koneksi sering timeout, IG scrapers memang agak lama
+  const timeout = setTimeout(() => controller.abort(), 20000);
+
   try {
-    const res  = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
+    const res = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
       signal: controller.signal,
+      method: 'GET',
       headers: {
-        'Content-Type':    'application/json',
-        'x-rapidapi-key':  env.RAPIDAPI_KEY,
+        'x-rapidapi-key': env.RAPIDAPI_KEY,
         'x-rapidapi-host': 'instagram-reels-downloader-api.p.rapidapi.com'
       }
     });
+
     clearTimeout(timeout);
+
+    // 1. Cek jika HTTP Status bukan 200 (misal 429 Limit, 403 Key Salah, atau 500 Server Error)
+    if (!res.ok) {
+      const errorText = await res.text();
+      return await editMsg(`> API HTTP Error: \`${res.status} ${res.statusText}\`\n> Detail: \`${errorText.slice(0, 100)}\``);
+    }
+
     const data = await res.json();
-    if (data?.success && data?.data?.medias?.length > 0) {
-      const media = data.data.medias.find(m => m.type === 'video') || data.data.medias[0];
-      if (media?.url) {
-        videoUrl = media.url;
-        title    = data.data.title    || 'Instagram Reel';
-        author   = data.data.author   || 'Instagram User';
-        thumbUrl = data.data.thumbnail || null;
+
+    // 2. Debugging: Cek apakah data kosong
+    if (!data) {
+      return await editMsg(`> Debug: API return data kosong (null/undefined).`);
+    }
+
+    // 3. Logika Penentuan Data (Lebih Fleksibel)
+    // Beberapa API langsung mengembalikan { data: { ... } }, beberapa pakai { result: { ... } }
+    const resultData = data.data || data.result || data;
+    const medias = resultData?.medias || resultData?.links;
+
+    if (medias && medias.length > 0) {
+      // Cari tipe video, kalau tidak ada ambil yang pertama
+      const media = medias.find(m => m.type === 'video' || m.extension === 'mp4') || medias[0];
+      
+      // Ambil URL (cek beberapa kemungkinan field: url, link, atau download_url)
+      videoUrl = media?.url || media?.link || media?.download_url;
+      
+      if (videoUrl) {
+        title    = resultData?.title || resultData?.caption || 'Instagram Reel';
+        author   = resultData?.author?.username || resultData?.author || 'Instagram User';
+        thumbUrl = resultData?.thumbnail || resultData?.cover || null;
       } else {
-        return await editMsg(`> Debug: media ada tapi url kosong: \`${JSON.stringify(media).slice(0, 200)}\``);
+        return await editMsg(`> Debug: Media ditemukan tapi link download absen.\n> Data: \`${JSON.stringify(media).slice(0, 150)}\``);
       }
     } else {
-      return await editMsg(`> Debug: \`${JSON.stringify(data).slice(0, 300)}\``);
+      // Jika struktur data tidak sesuai ekspektasi
+      return await editMsg(`> Debug: Struktur data tidak dikenali.\n> Raw: \`${JSON.stringify(data).slice(0, 200)}\``);
     }
+
   } catch (e) {
     clearTimeout(timeout);
+    if (e.name === 'AbortError') {
+      return await editMsg(`> Error: Request Timeout (API terlalu lama merespon).`);
+    }
     return await editMsg(`> IG Error: \`${e.message}\``);
   }
+
+  // Final check sebelum lanjut ke proses pengiriman file
   if (!videoUrl) {
-    return await editMsg(`> Debug: videoUrl masih kosong setelah semua proses.`);
+    return await editMsg(`> Debug: Gagal mendapatkan videoUrl setelah parsing.`);
   }
 }
-
       // ══════════════════════════════════════════════════════
       // YOUTUBE SHORTS — Chain: cobalt.tools → invidious
       // ══════════════════════════════════════════════════════
