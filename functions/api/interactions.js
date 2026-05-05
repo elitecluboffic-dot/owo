@@ -8651,27 +8651,18 @@ else if (isYouTube) {
     return await editMsg(`> ${EMOJI} ❌ Tidak bisa ambil video ID dari URL!`);
   }
 
-  // [1] youtube-shorts-video-downloader via RapidAPI
-try {
-    const res = await fetch(`https://youtube-shorts-video-downloader-and-converter.p.rapidapi.com/download-short-mp4/${videoId}?quality=720p`, {
+  try {
+    const res  = await fetch(`https://youtube-video-and-shorts-downloader.p.rapidapi.com/download.php?id=${videoId}`, {
       headers: {
         'Content-Type':    'application/json',
         'x-rapidapi-key':  env.RAPIDAPI_KEY,
-        'x-rapidapi-host': 'youtube-shorts-video-downloader-and-converter.p.rapidapi.com'
+        'x-rapidapi-host': 'youtube-video-and-shorts-downloader.p.rapidapi.com'
       }
     });
-    const ct = res.headers.get('content-type') || 'null';
-    const finalUrl = res.url;
-    return await editMsg(`> ct: \`${ct}\`\n> url: \`${finalUrl}\`\n> status: \`${res.status}\``);
+    const data = await res.json();
+    return await editMsg(`> Debug: \`${JSON.stringify(data).slice(0, 500)}\``);
   } catch (e) {
     return await editMsg(`> Error: \`${e.message}\``);
-  }
-
-  if (!videoUrl) {
-    return await editMsg([
-      `> ${EMOJI} ❌ Gagal download YouTube Shorts!`,
-      `> 💡 Coba lagi dalam beberapa detik.`
-    ].join('\n'));
   }
 }
 
