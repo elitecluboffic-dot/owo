@@ -8645,47 +8645,45 @@ if (!videoUrl) {
       // ══════════════════════════════════════════════════════
 else if (isYouTube) {
   platform = 'YouTube Shorts';
-
   const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
-  let r1 = '', r2 = '', r3 = '';
 
-  // Debug RapidAPI
+  if (!videoId) {
+    return await editMsg(`> ${EMOJI} ❌ Tidak bisa ambil video ID dari URL!`);
+  }
+
+  // [1] youtube-video-fast-downloader via RapidAPI
   try {
-    const res  = await fetch(`https://yt-api.p.rapidapi.com/dl?id=${videoId}`, {
+    const res  = await fetch(`https://youtube-video-fast-downloader-24-7.p.rapidapi.com/get-videos-info/${videoId}?response_mode=default`, {
       headers: {
-        'X-RapidAPI-Key':  env.RAPIDAPI_KEY || 'KOSONG',
-        'X-RapidAPI-Host': 'yt-api.p.rapidapi.com'
+        'Content-Type':    'application/json',
+        'x-rapidapi-key':  env.RAPIDAPI_KEY,
+        'x-rapidapi-host': 'youtube-video-fast-downloader-24-7.p.rapidapi.com'
       }
     });
     const data = await res.json();
-    r1 = JSON.stringify(data).slice(0, 200);
-  } catch (e) { r1 = e.message; }
+    const videos = data?.videos || data?.items || (Array.isArray(data) ? data : null);
+    const first  = videos?.[0] || data;
+    const fmt    = first?.formats?.find(f => f.qualityLabel === '720p' && f.hasVideo) ||
+                   first?.formats?.find(f => f.hasVideo) ||
+                   first?.formats?.[0];
+    if (fmt?.url) {
+      videoUrl = fmt.url;
+      title    = first.title        || 'YouTube Shorts';
+      author   = first.channelTitle || 'YouTube';
+    }
+  } catch (_) {}
 
-  // Debug invidious
-  try {
-    const res  = await fetch(`https://inv.nadeko.net/api/v1/videos/${videoId}`);
-    const text = await res.text();
-    r2 = text.slice(0, 200);
-  } catch (e) { r2 = e.message; }
-
-  // Debug piped
-  try {
-    const res  = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`);
-    const text = await res.text();
-    r3 = text.slice(0, 200);
-  } catch (e) { r3 = e.message; }
-
-  return await editMsg([
-    `> 🔍 **Debug YouTube:**`,
-    `> rapidapi: \`${r1}\``,
-    `> invidious: \`${r2}\``,
-    `> piped: \`${r3}\``
-  ].join('\n'));
+  if (!videoUrl) {
+    return await editMsg([
+      `> ${EMOJI} ❌ Gagal download YouTube Shorts!`,
+      `> 💡 Coba lagi dalam beberapa detik.`
+    ].join('\n'));
+  }
 }
 
-      if (!videoUrl) {
-        return await editMsg(`> ${EMOJI} ❌ Tidak bisa ambil link video. Coba lagi!`);
-      }
+if (!videoUrl) {
+  return await editMsg(`> ${EMOJI} ❌ Tidak bisa ambil link video. Coba lagi!`);
+}
 
       // ══════════════════════════════
       // CEK UKURAN FILE (pakai Range)
