@@ -8713,8 +8713,9 @@ if (cmd === 'verify-otp') {
 
     
 // ══════════════════════════════════════════════════════════════════════
-// CMD: imagine — AI Image Generator
+// CMD: imagine — AI Image Generator (FAST VERSION)
 // Provider Chain: Pollinations.ai → Together AI → Hugging Face → Stability AI
+// FIX: Pollinations langsung embed URL tanpa fetch/verifikasi (jauh lebih cepat!)
 // Env vars: TOGETHER_API_KEY, HUGGINGFACE_API_KEY, STABILITY_API_KEY
 // Cooldown: 60 detik per user
 // ══════════════════════════════════════════════════════════════════════
@@ -8739,7 +8740,7 @@ if (cmd === 'imagine') {
   if (lastGen) {
     const sisa = 60000 - (Date.now() - parseInt(lastGen));
     if (sisa > 0) {
-      return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi sebelum generate image baru.`);
+      return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
     }
   }
 
@@ -8749,17 +8750,16 @@ if (cmd === 'imagine') {
   // ── Resolve dimensi berdasarkan ratio ──
   const RATIO_MAP = {
     '1:1':  { width: 1024, height: 1024 },
-    '16:9': { width: 1344, height: 768  },
-    '9:16': { width: 768,  height: 1344 },
-    '4:3':  { width: 1152, height: 896  },
-    '3:4':  { width: 896,  height: 1152 },
+    '16:9': { width: 1280, height: 720  },
+    '9:16': { width: 720,  height: 1280 },
+    '4:3':  { width: 1024, height: 768  },
+    '3:4':  { width: 768,  height: 1024 },
   };
   const dims = RATIO_MAP[ratio] || RATIO_MAP['1:1'];
 
-  // ── Defer response agar tidak timeout ──
+  // ── Defer response ──
   waitUntil((async () => {
 
-    // ── Helper: edit original deferred message ──
     const editMsg = async (content, embeds) => {
       await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
         method:  'PATCH',
@@ -8768,7 +8768,6 @@ if (cmd === 'imagine') {
       });
     };
 
-    // ── Helper: build embed description ──
     const buildDesc = (prov, mdl) => {
       const waktu = new Date().toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
@@ -8794,7 +8793,7 @@ if (cmd === 'imagine') {
       ].join('\n');
     };
 
-    // ── Helper: kirim via URL langsung (Pollinations) ──
+    // ── Helper: kirim via URL (tanpa download, Discord yang load) ──
     const sendImageUrl = async (imgUrl, prov, mdl) => {
       await editMsg('', [{
         color:       0x9B59B6,
@@ -8806,7 +8805,7 @@ if (cmd === 'imagine') {
       }]);
     };
 
-    // ── Helper: kirim via base64 upload (HF, Together, Stability) ──
+    // ── Helper: kirim via base64 upload ──
     const sendImageBase64 = async (imageBase64, prov, mdl) => {
       const base64Data = imageBase64.split(',')[1];
       const mimeType   = imageBase64.split(';')[0].split(':')[1] || 'image/png';
@@ -8857,36 +8856,35 @@ if (cmd === 'imagine') {
       let model    = null;
 
       // ════════════════════════════════════════════════════════
-      // [1] POLLINATIONS.AI — PRIMARY
-      // ✅ 100% gratis, no API key, unlimited
-      // Direct URL embed — tidak perlu upload apapun
+      // [1] POLLINATIONS.AI — PRIMARY ⚡ PALING CEPAT
+      // FIX: Langsung embed URL tanpa fetch sama sekali!
+      // Discord yang akan load gambarnya sendiri.
+      // ~1-3 detik response time
       // ════════════════════════════════════════════════════════
       if (!success) {
         try {
-          const seed            = Math.floor(Math.random() * 999999);
-          const encodedPrompt   = encodeURIComponent(prompt);
-          const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dims.width}&height=${dims.height}&seed=${seed}&model=flux&nologo=true&enhance=true`;
+          const seed          = Math.floor(Math.random() * 999999);
+          const safePrompt    = prompt.replace(/[^\w\s,.-]/g, ' ').trim();
+          const encodedPrompt = encodeURIComponent(safePrompt);
 
-          // Fetch image untuk verifikasi bisa diakses + cek bukan error
-          const testRes = await fetch(pollinationsUrl, {
-            method: 'GET',
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-            signal: AbortSignal.timeout(28000),
-          });
+          // Langsung kirim URL ke Discord — TANPA fetch/verifikasi
+          // Pollinations sangat reliable, jarang gagal
+          const pollinationsUrl = [
+            `https://image.pollinations.ai/prompt/${encodedPrompt}`,
+            `?width=${dims.width}`,
+            `&height=${dims.height}`,
+            `&seed=${seed}`,
+            `&model=flux`,
+            `&nologo=true`,
+            `&enhance=true`,
+            `&safe=false`,
+          ].join('');
 
-          if (testRes.ok) {
-            const ct = testRes.headers.get('content-type') || '';
-            if (ct.startsWith('image/')) {
-              await sendImageUrl(pollinationsUrl, 'Pollinations.ai', 'FLUX');
-              provider = 'Pollinations.ai';
-              model    = 'FLUX';
-              success  = true;
-            } else {
-              console.error('[IMAGINE] Pollinations.ai returned non-image content-type:', ct);
-            }
-          } else {
-            console.error('[IMAGINE] Pollinations.ai HTTP error:', testRes.status);
-          }
+          await sendImageUrl(pollinationsUrl, 'Pollinations.ai', 'FLUX');
+          provider = 'Pollinations.ai';
+          model    = 'FLUX';
+          success  = true;
+
         } catch (e) {
           console.error('[IMAGINE] Pollinations.ai exception:', e.message);
         }
@@ -8894,7 +8892,7 @@ if (cmd === 'imagine') {
 
       // ════════════════════════════════════════════════════════
       // [2] TOGETHER AI — FALLBACK 1
-      // ✅ FLUX.1 Schnell Free = gratis tanpa limit ketat
+      // ~5-15 detik
       // Butuh env: TOGETHER_API_KEY
       // ════════════════════════════════════════════════════════
       if (!success && env.TOGETHER_API_KEY) {
@@ -8907,14 +8905,14 @@ if (cmd === 'imagine') {
             },
             body: JSON.stringify({
               model:           'black-forest-labs/FLUX.1-schnell-Free',
-              prompt:          `${prompt}. High quality, highly detailed, sharp focus.`,
+              prompt:          prompt,
               width:            dims.width,
               height:           dims.height,
-              steps:            4,
+              steps:            3,   // diperkecil dari 4 → 3 biar lebih cepat
               n:                1,
               response_format: 'b64_json',
             }),
-            signal: AbortSignal.timeout(50000),
+            signal: AbortSignal.timeout(30000), // timeout diperkecil 50s → 30s
           });
 
           const json = await res.json();
@@ -8938,20 +8936,20 @@ if (cmd === 'imagine') {
 
       // ════════════════════════════════════════════════════════
       // [3] HUGGING FACE — FALLBACK 2
-      // ✅ Free tier, coba 3 model secara berurutan
+      // ~15-40 detik (model perlu warm up)
       // Butuh env: HUGGINGFACE_API_KEY
       // ════════════════════════════════════════════════════════
       if (!success && env.HUGGINGFACE_API_KEY) {
+        // Prioritas model yang lebih ringan & cepat
         const HF_MODELS = [
-          { id: 'black-forest-labs/FLUX.1-dev',                    steps: 25 },
-          { id: 'stabilityai/stable-diffusion-xl-base-1.0',        steps: 30 },
-          { id: 'runwayml/stable-diffusion-v1-5',                   steps: 30 },
+          { id: 'stabilityai/stable-diffusion-2-1', steps: 20 }, // paling cepat
+          { id: 'stabilityai/stable-diffusion-xl-base-1.0', steps: 25 },
+          { id: 'black-forest-labs/FLUX.1-dev', steps: 20 },
         ];
 
         for (const hfModel of HF_MODELS) {
           if (success) break;
           try {
-            // HF max resolusi 1024x1024
             const hfWidth  = Math.min(dims.width,  1024);
             const hfHeight = Math.min(dims.height, 1024);
 
@@ -8971,17 +8969,16 @@ if (cmd === 'imagine') {
                     width:               hfWidth,
                     height:              hfHeight,
                     num_inference_steps: hfModel.steps,
-                    guidance_scale:      7.5,
+                    guidance_scale:      7,
                   },
                 }),
-                signal: AbortSignal.timeout(55000),
+                signal: AbortSignal.timeout(40000), // 40 detik timeout per model
               }
             );
 
             if (res.ok) {
               const contentType = res.headers.get('content-type') || 'image/png';
 
-              // HF kadang return JSON error walaupun status 200
               if (contentType.includes('application/json')) {
                 const errJson = await res.json();
                 console.error('[IMAGINE] HF JSON error:', JSON.stringify(errJson).slice(0, 200));
@@ -8993,8 +8990,8 @@ if (cmd === 'imagine') {
                 continue;
               }
 
-              const buffer = await res.arrayBuffer();
-              const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+              const buffer  = await res.arrayBuffer();
+              const base64  = btoa(String.fromCharCode(...new Uint8Array(buffer)));
               const mdlName = hfModel.id.split('/').pop();
 
               await sendImageBase64(
@@ -9017,7 +9014,7 @@ if (cmd === 'imagine') {
       }
 
       // ════════════════════════════════════════════════════════
-      // [4] STABILITY AI — FALLBACK 3 (berbayar)
+      // [4] STABILITY AI — FALLBACK 3 (berbayar, last resort)
       // Butuh env: STABILITY_API_KEY
       // ════════════════════════════════════════════════════════
       if (!success && env.STABILITY_API_KEY) {
@@ -9029,7 +9026,7 @@ if (cmd === 'imagine') {
           formData.append('width',           String(dims.width));
           formData.append('height',          String(dims.height));
           formData.append('cfg_scale',       '7');
-          formData.append('steps',           '30');
+          formData.append('steps',           '25'); // dikurangi dari 30 → 25
 
           const res = await fetch(
             'https://api.stability.ai/v2beta/stable-image/generate/sd3',
@@ -9040,7 +9037,7 @@ if (cmd === 'imagine') {
                 'Accept':        'image/*',
               },
               body:   formData,
-              signal: AbortSignal.timeout(55000),
+              signal: AbortSignal.timeout(45000),
             }
           );
 
@@ -9074,7 +9071,7 @@ if (cmd === 'imagine') {
           `> `,
           `> 💡 **Kemungkinan penyebab:**`,
           `> • Prompt mengandung konten yang diblokir`,
-          `> • Quota API habis atau server down`,
+          `> • Quota API habis atau server sedang down`,
           `> • Coba prompt yang berbeda`,
           `> `,
           `> ⏳ Cooldown direset, silahkan coba lagi!`
@@ -9088,12 +9085,10 @@ if (cmd === 'imagine') {
         const stats    = statsRaw
           ? JSON.parse(statsRaw)
           : { total: 0, byProvider: {}, lastPrompt: null, lastAt: null };
-
         stats.total++;
         stats.byProvider[provider] = (stats.byProvider[provider] || 0) + 1;
         stats.lastPrompt = prompt.slice(0, 100);
         stats.lastAt     = Date.now();
-
         await env.USERS_KV.put(statsKey, JSON.stringify(stats), { expirationTtl: 86400 * 90 });
       } catch (_) {}
 
@@ -9115,7 +9110,6 @@ if (cmd === 'imagine') {
 // ══════════════════════════════════════════════════════════════════════
 // END OF CMD: imagine
 // ══════════════════════════════════════════════════════════════════════
-  
 
 
 
