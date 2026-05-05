@@ -8646,56 +8646,67 @@ if (!videoUrl) {
 else if (isYouTube) {
   platform = 'YouTube Shorts';
 
-  let cobaltErr = '';
-  let invErr    = '';
-  let pipedErr  = '';
-
-  // [1] cobalt
-  try {
-    const res  = await fetch('https://api.cobalt.tools/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ url, videoQuality: '720', filenameStyle: 'pretty' })
-    });
-    const data = await res.json();
-    cobaltErr  = JSON.stringify(data).slice(0, 150);
-    if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
-      videoUrl = data.url;
-      title    = 'YouTube Shorts';
-      author   = 'YouTube';
-    }
-  } catch (e) { cobaltErr = e.message; }
-
-  // [2] invidious
-  if (!videoUrl) {
-    try {
-      const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
-      const res     = await fetch(`https://invidious.io.lol/api/v1/videos/${videoId}`);
-      const data    = await res.json();
-      invErr        = JSON.stringify(data).slice(0, 150);
-      const fmt     = data?.formatStreams?.find(f => f.qualityLabel === '720p') || data?.formatStreams?.[0];
-      if (fmt?.url) { videoUrl = fmt.url; title = data.title || 'YouTube Shorts'; author = data.author || 'YouTube'; }
-    } catch (e) { invErr = e.message; }
+  if (!env.RAPIDAPI_KEY) {
+    return await editMsg(`> ${EMOJI} ❌ RAPIDAPI_KEY belum diset di Cloudflare env!`);
   }
 
-  // [3] piped
+  // [1] yt-api via RapidAPI
+  try {
+    const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
+    if (videoId) {
+      const res  = await fetch(`https://yt-api.p.rapidapi.com/dl?id=${videoId}`, {
+        headers: {
+          'X-RapidAPI-Key':  env.RAPIDAPI_KEY,
+          'X-RapidAPI-Host': 'yt-api.p.rapidapi.com'
+        }
+      });
+      const data = await res.json();
+      if (data?.formats) {
+        const fmt = data.formats.find(f => f.qualityLabel === '720p' && f.hasVideo) ||
+                    data.formats.find(f => f.hasVideo) ||
+                    data.formats[0];
+        if (fmt?.url) {
+          videoUrl = fmt.url;
+          title    = data.title        || 'YouTube Shorts';
+          author   = data.channelTitle || 'YouTube';
+        }
+      }
+    }
+  } catch (_) {}
+
+  // [2] Fallback invidious multi-instance
   if (!videoUrl) {
     try {
       const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
-      const res     = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`);
-      const data    = await res.json();
-      pipedErr      = JSON.stringify(data).slice(0, 150);
-      const fmt     = data?.videoStreams?.find(f => f.quality === '720p') || data?.videoStreams?.[0];
-      if (fmt?.url) { videoUrl = fmt.url; title = data.title || 'YouTube Shorts'; author = data.uploader || 'YouTube'; }
-    } catch (e) { pipedErr = e.message; }
+      if (videoId) {
+        const instances = [
+          `https://inv.nadeko.net/api/v1/videos/${videoId}`,
+          `https://invidious.privacydev.net/api/v1/videos/${videoId}`,
+          `https://iv.datura.network/api/v1/videos/${videoId}`
+        ];
+        for (const instanceUrl of instances) {
+          if (videoUrl) break;
+          try {
+            const res  = await fetch(instanceUrl);
+            const data = await res.json();
+            const fmt  = data?.formatStreams?.find(f => f.qualityLabel === '720p') ||
+                         data?.formatStreams?.find(f => f.qualityLabel === '480p') ||
+                         data?.formatStreams?.[0];
+            if (fmt?.url) {
+              videoUrl = fmt.url;
+              title    = data.title  || 'YouTube Shorts';
+              author   = data.author || 'YouTube';
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
   }
 
   if (!videoUrl) {
     return await editMsg([
-      `> ❌ Debug YouTube:`,
-      `> cobalt: \`${cobaltErr}\``,
-      `> invidious: \`${invErr}\``,
-      `> piped: \`${pipedErr}\``
+      `> ${EMOJI} ❌ Gagal download YouTube Shorts!`,
+      `> 💡 Coba lagi dalam beberapa detik.`
     ].join('\n'));
   }
 }
