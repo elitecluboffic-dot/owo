@@ -8562,6 +8562,7 @@ if (!videoUrl) {
       // ══════════════════════════════════════════════════════════
 else if (isReels) {
   platform = 'Instagram Reels';
+
   try {
     const res  = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
       headers: {
@@ -8571,16 +8572,21 @@ else if (isReels) {
       }
     });
     const data = await res.json();
-    const keys = Object.keys(data?.data || {});
-    return await editMsg(`> Keys: \`${JSON.stringify(keys)}\``);
-  } catch (e) {
-    return await editMsg(`> Error: \`${e.message}\``);
-  }
+    if (data?.success && data?.data?.medias?.length > 0) {
+      const media = data.data.medias.find(m => m.type === 'video') || data.data.medias[0];
+      if (media?.url) {
+        videoUrl = media.url;
+        title    = data.data.title    || 'Instagram Reel';
+        author   = data.data.author   || 'Instagram User';
+        thumbUrl = data.data.thumbnail || null;
+      }
+    }
+  } catch (_) {}
+
   if (!videoUrl) {
     return await editMsg([
       `> ${EMOJI} ❌ Gagal download Instagram Reels!`,
-      `> 💡 Pastikan video tidak private/akun tidak dikunci.`,
-      `> 🔄 *Tip: Tambahkan \`RAPIDAPI_KEY\` di Cloudflare env untuk hasil lebih stabil.*`
+      `> 💡 Pastikan video tidak private/akun tidak dikunci.`
     ].join('\n'));
   }
 }
