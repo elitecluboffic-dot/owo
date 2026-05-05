@@ -8567,14 +8567,19 @@ if (!videoUrl) {
 else if (isReels) {
   platform = 'Instagram Reels';
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
   try {
     const res  = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
+      signal: controller.signal,
       headers: {
         'Content-Type':    'application/json',
         'x-rapidapi-key':  env.RAPIDAPI_KEY,
         'x-rapidapi-host': 'instagram-reels-downloader-api.p.rapidapi.com'
       }
     });
+    clearTimeout(timeout);
     const data = await res.json();
     if (data?.success && data?.data?.medias?.length > 0) {
       const media = data.data.medias.find(m => m.type === 'video') || data.data.medias[0];
@@ -8585,7 +8590,9 @@ else if (isReels) {
         thumbUrl = data.data.thumbnail || null;
       }
     }
-  } catch (_) {}
+  } catch (e) {
+    clearTimeout(timeout);
+  }
 
   if (!videoUrl) {
     return await editMsg([
@@ -8606,14 +8613,19 @@ else if (isYouTube) {
     return await editMsg(`> ${EMOJI} ❌ Tidak bisa ambil video ID dari URL!`);
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
   try {
     const res  = await fetch(`https://youtube-video-and-shorts-downloader.p.rapidapi.com/download.php?id=${videoId}`, {
+      signal: controller.signal,
       headers: {
         'Content-Type':    'application/json',
         'x-rapidapi-key':  env.RAPIDAPI_KEY,
         'x-rapidapi-host': 'youtube-video-and-shorts-downloader.p.rapidapi.com'
       }
     });
+    clearTimeout(timeout);
     const data = await res.json();
     if (data?.status === 'ok' && data?.results) {
       const fmt = data.results.find(f => f.mime?.includes('video') && f.quality === '720p') ||
@@ -8626,7 +8638,9 @@ else if (isYouTube) {
         author   = 'YouTube';
       }
     }
-  } catch (_) {}
+  } catch (e) {
+    clearTimeout(timeout);
+  }
 
   if (!videoUrl) {
     return await editMsg([
