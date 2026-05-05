@@ -8520,33 +8520,33 @@ if (cmd === 'download') {
           } catch (_) {}
         }
 
-        // [3] Fallback ke cobalt.tools
-        if (!videoUrl) {
-          try {
-            const res  = await fetch('https://api.cobalt.tools/api/json', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify({
-                url,
-                vQuality: '720',
-                filenamePattern: 'pretty',
-                isNoTTWatermark: true
-              })
-            });
-            const data = await res.json();
-            if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
-              videoUrl = data.url;
-              title    = 'TikTok Video';
-              author   = 'TikTok';
-            } else if (data.status === 'picker' && data.picker?.[0]?.url) {
-              videoUrl = data.picker[0].url;
-              title    = 'TikTok Video';
-            }
-          } catch (_) {}
-        }
+// [3] Fallback ke cobalt.tools
+if (!videoUrl) {
+  try {
+    const res  = await fetch('https://api.cobalt.tools/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        url,
+        videoQuality: '720',
+        filenameStyle: 'pretty',
+        disableTTWatermark: true
+      })
+    });
+    const data = await res.json();
+    if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
+      videoUrl = data.url;
+      title    = 'TikTok Video';
+      author   = 'TikTok';
+    } else if (data.status === 'picker' && data.picker?.[0]?.url) {
+      videoUrl = data.picker[0].url;
+      title    = 'TikTok Video';
+    }
+  } catch (_) {}
+}
 
         if (!videoUrl) {
           return await editMsg([
@@ -8558,7 +8558,7 @@ if (cmd === 'download') {
       }
 
       // ══════════════════════════════════════════════════════════
-      // INSTAGRAM REELS — Chain: RapidAPI → saveig.app → cobalt
+      // INSTAGRAM REELS — Chain: RapidAPI → snapinsta → cobalt
       // ══════════════════════════════════════════════════════════
       else if (isReels) {
         platform = 'Instagram Reels';
@@ -8584,21 +8584,20 @@ if (cmd === 'download') {
           } catch (_) {}
         }
 
-        // [2] Fallback ke saveig.app (gratis)
+        // [2] Fallback ke snapinsta
         if (!videoUrl) {
           try {
-            const res  = await fetch('https://www.saveig.app/api/post', {
+            const res  = await fetch('https://snapinsta.app/api', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'User-Agent': 'Mozilla/5.0'
               },
-              body: new URLSearchParams({ url })
+              body: new URLSearchParams({ url, lang: 'id' })
             });
             const data = await res.json();
-            if (data?.data?.[0]?.url) {
-              videoUrl = data.data[0].url;
-              thumbUrl = data.data[0].thumbnail || null;
+            if (data?.data) {
+              videoUrl = data.data;
               title    = 'Instagram Reel';
               author   = 'Instagram User';
             }
@@ -8608,7 +8607,7 @@ if (cmd === 'download') {
         // [3] Fallback ke cobalt.tools
         if (!videoUrl) {
           try {
-            const res  = await fetch('https://api.cobalt.tools/api/json', {
+            const res  = await fetch('https://api.cobalt.tools/', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -8616,8 +8615,8 @@ if (cmd === 'download') {
               },
               body: JSON.stringify({
                 url,
-                vQuality: '720',
-                filenamePattern: 'pretty'
+                videoQuality: '720',
+                filenameStyle: 'pretty'
               })
             });
             const data = await res.json();
@@ -8642,14 +8641,14 @@ if (cmd === 'download') {
       }
 
       // ══════════════════════════════════════════════════════
-      // YOUTUBE SHORTS — Chain: cobalt.tools → y2mate
+      // YOUTUBE SHORTS — Chain: cobalt.tools → invidious
       // ══════════════════════════════════════════════════════
       else if (isYouTube) {
         platform = 'YouTube Shorts';
 
         // [1] Coba cobalt.tools
         try {
-          const res  = await fetch('https://api.cobalt.tools/api/json', {
+          const res  = await fetch('https://api.cobalt.tools/', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -8657,9 +8656,8 @@ if (cmd === 'download') {
             },
             body: JSON.stringify({
               url,
-              vQuality: '720',
-              filenamePattern: 'pretty',
-              isNoTTWatermark: true
+              videoQuality: '720',
+              filenameStyle: 'pretty'
             })
           });
           const data = await res.json();
@@ -8673,43 +8671,20 @@ if (cmd === 'download') {
           }
         } catch (_) {}
 
-        // [2] Fallback ke y2mate
+        // [2] Fallback ke invidious
         if (!videoUrl) {
           try {
             const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
             if (videoId) {
-              const res  = await fetch('https://www.y2mate.com/mates/analyzeV2/ajax', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/x-www-form-urlencoded',
-                  'User-Agent': 'Mozilla/5.0'
-                },
-                body: new URLSearchParams({
-                  k_query: `https://www.youtube.com/watch?v=${videoId}`,
-                  k_page: 'home',
-                  hl: 'id',
-                  q_auto: '1'
-                })
-              });
+              const res  = await fetch(`https://invidious.io.lol/api/v1/videos/${videoId}`);
               const data = await res.json();
-              const links = data?.links?.mp4;
-              if (links) {
-                const best = Object.values(links).find(v => v.q === '720p') ||
-                             Object.values(links).find(v => v.q === '480p') ||
-                             Object.values(links)[0];
-                if (best?.k) {
-                  const convRes  = await fetch('https://www.y2mate.com/mates/convertV2/index', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ vid: videoId, k: best.k })
-                  });
-                  const convData = await convRes.json();
-                  if (convData.dlink) {
-                    videoUrl = convData.dlink;
-                    title    = data.title || 'YouTube Shorts';
-                    author   = 'YouTube';
-                  }
-                }
+              const fmt  = data?.formatStreams?.find(f => f.qualityLabel === '720p') ||
+                           data?.formatStreams?.find(f => f.qualityLabel === '480p') ||
+                           data?.formatStreams?.[0];
+              if (fmt?.url) {
+                videoUrl = fmt.url;
+                title    = data.title  || 'YouTube Shorts';
+                author   = data.author || 'YouTube';
               }
             }
           } catch (_) {}
@@ -8719,7 +8694,7 @@ if (cmd === 'download') {
           return await editMsg([
             `> ${EMOJI} ❌ Gagal download YouTube Shorts!`,
             `> 💡 Coba lagi dalam beberapa detik.`,
-            `> 🔄 *cobalt.tools dan y2mate sedang tidak bisa diakses.*`
+            `> 🔄 *cobalt.tools dan invidious sedang tidak bisa diakses.*`
           ].join('\n'));
         }
       }
