@@ -8560,85 +8560,58 @@ if (!videoUrl) {
       // ══════════════════════════════════════════════════════════
       // INSTAGRAM REELS — Chain: RapidAPI → snapinsta → cobalt
       // ══════════════════════════════════════════════════════════
-      else if (isReels) {
-        platform = 'Instagram Reels';
+else if (isReels) {
+  platform = 'Instagram Reels';
 
-        // [1] Coba RapidAPI kalau ada key
-        if (env.RAPIDAPI_KEY) {
-          try {
-            const res  = await fetch(
-              `https://instagram-downloader-download-instagram-videos-stories.p.rapidapi.com/index?url=${encodeURIComponent(url)}`,
-              {
-                headers: {
-                  'X-RapidAPI-Key':  env.RAPIDAPI_KEY,
-                  'X-RapidAPI-Host': 'instagram-downloader-download-instagram-videos-stories.p.rapidapi.com'
-                }
-              }
-            );
-            const data = await res.json();
-            if (data.media) {
-              videoUrl = data.media;
-              title    = data.title  || 'Instagram Reel';
-              author   = data.author || 'Unknown';
-            }
-          } catch (_) {}
-        }
+  let r1 = '', r2 = '', r3 = '';
 
-        // [2] Fallback ke snapinsta
-        if (!videoUrl) {
-          try {
-            const res  = await fetch('https://snapinsta.app/api', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': 'Mozilla/5.0'
-              },
-              body: new URLSearchParams({ url, lang: 'id' })
-            });
-            const data = await res.json();
-            if (data?.data) {
-              videoUrl = data.data;
-              title    = 'Instagram Reel';
-              author   = 'Instagram User';
-            }
-          } catch (_) {}
-        }
-
-        // [3] Fallback ke cobalt.tools
-        if (!videoUrl) {
-          try {
-            const res  = await fetch('https://api.cobalt.tools/', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify({
-                url,
-                videoQuality: '720',
-                filenameStyle: 'pretty'
-              })
-            });
-            const data = await res.json();
-            if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
-              videoUrl = data.url;
-              title    = 'Instagram Reel';
-              author   = 'Instagram';
-            } else if (data.status === 'picker' && data.picker?.[0]?.url) {
-              videoUrl = data.picker[0].url;
-              title    = 'Instagram Reel';
-            }
-          } catch (_) {}
-        }
-
-        if (!videoUrl) {
-          return await editMsg([
-            `> ${EMOJI} ❌ Gagal download Instagram Reels!`,
-            `> 💡 Pastikan video tidak private/akun tidak dikunci.`,
-            `> 🔄 *Tip: Tambahkan \`RAPIDAPI_KEY\` di Cloudflare env untuk hasil lebih stabil.*`
-          ].join('\n'));
+  // Debug RapidAPI
+  try {
+    const res  = await fetch(
+      `https://instagram-downloader-download-instagram-videos-stories.p.rapidapi.com/index?url=${encodeURIComponent(url)}`,
+      {
+        headers: {
+          'X-RapidAPI-Key':  env.RAPIDAPI_KEY,
+          'X-RapidAPI-Host': 'instagram-downloader-download-instagram-videos-stories.p.rapidapi.com'
         }
       }
+    );
+    const data = await res.json();
+    r1 = JSON.stringify(data).slice(0, 200);
+  } catch (e) { r1 = e.message; }
+
+  // Debug snapinsta
+  try {
+    const res  = await fetch('https://snapinsta.app/api', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0'
+      },
+      body: new URLSearchParams({ url, lang: 'id' })
+    });
+    const text = await res.text();
+    r2 = text.slice(0, 200);
+  } catch (e) { r2 = e.message; }
+
+  // Debug cobalt
+  try {
+    const res  = await fetch('https://api.cobalt.tools/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ url, videoQuality: '720', filenameStyle: 'pretty' })
+    });
+    const data = await res.json();
+    r3 = JSON.stringify(data).slice(0, 200);
+  } catch (e) { r3 = e.message; }
+
+  return await editMsg([
+    `> 🔍 **Debug Instagram:**`,
+    `> rapidapi: \`${r1}\``,
+    `> snapinsta: \`${r2}\``,
+    `> cobalt: \`${r3}\``
+  ].join('\n'));
+}
 
       // ══════════════════════════════════════════════════════
       // YOUTUBE SHORTS — Chain: cobalt.tools → invidious
