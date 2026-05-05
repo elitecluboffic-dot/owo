@@ -925,6 +925,27 @@ const commands = [
       required: true
     }
   ]
+},
+
+
+
+
+  {
+  "name": "imagine",
+  "description": "Generate gambar dengan AI",
+  "options": [
+    { "name": "prompt", "description": "Deskripsi gambar yang mau dibuat", "type": 3, "required": true },
+    { "name": "ratio", "description": "Rasio gambar", "type": 3, "required": false,
+      "choices": [
+        {"name": "1:1 (Square)", "value": "1:1"},
+        {"name": "16:9 (Landscape)", "value": "16:9"},
+        {"name": "9:16 (Portrait)", "value": "9:16"},
+        {"name": "4:3", "value": "4:3"},
+        {"name": "3:4", "value": "3:4"}
+      ]
+    },
+    { "name": "negative", "description": "Hal yang tidak mau muncul di gambar", "type": 3, "required": false }
+  ]
 }
   
   
