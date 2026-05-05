@@ -8643,51 +8643,61 @@ if (!videoUrl) {
       // ══════════════════════════════════════════════════════
       // YOUTUBE SHORTS — Chain: cobalt.tools → invidious
       // ══════════════════════════════════════════════════════
-      else if (isYouTube) {
-        platform = 'YouTube Shorts';
+else if (isYouTube) {
+  platform = 'YouTube Shorts';
 
-// [1] Coba cobalt.tools
-let cobaltErr = '';
-try {
-  const res  = await fetch('https://api.cobalt.tools/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify({ url, videoQuality: '720', filenameStyle: 'pretty' })
-  });
-  const data = await res.json();
-  cobaltErr = JSON.stringify(data).slice(0, 100);
-  if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
-    videoUrl = data.url;
-    title = 'YouTube Shorts';
-    author = 'YouTube';
+  let cobaltErr = '';
+  let invErr    = '';
+  let pipedErr  = '';
+
+  // [1] cobalt
+  try {
+    const res  = await fetch('https://api.cobalt.tools/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ url, videoQuality: '720', filenameStyle: 'pretty' })
+    });
+    const data = await res.json();
+    cobaltErr  = JSON.stringify(data).slice(0, 150);
+    if ((data.status === 'stream' || data.status === 'redirect') && data.url) {
+      videoUrl = data.url;
+      title    = 'YouTube Shorts';
+      author   = 'YouTube';
+    }
+  } catch (e) { cobaltErr = e.message; }
+
+  // [2] invidious
+  if (!videoUrl) {
+    try {
+      const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
+      const res     = await fetch(`https://invidious.io.lol/api/v1/videos/${videoId}`);
+      const data    = await res.json();
+      invErr        = JSON.stringify(data).slice(0, 150);
+      const fmt     = data?.formatStreams?.find(f => f.qualityLabel === '720p') || data?.formatStreams?.[0];
+      if (fmt?.url) { videoUrl = fmt.url; title = data.title || 'YouTube Shorts'; author = data.author || 'YouTube'; }
+    } catch (e) { invErr = e.message; }
   }
-} catch (e) { cobaltErr = e.message; }
 
-// [2] invidious
-let invErr = '';
-try {
-  const videoId = url.match(/shorts\/([^?&/]+)/)?.[1];
-  const res = await fetch(`https://invidious.io.lol/api/v1/videos/${videoId}`);
-  const data = await res.json();
-  invErr = JSON.stringify(data).slice(0, 100);
-} catch (e) { invErr = e.message; }
+  // [3] piped
+  if (!videoUrl) {
+    try {
+      const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
+      const res     = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`);
+      const data    = await res.json();
+      pipedErr      = JSON.stringify(data).slice(0, 150);
+      const fmt     = data?.videoStreams?.find(f => f.quality === '720p') || data?.videoStreams?.[0];
+      if (fmt?.url) { videoUrl = fmt.url; title = data.title || 'YouTube Shorts'; author = data.uploader || 'YouTube'; }
+    } catch (e) { pipedErr = e.message; }
+  }
 
-// [3] piped
-let pipedErr = '';
-try {
-  const videoId = url.match(/shorts\/([^?&/]+)/)?.[1];
-  const res = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`);
-  const data = await res.json();
-  pipedErr = JSON.stringify(data).slice(0, 100);
-} catch (e) { pipedErr = e.message; }
-
-if (!videoUrl) {
-  return await editMsg([
-    `> ❌ Semua API gagal!`,
-    `> cobalt: \`${cobaltErr}\``,
-    `> invidious: \`${invErr}\``,
-    `> piped: \`${pipedErr}\``
-  ].join('\n'));
+  if (!videoUrl) {
+    return await editMsg([
+      `> ❌ Debug YouTube:`,
+      `> cobalt: \`${cobaltErr}\``,
+      `> invidious: \`${invErr}\``,
+      `> piped: \`${pipedErr}\``
+    ].join('\n'));
+  }
 }
 
       if (!videoUrl) {
