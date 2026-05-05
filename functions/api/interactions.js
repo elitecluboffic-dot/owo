@@ -8690,6 +8690,51 @@ if (!videoUrl) {
           } catch (_) {}
         }
 
+        // [3] Fallback ke yt-api
+if (!videoUrl) {
+  try {
+    const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
+    if (videoId) {
+      const res  = await fetch(`https://yt-api.p.rapidapi.com/dl?id=${videoId}`, {
+        headers: {
+          'X-RapidAPI-Key':  env.RAPIDAPI_KEY || '',
+          'X-RapidAPI-Host': 'yt-api.p.rapidapi.com'
+        }
+      });
+      const data = await res.json();
+      if (data?.formats) {
+        const fmt = data.formats.find(f => f.qualityLabel === '720p' && f.hasVideo) ||
+                    data.formats.find(f => f.hasVideo) ||
+                    data.formats[0];
+        if (fmt?.url) {
+          videoUrl = fmt.url;
+          title    = data.title  || 'YouTube Shorts';
+          author   = data.channelTitle || 'YouTube';
+        }
+      }
+    }
+  } catch (_) {}
+}
+
+        // [4] Fallback ke piped.video
+if (!videoUrl) {
+  try {
+    const videoId = url.match(/shorts\/([^?&/]+)/)?.[1] || url.match(/youtu\.be\/([^?&/]+)/)?.[1];
+    if (videoId) {
+      const res  = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`);
+      const data = await res.json();
+      const fmt  = data?.videoStreams?.find(f => f.quality === '720p') ||
+                   data?.videoStreams?.find(f => f.quality === '480p') ||
+                   data?.videoStreams?.[0];
+      if (fmt?.url) {
+        videoUrl = fmt.url;
+        title    = data.title    || 'YouTube Shorts';
+        author   = data.uploader || 'YouTube';
+      }
+    }
+  } catch (_) {}
+}
+
         if (!videoUrl) {
           return await editMsg([
             `> ${EMOJI} ❌ Gagal download YouTube Shorts!`,
