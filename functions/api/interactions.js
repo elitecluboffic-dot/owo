@@ -8651,20 +8651,23 @@ else if (isYouTube) {
     return await editMsg(`> ${EMOJI} ❌ Tidak bisa ambil video ID dari URL!`);
   }
 
-// [1] youtube-video-fast-downloader via RapidAPI
+  // [1] youtube-shorts-video-downloader via RapidAPI
   try {
-    const res  = await fetch(`https://youtube-video-fast-downloader-24-7.p.rapidapi.com/get-videos-info/${videoId}?response_mode=default`, {
+    const res  = await fetch(`https://youtube-shorts-video-downloader-and-converter.p.rapidapi.com/download-short-mp4/${videoId}?quality=720p`, {
       headers: {
         'Content-Type':    'application/json',
         'x-rapidapi-key':  env.RAPIDAPI_KEY,
-        'x-rapidapi-host': 'youtube-video-fast-downloader-24-7.p.rapidapi.com'
+        'x-rapidapi-host': 'youtube-shorts-video-downloader-and-converter.p.rapidapi.com'
       }
     });
     const data = await res.json();
-    return await editMsg(`> Debug: \`${JSON.stringify(data).slice(0, 500)}\``);
-  } catch (e) {
-    return await editMsg(`> Error: \`${e.message}\``);
-  }
+    if (data?.url || data?.download_url || data?.link) {
+      videoUrl = data.url || data.download_url || data.link;
+      title    = data.title  || 'YouTube Shorts';
+      author   = data.author || data.channel || 'YouTube';
+    }
+  } catch (_) {}
+
   if (!videoUrl) {
     return await editMsg([
       `> ${EMOJI} ❌ Gagal download YouTube Shorts!`,
