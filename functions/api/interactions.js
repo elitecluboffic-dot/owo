@@ -8562,7 +8562,6 @@ if (!videoUrl) {
       // ══════════════════════════════════════════════════════════
 else if (isReels) {
   platform = 'Instagram Reels';
-
   try {
     const res  = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
       headers: {
@@ -8572,11 +8571,11 @@ else if (isReels) {
       }
     });
     const data = await res.json();
-    return await editMsg(`> Debug: \`${JSON.stringify(data).slice(0, 1700)}\``);
+    const keys = Object.keys(data?.data || {});
+    return await editMsg(`> Keys: \`${JSON.stringify(keys)}\``);
   } catch (e) {
     return await editMsg(`> Error: \`${e.message}\``);
   }
-
   if (!videoUrl) {
     return await editMsg([
       `> ${EMOJI} ❌ Gagal download Instagram Reels!`,
