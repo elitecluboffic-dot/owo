@@ -8569,7 +8569,7 @@ else if (isReels) {
   platform = 'Instagram Reels';
   
   const igController = new AbortController();
-  const igTimeout = setTimeout(() => igController.abort(), 20000);
+  const igTimeout = setTimeout(() => igController.abort(), 28000);
 
   try {
     const res = await fetch(`https://instagram-reels-downloader-api.p.rapidapi.com/download?url=${encodeURIComponent(url)}`, {
