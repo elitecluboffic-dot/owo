@@ -9113,6 +9113,385 @@ if (cmd === 'imagine') {
 
 
 
+
+
+
+    if (cmd === 'nasa') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const sub   = getOption(options, 'aksi') || 'apod';
+
+  const NASA_KEY = env.NASA_API_KEY || 'DEMO_KEY';
+
+  const editMsg = async (content, embeds) => {
+    await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(embeds ? { content, embeds } : { content })
+    });
+  };
+
+  // ══════════════════════════════════════════════
+  // APOD — Astronomy Picture of the Day
+  // ══════════════════════════════════════════════
+  if (sub === 'apod') {
+    const tanggal = getOption(options, 'tanggal') || null;
+    const url = tanggal
+      ? `https://api.nasa.gov/planetary/apod?api_key=${NASA_KEY}&date=${tanggal}`
+      : `https://api.nasa.gov/planetary/apod?api_key=${NASA_KEY}`;
+
+    waitUntil((async () => {
+      try {
+        const res  = await fetch(url);
+        const data = await res.json();
+
+        if (data.code || data.error) {
+          return await editMsg(`> ${EMOJI} ❌ ${data.msg || data.error || 'Gagal ambil data APOD!'}`);
+        }
+
+        const isVideo   = data.media_type === 'video';
+        const imageUrl  = isVideo ? null : data.url;
+        const hdUrl     = data.hdurl || data.url;
+        const desc      = data.explanation?.slice(0, 400) + (data.explanation?.length > 400 ? '...' : '') || 'Tidak ada deskripsi.';
+
+        const lines = [
+          '```ansi',
+          '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[2;34m║  \u001b[1;33m🌌  ASTRONOMY PICTURE OF THE DAY  🌌\u001b[0m  \u001b[2;34m║\u001b[0m',
+          '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;33m━━━━━━━━━━━━ 📋 DETAIL ━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  📅  Tanggal  :\u001b[0m \u001b[0;37m${data.date}\u001b[0m`,
+          `\u001b[1;36m  🎬  Tipe     :\u001b[0m \u001b[0;37m${isVideo ? '🎥 Video' : '🖼️ Gambar'}\u001b[0m`,
+          data.copyright ? `\u001b[1;36m  ©️   Credit   :\u001b[0m \u001b[0;37m${data.copyright.trim()}\u001b[0m` : null,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```',
+          `> 📖 *${desc}*`,
+          isVideo ? `\n> 🎥 [Tonton Video](${data.url})` : null,
+          !isVideo ? `\n> 🖼️ [HD Version](${hdUrl})` : null,
+        ].filter(Boolean).join('\n');
+
+        return await editMsg('', [{
+          color: 0x0B3D91,
+          title: `🌌 ${data.title}`,
+          description: lines,
+          image: imageUrl ? { url: imageUrl } : undefined,
+          footer: { text: `NASA APOD • ${data.date}` },
+          timestamp: new Date().toISOString()
+        }]);
+
+      } catch (err) {
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ══════════════════════════════════════════════
+  // MARS — Mars Rover Photos
+  // ══════════════════════════════════════════════
+  if (sub === 'mars') {
+    const rover  = getOption(options, 'rover') || 'curiosity';
+    const camera = getOption(options, 'camera') || null;
+
+    const ROVERS = ['curiosity', 'opportunity', 'spirit', 'perseverance'];
+    if (!ROVERS.includes(rover.toLowerCase())) {
+      return respond(`> ${EMOJI} ❌ Rover tidak valid! Pilih: \`curiosity\`, \`opportunity\`, \`spirit\`, \`perseverance\``);
+    }
+
+    waitUntil((async () => {
+      try {
+        let apiUrl = `https://api.nasa.gov/mars-photos/api/v1/rovers/${rover}/latest_photos?api_key=${NASA_KEY}`;
+        if (camera) apiUrl += `&camera=${camera.toUpperCase()}`;
+
+        const res  = await fetch(apiUrl);
+        const data = await res.json();
+
+        if (!data.latest_photos || data.latest_photos.length === 0) {
+          return await editMsg([
+            `> ${EMOJI} ❌ Tidak ada foto dari rover **${rover}**`,
+            camera ? `> 📷 Camera **${camera}** mungkin tidak tersedia untuk rover ini.` : null,
+            `> 💡 Coba tanpa filter camera atau ganti rover lain.`
+          ].filter(Boolean).join('\n'));
+        }
+
+        const photos   = data.latest_photos;
+        const photo    = photos[Math.floor(Math.random() * Math.min(photos.length, 10))];
+        const roverInfo = photo.rover;
+
+        const ROVER_COLORS = {
+          curiosity:     0xFF4500,
+          opportunity:   0xFFD700,
+          spirit:        0xFF6347,
+          perseverance:  0x00CED1
+        };
+
+        const lines = [
+          '```ansi',
+          '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+          `\u001b[2;31m║  \u001b[1;31m🔴  MARS ROVER PHOTO  🔴\u001b[0m              \u001b[2;31m║\u001b[0m`,
+          '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;31m━━━━━━━━━━━━ 🚀 INFO ROVER ━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  🤖  Rover     :\u001b[0m \u001b[1;37m${roverInfo.name}\u001b[0m`,
+          `\u001b[1;36m  📷  Camera    :\u001b[0m \u001b[0;37m${photo.camera.full_name}\u001b[0m`,
+          `\u001b[1;36m  📅  Sol       :\u001b[0m \u001b[0;37m${photo.sol} (Mars Day)\u001b[0m`,
+          `\u001b[1;36m  🗓️  Earthdate :\u001b[0m \u001b[0;37m${photo.earth_date}\u001b[0m`,
+          `\u001b[1;36m  🔢  Photo #   :\u001b[0m \u001b[0;37m${photo.id}\u001b[0m`,
+          `\u001b[1;36m  📊  Status    :\u001b[0m \u001b[0;37m${roverInfo.status.toUpperCase()}\u001b[0m`,
+          `\u001b[1;36m  📸  Total     :\u001b[0m \u001b[0;37m${roverInfo.total_photos?.toLocaleString() || 'N/A'} foto\u001b[0m`,
+          '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```',
+          `> 🔗 [Lihat Full Size](${photo.img_src})`,
+          `> 📦 Total foto tersedia: **${photos.length}** | Menampilkan foto acak`
+        ].join('\n');
+
+        return await editMsg('', [{
+          color: ROVER_COLORS[rover] || 0xFF4500,
+          title: `🔴 Mars — ${roverInfo.name} (Sol ${photo.sol})`,
+          description: lines,
+          image: { url: photo.img_src },
+          footer: { text: `NASA Mars Rover • ${photo.earth_date}` },
+          timestamp: new Date().toISOString()
+        }]);
+
+      } catch (err) {
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ══════════════════════════════════════════════
+  // ASTEROID — Near Earth Objects
+  // ══════════════════════════════════════════════
+  if (sub === 'asteroid') {
+    waitUntil((async () => {
+      try {
+        const today    = new Date().toISOString().split('T')[0];
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+        const res  = await fetch(
+          `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${tomorrow}&api_key=${NASA_KEY}`
+        );
+        const data = await res.json();
+
+        const asteroids = data.near_earth_objects?.[today] || [];
+        if (asteroids.length === 0) {
+          return await editMsg(`> ${EMOJI} ❌ Tidak ada data asteroid hari ini!`);
+        }
+
+        asteroids.sort((a, b) =>
+          parseFloat(a.close_approach_data[0]?.miss_distance?.kilometers || 0) -
+          parseFloat(b.close_approach_data[0]?.miss_distance?.kilometers || 0)
+        );
+
+        const top5 = asteroids.slice(0, 5);
+        const dangerous = asteroids.filter(a => a.is_potentially_hazardous_asteroid).length;
+
+        const rows = top5.map((a, i) => {
+          const approach  = a.close_approach_data[0];
+          const distKm    = parseFloat(approach?.miss_distance?.kilometers || 0);
+          const distMoon  = parseFloat(approach?.miss_distance?.lunar || 0);
+          const speedKmh  = parseFloat(approach?.relative_velocity?.kilometers_per_hour || 0);
+          const sizeMin   = parseFloat(a.estimated_diameter?.kilometers?.estimated_diameter_min || 0).toFixed(3);
+          const sizeMax   = parseFloat(a.estimated_diameter?.kilometers?.estimated_diameter_max || 0).toFixed(3);
+          const hazard    = a.is_potentially_hazardous_asteroid;
+          const medals    = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+
+          return [
+            `${medals[i]} **${a.name}** ${hazard ? '☠️ BAHAYA!' : '✅ Aman'}`,
+            `> 📏 Jarak: **${(distKm / 1000000).toFixed(2)}jt km** (${distMoon.toFixed(2)} lunar distance)`,
+            `> ⚡ Kecepatan: **${Math.round(speedKmh).toLocaleString()} km/h**`,
+            `> 📐 Ukuran: **${sizeMin} – ${sizeMax} km**`,
+          ].join('\n');
+        }).join('\n\n');
+
+        const lines = [
+          '```ansi',
+          '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[1;33m║  ☄️   NEAR EARTH ASTEROIDS  ☄️       ║\u001b[0m',
+          '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;33m━━━━━━━━━━━━ 📊 RINGKASAN ━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  ☄️   Total Hari Ini  :\u001b[0m \u001b[0;37m${asteroids.length} asteroid\u001b[0m`,
+          `\u001b[1;36m  ☠️   Berbahaya       :\u001b[0m \u001b[1;31m${dangerous} asteroid\u001b[0m`,
+          `\u001b[1;36m  ✅  Aman            :\u001b[0m \u001b[1;32m${asteroids.length - dangerous} asteroid\u001b[0m`,
+          `\u001b[1;36m  📅  Tanggal         :\u001b[0m \u001b[0;37m${today}\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```',
+          '**☄️ 5 Asteroid Terdekat:**',
+          '',
+          rows
+        ].join('\n');
+
+        return await editMsg('', [{
+          color: dangerous > 0 ? 0xFF4500 : 0x2ECC71,
+          title: `☄️ Near Earth Asteroids — ${today}`,
+          description: lines,
+          footer: { text: `NASA NeoWs • Data real-time` },
+          timestamp: new Date().toISOString()
+        }]);
+
+      } catch (err) {
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ══════════════════════════════════════════════
+  // EARTH — Foto Bumi dari Luar Angkasa (EPIC)
+  // ══════════════════════════════════════════════
+  if (sub === 'earth') {
+    waitUntil((async () => {
+      try {
+        const res  = await fetch(`https://api.nasa.gov/EPIC/api/natural?api_key=${NASA_KEY}`);
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+          return await editMsg(`> ${EMOJI} ❌ Tidak ada data foto EPIC tersedia!`);
+        }
+
+        const photo = data[0];
+        const dateParts = photo.date.split(' ')[0].split('-');
+        const imgUrl = `https://epic.gsfc.nasa.gov/archive/natural/${dateParts[0]}/${dateParts[1]}/${dateParts[2]}/png/${photo.image}.png`;
+
+        const lines = [
+          '```ansi',
+          '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[2;34m║  \u001b[1;34m🌍  EARTH FROM SPACE (EPIC)  🌍\u001b[0m   \u001b[2;34m║\u001b[0m',
+          '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;34m━━━━━━━━━━━━ 📋 INFO FOTO ━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  🛸  Satelit  :\u001b[0m \u001b[0;37mDSCOVR (EPIC Camera)\u001b[0m`,
+          `\u001b[1;36m  📅  Diambil  :\u001b[0m \u001b[0;37m${photo.date}\u001b[0m`,
+          `\u001b[1;36m  📍  Posisi   :\u001b[0m \u001b[0;37mLat: ${photo.centroid_coordinates?.lat?.toFixed(2) || 'N/A'}° | Lon: ${photo.centroid_coordinates?.lon?.toFixed(2) || 'N/A'}°\u001b[0m`,
+          `\u001b[1;36m  🌙  Jarak ke Bulan:\u001b[0m \u001b[0;37m${photo.lunar_j2000_position ? Object.values(photo.lunar_j2000_position).map(v => v.toFixed(0)).join(', ') : 'N/A'}\u001b[0m`,
+          '\u001b[1;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```',
+          `> 🔗 [Lihat Full Resolution](${imgUrl})`,
+          `> 📦 Total foto tersedia: **${data.length}**`
+        ].join('\n');
+
+        return await editMsg('', [{
+          color: 0x1E90FF,
+          title: '🌍 Earth — DSCOVR EPIC Camera',
+          description: lines,
+          image: { url: imgUrl },
+          footer: { text: `NASA EPIC • ${photo.date}` },
+          timestamp: new Date().toISOString()
+        }]);
+
+      } catch (err) {
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ══════════════════════════════════════════════
+  // SEARCH — NASA Image & Video Library
+  // ══════════════════════════════════════════════
+  if (sub === 'search') {
+    const query = getOption(options, 'query');
+    if (!query) return respond(`> ${EMOJI} ❌ Masukkan kata kunci pencarian!\n> 💡 Contoh: \`/nasa aksi:search query:black hole\``);
+
+    waitUntil((async () => {
+      try {
+        const res  = await fetch(
+          `https://images-api.nasa.gov/search?q=${encodeURIComponent(query)}&media_type=image&page_size=10`
+        );
+        const data = await res.json();
+
+        const items = data.collection?.items || [];
+        if (items.length === 0) {
+          return await editMsg(`> ${EMOJI} ❌ Tidak ada hasil untuk **"${query}"**!\n> 💡 Coba kata kunci lain seperti: \`mars\`, \`galaxy\`, \`astronaut\``);
+        }
+
+        const item     = items[Math.floor(Math.random() * items.length)];
+        const meta     = item.data?.[0] || {};
+        const imgUrl   = item.links?.[0]?.href || null;
+        const desc     = meta.description?.slice(0, 350) + (meta.description?.length > 350 ? '...' : '') || 'Tidak ada deskripsi.';
+
+        const lines = [
+          '```ansi',
+          '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[2;35m║  \u001b[1;35m🔍  NASA IMAGE LIBRARY  🔍\u001b[0m          \u001b[2;35m║\u001b[0m',
+          '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;35m━━━━━━━━━━━━ 📋 INFO ━━━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  🔍  Query      :\u001b[0m \u001b[0;37m${query}\u001b[0m`,
+          `\u001b[1;36m  📅  Tanggal    :\u001b[0m \u001b[0;37m${meta.date_created?.split('T')[0] || 'N/A'}\u001b[0m`,
+          meta.center ? `\u001b[1;36m  🏢  Center     :\u001b[0m \u001b[0;37m${meta.center}\u001b[0m` : null,
+          meta.photographer ? `\u001b[1;36m  📷  Fotografer :\u001b[0m \u001b[0;37m${meta.photographer}\u001b[0m` : null,
+          `\u001b[1;36m  📦  Total Hasil:\u001b[0m \u001b[0;37m${items.length} gambar\u001b[0m`,
+          '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```',
+          `> 📖 *${desc}*`,
+        ].filter(Boolean).join('\n');
+
+        return await editMsg('', [{
+          color: 0x9B59B6,
+          title: `🔍 ${meta.title?.slice(0, 80) || 'NASA Image'}`,
+          description: lines,
+          image: imgUrl ? { url: imgUrl } : undefined,
+          footer: { text: `NASA Image Library • ID: ${meta.nasa_id || 'N/A'}` },
+          timestamp: new Date().toISOString()
+        }]);
+
+      } catch (err) {
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ══════════════════════════════════════════════
+  // INFO — Daftar semua fitur
+  // ══════════════════════════════════════════════
+  if (sub === 'info') {
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;33m🚀  NASA BOT COMMANDS  🚀\u001b[0m          \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━ 🌌 DAFTAR FITUR ━━━━━━━━━━\u001b[0m',
+      '\u001b[1;36m 🌌  apod      :\u001b[0m \u001b[0;37mAstronomy Picture of the Day\u001b[0m',
+      '\u001b[1;36m 🔴  mars      :\u001b[0m \u001b[0;37mFoto Mars dari Rover NASA\u001b[0m',
+      '\u001b[1;36m ☄️   asteroid  :\u001b[0m \u001b[0;37mAsteroid yang mendekati Bumi\u001b[0m',
+      '\u001b[1;36m 🌍  earth     :\u001b[0m \u001b[0;37mFoto Bumi dari luar angkasa\u001b[0m',
+      '\u001b[1;36m 🔍  search    :\u001b[0m \u001b[0;37mCari gambar di NASA Library\u001b[0m',
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[1;32m━━━━━━━━━━ 💡 CONTOH PENGGUNAAN ━━━━━\u001b[0m',
+      '\u001b[0;37m /nasa aksi:apod\u001b[0m',
+      '\u001b[0;37m /nasa aksi:apod tanggal:2024-01-01\u001b[0m',
+      '\u001b[0;37m /nasa aksi:mars rover:perseverance\u001b[0m',
+      '\u001b[0;37m /nasa aksi:asteroid\u001b[0m',
+      '\u001b[0;37m /nasa aksi:earth\u001b[0m',
+      '\u001b[0;37m /nasa aksi:search query:black hole\u001b[0m',
+      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      '> 🌐 API: **API NASA** Powered OwoBim'
+    ].join('\n'));
+  }
+
+  return respond(`> ❌ Aksi tidak dikenal! Ketik \`/nasa aksi:info\` untuk daftar command.`);
+}
+
+
+
     
     
     
