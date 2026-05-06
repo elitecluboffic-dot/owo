@@ -946,6 +946,60 @@ const commands = [
     },
     { "name": "negative", "description": "Hal yang tidak mau muncul di gambar", "type": 3, "required": false }
   ]
+},
+
+
+  
+
+  {
+  "name": "nasa",
+  "description": "🚀 NASA — Eksplorasi luar angkasa!",
+  "options": [
+    {
+      "name": "aksi",
+      "description": "Pilih fitur NASA",
+      "type": 3,
+      "required": true,
+      "choices": [
+        { "name": "🌌 APOD — Foto Astronomi Hari Ini", "value": "apod" },
+        { "name": "🔴 Mars — Foto Rover Mars", "value": "mars" },
+        { "name": "☄️ Asteroid — Near Earth Objects", "value": "asteroid" },
+        { "name": "🌍 Earth — Foto Bumi dari Luar Angkasa", "value": "earth" },
+        { "name": "🔍 Search — NASA Image Library", "value": "search" },
+        { "name": "ℹ️ Info — Daftar Command", "value": "info" }
+      ]
+    },
+    {
+      "name": "query",
+      "description": "Kata kunci pencarian (untuk aksi search)",
+      "type": 3,
+      "required": false
+    },
+    {
+      "name": "tanggal",
+      "description": "Tanggal APOD format YYYY-MM-DD (contoh: 2024-01-15)",
+      "type": 3,
+      "required": false
+    },
+    {
+      "name": "rover",
+      "description": "Pilih rover Mars",
+      "type": 3,
+      "required": false,
+      "choices": [
+        { "name": "🤖 Curiosity", "value": "curiosity" },
+        { "name": "🔭 Perseverance", "value": "perseverance" },
+        { "name": "🏺 Opportunity", "value": "opportunity" },
+        { "name": "👻 Spirit", "value": "spirit" }
+      ]
+    },
+    {
+      "name": "camera",
+      "description": "Filter camera rover (FHAZ, RHAZ, MAST, CHEMCAM, dll)",
+      "type": 3,
+      "required": false
+    }
+  ]
 }
   
   
