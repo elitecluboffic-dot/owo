@@ -9484,6 +9484,97 @@ if (cmd === 'imagine') {
   }
 
   // ══════════════════════════════════════════════
+  // PLANET — Info Planet Tata Surya
+  // ══════════════════════════════════════════════
+  if (sub === 'planet') {
+    const nama = getOption(options, 'query')?.toLowerCase().trim();
+    if (!nama) return respond(`> ${EMOJI} ❌ Masukkan nama planet!\n> 💡 Contoh: \`/nasa aksi:planet query:mars\``);
+
+    const PLANETS = {
+      mercury: { nama: 'Merkurius', emoji: '⚫', diameter: '4.879 km', jarak: '57.9 juta km dari Matahari', rotasi: '59 hari Bumi', orbit: '88 hari Bumi', suhu: '-180°C s/d 430°C', bulan: '0', fakta: 'Planet terkecil & terdekat dengan Matahari. Tidak punya atmosfer!', color: 0x808080 },
+      venus:   { nama: 'Venus',     emoji: '🟡', diameter: '12.104 km', jarak: '108.2 juta km dari Matahari', rotasi: '243 hari Bumi', orbit: '225 hari Bumi', suhu: '465°C (terpanas!)', bulan: '0', fakta: 'Planet terpanas di tata surya meski bukan yang terdekat ke Matahari.', color: 0xFFD700 },
+      earth:   { nama: 'Bumi',      emoji: '🌍', diameter: '12.742 km', jarak: '149.6 juta km dari Matahari', rotasi: '24 jam', orbit: '365.25 hari', suhu: '-88°C s/d 58°C', bulan: '1 (Bulan)', fakta: 'Satu-satunya planet yang diketahui memiliki kehidupan.', color: 0x1E90FF },
+      mars:    { nama: 'Mars',      emoji: '🔴', diameter: '6.779 km', jarak: '227.9 juta km dari Matahari', rotasi: '24.6 jam', orbit: '687 hari Bumi', suhu: '-125°C s/d 20°C', bulan: '2 (Phobos & Deimos)', fakta: 'Planet Merah! Punya gunung tertinggi di tata surya: Olympus Mons (21.9 km).', color: 0xFF4500 },
+      jupiter: { nama: 'Jupiter',   emoji: '🟠', diameter: '139.820 km', jarak: '778.5 juta km dari Matahari', rotasi: '9.9 jam', orbit: '11.9 tahun', suhu: '-110°C', bulan: '95 bulan', fakta: 'Planet terbesar! Great Red Spot-nya adalah badai yang sudah berlangsung 350+ tahun.', color: 0xFF8C00 },
+      saturn:  { nama: 'Saturnus',  emoji: '🪐', diameter: '116.460 km', jarak: '1.43 miliar km dari Matahari', rotasi: '10.7 jam', orbit: '29.5 tahun', suhu: '-140°C', bulan: '146 bulan', fakta: 'Punya cincin spektakuler dari es & batu. Densitasnya lebih rendah dari air!', color: 0xDAA520 },
+      uranus:  { nama: 'Uranus',    emoji: '🔵', diameter: '50.724 km', jarak: '2.87 miliar km dari Matahari', rotasi: '17.2 jam', orbit: '84 tahun', suhu: '-195°C', bulan: '28 bulan', fakta: 'Berputar miring 98°! Musimnya berlangsung selama 21 tahun.', color: 0x40E0D0 },
+      neptune: { nama: 'Neptunus',  emoji: '🌊', diameter: '49.244 km', jarak: '4.5 miliar km dari Matahari', rotasi: '16.1 jam', orbit: '165 tahun', suhu: '-200°C', bulan: '16 bulan', fakta: 'Anginnya paling kencang di tata surya, mencapai 2.100 km/jam!', color: 0x1E90FF },
+      pluto:   { nama: 'Pluto',     emoji: '⚪', diameter: '2.377 km', jarak: '5.9 miliar km dari Matahari', rotasi: '6.4 hari Bumi', orbit: '248 tahun', suhu: '-230°C', bulan: '5 bulan', fakta: 'Diklasifikasikan ulang sebagai planet kerdil sejak 2006. Tetap di hati kita! 💙', color: 0xA0A0A0 },
+      sun:     { nama: 'Matahari',  emoji: '☀️', diameter: '1.39 juta km', jarak: '0 (pusat tata surya)', rotasi: '25-35 hari', orbit: 'N/A', suhu: '5.500°C (permukaan)', bulan: 'N/A', fakta: 'Mengandung 99.86% massa tata surya. Cahayanya butuh 8 menit sampai ke Bumi!', color: 0xFFD700 },
+      moon:    { nama: 'Bulan',     emoji: '🌕', diameter: '3.474 km', jarak: '384.400 km dari Bumi', rotasi: '27.3 hari', orbit: '27.3 hari mengelilingi Bumi', suhu: '-173°C s/d 127°C', bulan: 'N/A', fakta: 'Satu-satunya benda langit selain Bumi yang pernah diinjak manusia (1969).', color: 0xC0C0C0 },
+    };
+
+    const ALIAS = {
+      'merkurius': 'mercury', 'bumi': 'earth', 'saturnus': 'saturn',
+      'neptunus': 'neptune', 'matahari': 'sun', 'bulan': 'moon',
+      'mars': 'mars', 'jupiter': 'jupiter', 'uranus': 'uranus',
+      'venus': 'venus', 'pluto': 'pluto', 'mercury': 'mercury',
+      'earth': 'earth', 'saturn': 'saturn', 'neptune': 'neptune',
+      'sun': 'sun', 'moon': 'moon'
+    };
+
+    const key    = ALIAS[nama] || nama;
+    const planet = PLANETS[key];
+
+    if (!planet) {
+      return respond([
+        `> ${EMOJI} ❌ Planet **"${nama}"** tidak ditemukan!`,
+        `> 💡 Yang tersedia: \`mercury\`, \`venus\`, \`earth\`, \`mars\`, \`jupiter\`, \`saturn\`, \`uranus\`, \`neptune\`, \`pluto\`, \`sun\`, \`moon\``,
+        `> 🇮🇩 Bahasa Indonesia juga bisa: \`mars\`, \`bumi\`, \`saturnus\`, \`bulan\`, dll`
+      ].join('\n'));
+    }
+
+    // Ambil gambar dari NASA Image Library
+    waitUntil((async () => {
+      try {
+        const searchQuery = planet.nama === 'Matahari' ? 'sun solar' : planet.nama;
+        const res  = await fetch(
+          `https://images-api.nasa.gov/search?q=${encodeURIComponent(searchQuery)}&media_type=image&page_size=20`
+        );
+        const data = await res.json();
+        const items  = data.collection?.items || [];
+        const item   = items[Math.floor(Math.random() * Math.min(items.length, 10))];
+        const imgUrl = item?.links?.[0]?.href || null;
+
+        const lines = [
+          '```ansi',
+          '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
+          `\u001b[2;35m║  \u001b[1;33m🪐  PLANET INFO  🪐\u001b[0m                  \u001b[2;35m║\u001b[0m`,
+          '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;33m━━━━━━━━━━━━ 📋 DATA PLANET ━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  ${planet.emoji}  Nama      :\u001b[0m \u001b[1;37m${planet.nama}\u001b[0m`,
+          `\u001b[1;36m  📏  Diameter  :\u001b[0m \u001b[0;37m${planet.diameter}\u001b[0m`,
+          `\u001b[1;36m  📍  Jarak     :\u001b[0m \u001b[0;37m${planet.jarak}\u001b[0m`,
+          `\u001b[1;36m  🔄  Rotasi    :\u001b[0m \u001b[0;37m${planet.rotasi}\u001b[0m`,
+          `\u001b[1;36m  🌀  Orbit     :\u001b[0m \u001b[0;37m${planet.orbit}\u001b[0m`,
+          `\u001b[1;36m  🌡️  Suhu      :\u001b[0m \u001b[0;37m${planet.suhu}\u001b[0m`,
+          `\u001b[1;36m  🌙  Bulan     :\u001b[0m \u001b[0;37m${planet.bulan}\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```',
+          `> 💡 **Fakta:** *${planet.fakta}*`
+        ].join('\n');
+
+        return await editMsg('', [{
+          color: planet.color,
+          title: `${planet.emoji} ${planet.nama} — Tata Surya`,
+          description: lines,
+          image: imgUrl ? { url: imgUrl } : undefined,
+          footer: { text: `NASA × OwoBim Planet Info` },
+          timestamp: new Date().toISOString()
+        }]);
+
+      } catch (err) {
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+
+  // ══════════════════════════════════════════════
   // INFO — Daftar semua fitur
   // ══════════════════════════════════════════════
   if (sub === 'info') {
@@ -9500,6 +9591,7 @@ if (cmd === 'imagine') {
       '\u001b[1;36m ☄️   asteroid  :\u001b[0m \u001b[0;37mAsteroid yang mendekati Bumi\u001b[0m',
       '\u001b[1;36m 🌍  earth     :\u001b[0m \u001b[0;37mFoto Bumi dari luar angkasa\u001b[0m',
       '\u001b[1;36m 🔍  search    :\u001b[0m \u001b[0;37mCari gambar di NASA Library\u001b[0m',
+      '\u001b[1;36m 🪐  planet    :\u001b[0m \u001b[0;37mInfo lengkap planet tata surya\u001b[0m',
       '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
       '\u001b[1;32m━━━━━━━━━━ 💡 CONTOH PENGGUNAAN ━━━━━\u001b[0m',
       '\u001b[0;37m /nasa aksi:apod\u001b[0m',
