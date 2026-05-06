@@ -9141,8 +9141,35 @@ if (cmd === 'imagine') {
 
     waitUntil((async () => {
       try {
-        const res  = await fetch(url);
-        const data = await res.json();
+      // ✅ TAMBAH CACHE DI SINI — sebelum fetch
+      let data;
+      const today = new Date().toISOString().split('T')[0];
+
+      // Cek cache, tapi hanya kalau tidak pakai tanggal custom
+      if (!tanggal) {
+        const cacheRaw = await env.USERS_KV.get('nasa_apod_cache');
+        if (cacheRaw) {
+          const cached = JSON.parse(cacheRaw);
+          if (cached.date === today) {
+            data = cached.data; // pakai cache, skip fetch
+          }
+        }
+      }
+
+      // Kalau tidak ada cache, baru fetch ke NASA
+      if (!data) {
+        const res = await fetch(url);
+        data = await res.json();
+
+        // Simpan cache 24 jam (hanya untuk APOD hari ini, bukan tanggal custom)
+        if (!tanggal) {
+          await env.USERS_KV.put('nasa_apod_cache', JSON.stringify({
+            date: data.date,
+            data: data
+          }), { expirationTtl: 86400 });
+        }
+      }
+      // ✅ SELESAI BAGIAN CACHE
 
         if (data.code || data.error) {
           return await editMsg(`> ${EMOJI} ❌ ${data.msg || data.error || 'Gagal ambil data APOD!'}`);
