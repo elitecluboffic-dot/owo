@@ -951,7 +951,7 @@ const commands = [
 
   
 
-  {
+{
   "name": "nasa",
   "description": "🚀 NASA — Eksplorasi luar angkasa!",
   "options": [
@@ -966,12 +966,13 @@ const commands = [
         { "name": "☄️ Asteroid — Near Earth Objects", "value": "asteroid" },
         { "name": "🌍 Earth — Foto Bumi dari Luar Angkasa", "value": "earth" },
         { "name": "🔍 Search — NASA Image Library", "value": "search" },
+        { "name": "🪐 Planet — Info Planet Tata Surya", "value": "planet" },
         { "name": "ℹ️ Info — Daftar Command", "value": "info" }
       ]
     },
     {
       "name": "query",
-      "description": "Kata kunci pencarian (untuk aksi search)",
+      "description": "Kata kunci pencarian / nama planet (untuk aksi search & planet)",
       "type": 3,
       "required": false
     },
