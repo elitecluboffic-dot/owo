@@ -9636,7 +9636,8 @@ if (cmd === 'qr') {
   const bgImage    = getOption(options, 'background');
   const CLOUDINARY = env.CLOUDINARY_CLOUD_NAME;
 
-  const toBase64url = (str) => btoa(str)
+  // Base64url encoder — sama seperti sebelumnya
+  const toBase64url = (str) => btoa(unescape(encodeURIComponent(str)))
     .replace(/=/g, '')
     .replace(/\+/g, '-')
     .replace(/\//g, '_');
@@ -9647,15 +9648,15 @@ if (cmd === 'qr') {
   if (bgImage && CLOUDINARY) {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(text)}&color=000000&bgcolor=ffffff&format=png&ecc=H&margin=10`;
 
-    const qrBase64 = toBase64url(qrUrl);
-    const bgBase64 = toBase64url(bgImage);
+    // Bersihkan query string dari URL background (contoh: avatar Discord punya ?size=1024)
+    const cleanBgImage = bgImage.split('?')[0];
 
-    // Struktur Cloudinary yang benar:
-    // 1. /image/fetch/<bg_base64>  → base image dulu
-    // 2. /w_X,h_X,c_fill          → resize background
-    // 3. /l_fetch:<qr_base64>,w_320,h_320  → definisi overlay QR
-    // 4. /fl_layer_apply,gravity_center    → tempel QR di tengah
-    finalUrl = `https://res.cloudinary.com/${CLOUDINARY}/image/fetch/${bgBase64}/w_${safeSize},h_${safeSize},c_fill/l_fetch:${qrBase64},w_320,h_320/fl_layer_apply,gravity_center`;
+    const qrBase64 = toBase64url(qrUrl);
+    const bgBase64 = toBase64url(cleanBgImage);
+
+    // Format Cloudinary yang benar:
+    // g_center bukan gravity_center
+    finalUrl = `https://res.cloudinary.com/${CLOUDINARY}/image/fetch/${bgBase64}/w_${safeSize},h_${safeSize},c_fill/l_fetch:${qrBase64}/c_fill,w_320,h_320/fl_layer_apply,g_center`;
     hasBg = true;
   } else {
     finalUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${safeSize}x${safeSize}&data=${encodeURIComponent(text)}&color=${warna}&bgcolor=${bg}&format=png&ecc=H&margin=10`;
@@ -9700,7 +9701,6 @@ if (cmd === 'qr') {
     }
   }), { headers: { 'Content-Type': 'application/json' } });
 }
-
     
     
     
