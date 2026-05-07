@@ -9633,18 +9633,23 @@ if (cmd === 'qr') {
   const validSizes = ['200', '300', '400', '500', '600'];
   const safeSize   = validSizes.includes(size) ? size : '400';
 
-  const bgImage = getOption(options, 'background');
+  const bgImage    = getOption(options, 'background');
   const CLOUDINARY = env.CLOUDINARY_CLOUD_NAME;
 
   let finalUrl;
   let hasBg = false;
 
   if (bgImage && CLOUDINARY) {
-    const encodedQr = encodeURIComponent(
-      `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(text)}&color=000000&bgcolor=ffffff&format=png&ecc=H&margin=10`
-    );
+    // QR source URL (plain, belum di-encode)
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(text)}&color=000000&bgcolor=ffffff&format=png&ecc=H&margin=10`;
+
+    // Cloudinary l_fetch WAJIB pakai Base64, bukan encodeURIComponent
+    const qrBase64 = btoa(qrUrl);
+
+    // Background URL di-encode sekali pakai encodeURIComponent
     const encodedBg = encodeURIComponent(bgImage);
-    finalUrl = `https://res.cloudinary.com/${CLOUDINARY}/image/fetch/w_${safeSize},h_${safeSize},c_fill/l_fetch:${encodedQr},w_320,h_320,o_90/fl_layer_apply,gravity_center/${encodedBg}`;
+
+    finalUrl = `https://res.cloudinary.com/${CLOUDINARY}/image/fetch/w_${safeSize},h_${safeSize},c_fill/l_fetch:${qrBase64},w_320,h_320,o_90/fl_layer_apply,gravity_center/${encodedBg}`;
     hasBg = true;
   } else {
     finalUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${safeSize}x${safeSize}&data=${encodeURIComponent(text)}&color=${warna}&bgcolor=${bg}&format=png&ecc=H&margin=10`;
