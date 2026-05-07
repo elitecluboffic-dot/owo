@@ -9612,6 +9612,91 @@ if (cmd === 'imagine') {
 
 
     
+
+
+
+
+    if (cmd === 'qr') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const text  = getOption(options, 'teks');
+  const size  = getOption(options, 'ukuran') || '400';
+  let warna   = (getOption(options, 'warna') || '5865F2').replace('#', '').toUpperCase();
+  let bg      = (getOption(options, 'bg')    || '2B2D31').replace('#', '').toUpperCase();
+
+  if (!text) return respond(`> ${EMOJI} ❌ Masukkan teks atau URL!`);
+  if (text.length > 500) return respond(`> ${EMOJI} ❌ Maksimal **500 karakter**! Kamu: **${text.length}**`);
+
+  // Validasi hex color
+  const hexRegex = /^[0-9A-Fa-f]{6}$/;
+  if (!hexRegex.test(warna)) warna = '5865F2';
+  if (!hexRegex.test(bg))    bg    = '2B2D31';
+
+  // Validasi size
+  const validSizes = ['200', '300', '400', '500', '600'];
+  const safeSize   = validSizes.includes(size) ? size : '400';
+
+  // Cooldown 5 detik
+  const cdKey  = `qr_cd:${discordId}`;
+  const lastQr = await env.USERS_KV.get(cdKey);
+  if (lastQr) {
+    const sisa = 5000 - (Date.now() - parseInt(lastQr));
+    if (sisa > 0) return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
+  }
+  await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 10 });
+
+  const qrUrl = [
+    `https://api.qrserver.com/v1/create-qr-code/`,
+    `?size=${safeSize}x${safeSize}`,
+    `&data=${encodeURIComponent(text)}`,
+    `&color=${warna}`,
+    `&bgcolor=${bg}`,
+    `&format=png`,
+    `&ecc=H`,
+    `&margin=10`
+  ].join('');
+
+  const waktu = new Date().toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      embeds: [{
+        color: parseInt(warna, 16),
+        title: '📱 QR Code Generator',
+        description: [
+          '```ansi',
+          '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[2;34m║  \u001b[1;33m📱  QR CODE GENERATOR  📱\u001b[0m          \u001b[2;34m║\u001b[0m',
+          '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;33m━━━━━━━━━━━━ 📋 INFO ━━━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  📝  Data    :\u001b[0m \u001b[0;37m${text.slice(0, 60)}${text.length > 60 ? '...' : ''}\u001b[0m`,
+          `\u001b[1;36m  📏  Panjang  :\u001b[0m \u001b[0;37m${text.length} karakter\u001b[0m`,
+          `\u001b[1;36m  📐  Ukuran   :\u001b[0m \u001b[0;37m${safeSize}x${safeSize}px\u001b[0m`,
+          `\u001b[1;36m  🎨  Warna    :\u001b[0m \u001b[0;37m#${warna}\u001b[0m`,
+          `\u001b[1;36m  🖼️  Background:\u001b[0m \u001b[0;37m#${bg}\u001b[0m`,
+          `\u001b[1;36m  🕐  Dibuat   :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```',
+          `> 🔗 [Download HD](${qrUrl})`,
+          `> 🤖 *Powered by OwoBim QR Engine* ${EMOJI}`
+        ].join('\n'),
+        image:  { url: qrUrl },
+        footer: { text: 'OwoBim QR Generator • Scan dengan kamera HP' },
+        timestamp: new Date().toISOString()
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+
+
+
+    
     
     
 
