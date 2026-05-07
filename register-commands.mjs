@@ -1007,7 +1007,7 @@ const commands = [
 
 
 
-  {
+{
   name: 'qr',
   description: '📱 Generate QR Code dari teks atau URL!',
   options: [
@@ -1041,6 +1041,12 @@ const commands = [
         { name: '500x500', value: '500' },
         { name: '600x600', value: '600' }
       ]
+    },
+    {
+      name: 'background',
+      description: '🖼️ URL gambar background custom (pakai Cloudinary overlay)',
+      type: 3,
+      required: false
     }
   ]
 }
