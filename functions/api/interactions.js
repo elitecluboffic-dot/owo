@@ -9635,8 +9635,16 @@ if (cmd === 'qr') {
 
   const bgImage    = getOption(options, 'background');
   const CLOUDINARY = env.CLOUDINARY_CLOUD_NAME;
+  const CLOUD_KEY  = env.CLOUDINARY_API_KEY;
+  const CLOUD_SEC  = env.CLOUDINARY_API_SECRET;
 
-  // Base64url encoder — sama seperti sebelumnya
+  const waktu = new Date().toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  // Base64url tanpa Buffer (aman untuk Cloudflare Workers)
   const toBase64url = (str) => btoa(unescape(encodeURIComponent(str)))
     .replace(/=/g, '')
     .replace(/\+/g, '-')
@@ -9645,28 +9653,65 @@ if (cmd === 'qr') {
   let finalUrl;
   let hasBg = false;
 
-  if (bgImage && CLOUDINARY) {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(text)}&color=000000&bgcolor=ffffff&format=png&ecc=H&margin=10`;
+  if (bgImage && CLOUDINARY && CLOUD_KEY && CLOUD_SEC) {
+    try {
+      const cleanBg   = bgImage.split('?')[0];
+      const timestamp = Math.floor(Date.now() / 1000).toString();
+      const folder    = 'qr_bg';
 
-    // Bersihkan query string dari URL background (contoh: avatar Discord punya ?size=1024)
-    const cleanBgImage = bgImage.split('?')[0];
+      // Signature Cloudinary: "folder=qr_bg&timestamp=xxxx" + API_SECRET
+      // Harus diurutkan alphabetically
+      const signPayload = `folder=${folder}&timestamp=${timestamp}${CLOUD_SEC}`;
+      const encoder     = new TextEncoder();
+      const cryptoKey   = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(CLOUD_SEC),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      const sigBuffer = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(`folder=${folder}&timestamp=${timestamp}`));
+      const signature = Array.from(new Uint8Array(sigBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
 
-    const qrBase64 = toBase64url(qrUrl);
-    const bgBase64 = toBase64url(cleanBgImage);
+      // Upload background ke Cloudinary
+      const formData = new FormData();
+      formData.append('file', cleanBg);
+      formData.append('folder', folder);
+      formData.append('timestamp', timestamp);
+      formData.append('api_key', CLOUD_KEY);
+      formData.append('signature', signature);
 
-    // Format Cloudinary yang benar:
-    // g_center bukan gravity_center
-    finalUrl = `https://res.cloudinary.com/${CLOUDINARY}/image/fetch/${bgBase64}/w_${safeSize},h_${safeSize},c_fill/l_fetch:${qrBase64}/c_fill,w_320,h_320/fl_layer_apply,g_center`;
-    hasBg = true;
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const uploadData = await uploadRes.json();
+
+      if (!uploadRes.ok || !uploadData.public_id) {
+        throw new Error(uploadData.error?.message || 'Upload gagal');
+      }
+
+      const bgPublicId = uploadData.public_id;           // "qr_bg/abc123"
+      const overlayId  = bgPublicId.replace(/\//g, ':'); // "qr_bg:abc123"
+
+      const qrUrl    = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(text)}&color=000000&bgcolor=ffffff&format=png&ecc=H&margin=10`;
+      const qrBase64 = toBase64url(qrUrl);
+
+      // Final URL pakai uploaded public_id sebagai base, overlay QR di tengah
+      finalUrl = `https://res.cloudinary.com/${CLOUDINARY}/image/upload/w_${safeSize},h_${safeSize},c_fill/l_fetch:${qrBase64},w_320,h_320,c_fit/fl_layer_apply,g_center/${bgPublicId}`;
+      hasBg = true;
+
+    } catch (e) {
+      console.error('Cloudinary error:', e.message);
+      // Fallback ke QR biasa
+      finalUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${safeSize}x${safeSize}&data=${encodeURIComponent(text)}&color=${warna}&bgcolor=${bg}&format=png&ecc=H&margin=10`;
+    }
   } else {
     finalUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${safeSize}x${safeSize}&data=${encodeURIComponent(text)}&color=${warna}&bgcolor=${bg}&format=png&ecc=H&margin=10`;
   }
-
-  const waktu = new Date().toLocaleString('id-ID', {
-    timeZone: 'Asia/Jakarta',
-    day: '2-digit', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  });
 
   return new Response(JSON.stringify({
     type: 4,
