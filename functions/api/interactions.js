@@ -9679,6 +9679,9 @@ if (cmd === 'qr') {
       const formData = new FormData();
       formData.append('file', cleanBg);
       formData.append('folder', folder);
+      formData.append('invalidate', 'true');
+     // Otomatis hapus setelah 1 hari (86400 detik)
+      formData.append('eager_async', 'true');
       formData.append('timestamp', timestamp);
       formData.append('api_key', CLOUD_KEY);
       formData.append('signature', signature);
