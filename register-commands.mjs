@@ -1001,6 +1001,48 @@ const commands = [
       "required": false
     }
   ]
+},
+
+
+
+
+
+  {
+  name: 'qr',
+  description: '📱 Generate QR Code dari teks atau URL!',
+  options: [
+    {
+      name: 'teks',
+      description: '📝 Teks atau URL yang mau dijadikan QR Code',
+      type: 3,
+      required: true
+    },
+    {
+      name: 'warna',
+      description: '🎨 Warna QR Code dalam HEX (contoh: FF0000) — default: 5865F2',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'bg',
+      description: '🖼️ Warna background dalam HEX (contoh: FFFFFF) — default: 2B2D31',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'ukuran',
+      description: '📐 Ukuran gambar QR Code (px)',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '200x200', value: '200' },
+        { name: '300x300', value: '300' },
+        { name: '400x400 (default)', value: '400' },
+        { name: '500x500', value: '500' },
+        { name: '600x600', value: '600' }
+      ]
+    }
+  ]
 }
   
   
