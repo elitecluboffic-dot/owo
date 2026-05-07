@@ -9636,7 +9636,6 @@ if (cmd === 'qr') {
   const bgImage    = getOption(options, 'background');
   const CLOUDINARY = env.CLOUDINARY_CLOUD_NAME;
 
-  // Helper: encode URL ke Base64url (aman untuk Cloudinary l_fetch)
   const toBase64url = (str) => btoa(str)
     .replace(/=/g, '')
     .replace(/\+/g, '-')
@@ -9651,11 +9650,12 @@ if (cmd === 'qr') {
     const qrBase64 = toBase64url(qrUrl);
     const bgBase64 = toBase64url(bgImage);
 
-    // Susunan Cloudinary:
-    // 1. Fetch + resize background
-    // 2. Overlay QR di tengah
-    // 3. Apply overlay
-    finalUrl = `https://res.cloudinary.com/${CLOUDINARY}/image/fetch/w_${safeSize},h_${safeSize},c_fill/l_fetch:${qrBase64},w_320,h_320,o_90/fl_layer_apply,gravity_center/l_fetch:${bgBase64}/fl_layer_apply/${bgBase64}`;
+    // Struktur Cloudinary yang benar:
+    // 1. /image/fetch/<bg_base64>  → base image dulu
+    // 2. /w_X,h_X,c_fill          → resize background
+    // 3. /l_fetch:<qr_base64>,w_320,h_320  → definisi overlay QR
+    // 4. /fl_layer_apply,gravity_center    → tempel QR di tengah
+    finalUrl = `https://res.cloudinary.com/${CLOUDINARY}/image/fetch/${bgBase64}/w_${safeSize},h_${safeSize},c_fill/l_fetch:${qrBase64},w_320,h_320/fl_layer_apply,gravity_center`;
     hasBg = true;
   } else {
     finalUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${safeSize}x${safeSize}&data=${encodeURIComponent(text)}&color=${warna}&bgcolor=${bg}&format=png&ecc=H&margin=10`;
@@ -9700,7 +9700,6 @@ if (cmd === 'qr') {
     }
   }), { headers: { 'Content-Type': 'application/json' } });
 }
-
 
     
     
