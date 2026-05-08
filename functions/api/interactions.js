@@ -9919,7 +9919,7 @@ if (cmd === 'ai') {
         return respond(`> ${EMOJI} ⏳ Pelan-pelan! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
       }
     }
-    await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 10 });
+    await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
 
     // ── Defer dulu ──
     waitUntil((async () => {
