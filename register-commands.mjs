@@ -1058,46 +1058,108 @@ const commands = [
 
 
   {
-  "name": "ai",
-  "description": "🤖 Chat dengan AI OwoBim — multi-turn dengan memory percakapan",
-  "options": [
-    {
-      "name": "aksi",
-      "description": "Pilih aksi yang ingin dilakukan",
-      "type": 3,
-      "required": true,
-      "choices": [
-        { "name": "💬 Chat  — Ngobrol dengan AI",            "value": "chat"       },
-        { "name": "🔄 Reset — Hapus riwayat percakapan",     "value": "reset"      },
-        { "name": "📜 History — Lihat riwayat chat",         "value": "history"    },
-        { "name": "📊 Stats  — Statistik penggunaan AI",     "value": "stats"      },
-        { "name": "🎭 Set Persona — Ubah persona permanen",  "value": "set_persona"}
-      ]
-    },
-    {
-      "name": "pesan",
-      "description": "Pesanmu untuk AI (wajib untuk aksi chat)",
-      "type": 3,
-      "required": false
-    },
-    {
-      "name": "persona",
-      "description": "Pilih kepribadian AI",
-      "type": 3,
-      "required": false,
-      "choices": [
-        { "name": "🤖 Default   — Serbaguna & cerdas",       "value": "default"   },
-        { "name": "😊 Friendly  — Santai & gaul",            "value": "friendly"  },
-        { "name": "🎓 Expert    — Mendalam & profesional",   "value": "expert"    },
-        { "name": "🎨 Creative  — Imajinatif & ekspresif",   "value": "creative"  },
-        { "name": "🔥 Roast     — Pedas & nyelekit",         "value": "roast"     },
-        { "name": "📚 Mentor    — Sabar & membimbing",       "value": "mentor"    },
-        { "name": "⚔️ Debater   — Kritis & analitis",        "value": "debate"    },
-        { "name": "💆 Therapist — Empatik & supportif",      "value": "therapist" }
-      ]
-    }
-  ]
-}
+    "name": "genkey-ai",
+    "description": "🔑 Generate premium key AI (Owner Only)",
+    "options": [
+      {
+        "name": "durasi",
+        "description": "Durasi key (7 atau 30 hari)",
+        "type": 4,
+        "required": true,
+        "choices": [
+          { "name": "7 hari",  "value": 7  },
+          { "name": "30 hari", "value": 30 }
+        ]
+      },
+      {
+        "name": "jumlah",
+        "description": "Jumlah key yang di-generate (1–10)",
+        "type": 4,
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "redeemkey-ai",
+    "description": "🎁 Aktivasi premium key AI",
+    "options": [
+      {
+        "name": "key",
+        "description": "Key premium kamu (contoh: OWO-ABCD-1234-EFGH)",
+        "type": 3,
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "cek-premium",
+    "description": "✨ Cek status premium AI",
+    "options": [
+      {
+        "name": "user",
+        "description": "User yang ingin dicek (kosongkan = cek diri sendiri)",
+        "type": 6,
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "beli-ai",
+    "description": "🛒 Kirim permintaan beli premium AI ke owner",
+    "options": [
+      {
+        "name": "durasi",
+        "description": "Durasi yang ingin dibeli",
+        "type": 3,
+        "required": true,
+        "choices": [
+          { "name": "7 hari",  "value": "7"  },
+          { "name": "30 hari", "value": "30" }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "ai",
+    "description": "🤖 Chat dengan AI OwoBim — multi-turn dengan memory percakapan",
+    "options": [
+      {
+        "name": "aksi",
+        "description": "Pilih aksi yang ingin dilakukan",
+        "type": 3,
+        "required": true,
+        "choices": [
+          { "name": "💬 Chat  — Ngobrol dengan AI",           "value": "chat"       },
+          { "name": "🔄 Reset — Hapus riwayat percakapan",    "value": "reset"      },
+          { "name": "📜 History — Lihat riwayat chat",        "value": "history"    },
+          { "name": "📊 Stats  — Statistik penggunaan AI",    "value": "stats"      },
+          { "name": "🎭 Set Persona — Ubah persona permanen", "value": "set_persona"}
+        ]
+      },
+      {
+        "name": "pesan",
+        "description": "Pesanmu untuk AI (wajib untuk aksi chat)",
+        "type": 3,
+        "required": false
+      },
+      {
+        "name": "persona",
+        "description": "Pilih kepribadian AI",
+        "type": 3,
+        "required": false,
+        "choices": [
+          { "name": "🤖 Default   — Serbaguna & cerdas",    "value": "default"   },
+          { "name": "😊 Friendly  — Santai & gaul",         "value": "friendly"  },
+          { "name": "🎓 Expert    — Mendalam & profesional","value": "expert"    },
+          { "name": "🎨 Creative  — Imajinatif & ekspresif","value": "creative"  },
+          { "name": "🔥 Roast     — Pedas & nyelekit",      "value": "roast"     },
+          { "name": "📚 Mentor    — Sabar & membimbing",    "value": "mentor"    },
+          { "name": "⚔️ Debater   — Kritis & analitis",     "value": "debate"    },
+          { "name": "💆 Therapist — Empatik & supportif",   "value": "therapist" }
+        ]
+      }
+    ]
+  }
   
   
   
