@@ -9749,6 +9749,473 @@ if (cmd === 'qr') {
     }
   }), { headers: { 'Content-Type': 'application/json' } });
 }
+
+
+
+
+
+
+
+
+// ══════════════════════════════════════════════════════════════════════
+// CMD: ai — AI Chat Engine (Multi-Turn, High Context)
+// Provider: DeepSeek deepseek-chat
+// Fitur: Memory percakapan, persona, gambar, reset, stats
+// Env: DEEPSEEK_API_KEY (wajib)
+// Cooldown: 5 detik per user
+// Max history: 20 pesan terakhir per user
+// ══════════════════════════════════════════════════════════════════════
+if (cmd === 'ai') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+
+  const sub     = getOption(options, 'aksi') || 'chat';
+  const pesan   = getOption(options, 'pesan');
+  const persona = getOption(options, 'persona') || 'default';
+
+  // ── Kunci KV ──
+  const histKey    = `ai_history:${discordId}`;
+  const personaKey = `ai_persona:${discordId}`;
+  const statsKey   = `ai_stats:${discordId}`;
+  const cdKey      = `ai_cd:${discordId}`;
+
+  // ══════════════════════════════════════════════
+  // SUB: reset — hapus riwayat percakapan
+  // ══════════════════════════════════════════════
+  if (sub === 'reset') {
+    await env.USERS_KV.delete(histKey);
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;32m🔄  PERCAKAPAN DIRESET  🔄\u001b[0m           \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ✅ Riwayat chat kamu sudah dihapus!`,
+      `> 🆕 Percakapan berikutnya dimulai dari awal.`
+    ].join('\n'));
+  }
+
+  // ══════════════════════════════════════════════
+  // SUB: stats — lihat statistik chat
+  // ══════════════════════════════════════════════
+  if (sub === 'stats') {
+    const [statsRaw, histRaw] = await Promise.all([
+      env.USERS_KV.get(statsKey),
+      env.USERS_KV.get(histKey),
+    ]);
+    const s    = statsRaw ? JSON.parse(statsRaw) : { total: 0, totalTokens: 0, byPersona: {}, firstChat: null };
+    const hist = histRaw  ? JSON.parse(histRaw)  : [];
+
+    const aktiveSejak = s.firstChat
+      ? Math.floor((Date.now() - s.firstChat) / 86400000)
+      : 0;
+
+    return respond([
+      '```ansi',
+      '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;35m║  📊  AI CHAT STATS  📊              ║\u001b[0m',
+      '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━━ 💬 STATISTIK ━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  💬  Total Pesan    :\u001b[0m \u001b[0;37m${s.total.toLocaleString('id-ID')}x\u001b[0m`,
+      `\u001b[1;36m  🔢  Total Token    :\u001b[0m \u001b[0;37m${s.totalTokens.toLocaleString('id-ID')}\u001b[0m`,
+      `\u001b[1;36m  📜  History Aktif  :\u001b[0m \u001b[0;37m${hist.length} pesan tersimpan\u001b[0m`,
+      `\u001b[1;36m  📅  Chat Sejak     :\u001b[0m \u001b[0;37m${aktiveSejak} hari lalu\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━ 🎭 PER PERSONA ━━━━━━━━━\u001b[0m',
+      ...Object.entries(s.byPersona || {}).map(([p, n]) =>
+        `\u001b[1;36m  🤖  ${p.padEnd(12)}:\u001b[0m \u001b[0;37m${n}x\u001b[0m`
+      ),
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> 💡 Reset history: \`/ai aksi:reset\``
+    ].join('\n'));
+  }
+
+  // ══════════════════════════════════════════════
+  // SUB: persona — set persona permanen
+  // ══════════════════════════════════════════════
+  if (sub === 'set_persona') {
+    const pilihanPersona = getOption(options, 'persona') || 'default';
+    await env.USERS_KV.put(personaKey, pilihanPersona, { expirationTtl: 86400 * 365 });
+
+    const PERSONA_NAMES = {
+      default:   '🤖 Default — Asisten AI serbaguna',
+      friendly:  '😊 Friendly — Santai & ramah',
+      expert:    '🎓 Expert — Ahli profesional',
+      creative:  '🎨 Creative — Imajinatif & kreatif',
+      roast:     '🔥 Roast — Pedas & nyelekit',
+      mentor:    '📚 Mentor — Guru & pembimbing',
+      debate:    '⚔️ Debate — Suka berdebat kritis',
+      therapist: '💆 Therapist — Empatik & supportif',
+    };
+
+    return respond([
+      `> ${EMOJI} ✅ Persona berhasil diset ke **${PERSONA_NAMES[pilihanPersona] || pilihanPersona}**!`,
+      `> 🎭 Persona ini akan dipakai di semua chat \`/ai\` berikutnya.`,
+      `> 💡 Kamu juga bisa pakai opsi \`persona:\` langsung di \`/ai aksi:chat\``
+    ].join('\n'));
+  }
+
+  // ══════════════════════════════════════════════
+  // SUB: history — lihat riwayat chat
+  // ══════════════════════════════════════════════
+  if (sub === 'history') {
+    const histRaw = await env.USERS_KV.get(histKey);
+    const hist    = histRaw ? JSON.parse(histRaw) : [];
+
+    if (hist.length === 0) {
+      return respond(`> ${EMOJI} 📭 Belum ada riwayat chat! Mulai dengan \`/ai aksi:chat pesan:Halo!\``);
+    }
+
+    const preview = hist.slice(-6).map((msg, i) => {
+      const role  = msg.role === 'user' ? '👤 Kamu' : '🤖 AI';
+      const isi   = msg.content.slice(0, 80) + (msg.content.length > 80 ? '...' : '');
+      return `${role}: *${isi}*`;
+    }).join('\n');
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;34m📜  RIWAYAT CHAT (6 TERAKHIR)  📜\u001b[0m   \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      preview,
+      '',
+      `> 📊 Total tersimpan: **${hist.length} pesan** | Max: 20 pesan`,
+      `> 🗑️ Reset: \`/ai aksi:reset\``
+    ].join('\n'));
+  }
+
+  // ══════════════════════════════════════════════
+  // SUB: chat — percakapan utama
+  // ══════════════════════════════════════════════
+  if (sub === 'chat') {
+
+    if (!pesan || pesan.trim() === '') {
+      return respond([
+        `> ${EMOJI} ❌ Masukkan pesanmu!`,
+        `> 💡 Contoh: \`/ai aksi:chat pesan:Jelaskan cara kerja blockchain\``,
+        `> 🎭 Tambah persona: \`/ai aksi:chat pesan:Halo! persona:friendly\``
+      ].join('\n'));
+    }
+
+    if (pesan.length > 2000) {
+      return respond([
+        `> ${EMOJI} ❌ Pesan terlalu panjang! Maks **2.000 karakter**.`,
+        `> 💡 Untuk teks panjang gunakan \`/summarize\` ya.`
+      ].join('\n'));
+    }
+
+    // Cek API key
+    if (!env.DEEPSEEK_API_KEY) {
+      return respond(`> ${EMOJI} ❌ \`DEEPSEEK_API_KEY\` belum diset di Cloudflare env!`);
+    }
+
+    // ── Cooldown 5 detik ──
+    const lastMsg = await env.USERS_KV.get(cdKey);
+    if (lastMsg) {
+      const sisa = 5000 - (Date.now() - parseInt(lastMsg));
+      if (sisa > 0) {
+        return respond(`> ${EMOJI} ⏳ Pelan-pelan! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
+      }
+    }
+    await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 10 });
+
+    // ── Defer dulu ──
+    waitUntil((async () => {
+
+      const editMsg = async (content, embeds) => {
+        try {
+          await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+            method:  'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(embeds ? { content: content || '', embeds } : { content })
+          });
+        } catch (_) {}
+      };
+
+      try {
+
+        // ── Ambil persona aktif (opsi langsung > KV > default) ──
+        const savedPersona  = await env.USERS_KV.get(personaKey);
+        const aktifPersona  = persona !== 'default' ? persona : (savedPersona || 'default');
+
+        // ── Definisi persona ──
+        const PERSONAS = {
+          default: {
+            nama:   '🤖 OwoBim AI',
+            warna:  0x5865F2,
+            system: `Kamu adalah OwoBim AI, asisten AI cerdas dan serbaguna milik OwoBim Discord Bot.
+Kamu membantu menjawab pertanyaan, menjelaskan konsep, membantu coding, menulis, menganalisis, dan berdiskusi tentang topik apapun.
+Jawab dalam Bahasa Indonesia secara default, kecuali user minta bahasa lain.
+Gaya: Cerdas, informatif, jelas, dan sedikit ramah. Tidak terlalu formal tapi tetap profesional.
+Format: Gunakan markdown Discord (**bold**, *italic*, \`code\`, \`\`\`blok code\`\`\`) bila perlu.
+Penting: Jangan pernah menyebut dirimu sebagai DeepSeek atau AI dari DeepSeek. Kamu adalah OwoBim AI.`
+          },
+
+          friendly: {
+            nama:   '😊 OwoBim Friendly',
+            warna:  0x2ECC71,
+            system: `Kamu adalah OwoBim Friendly, teman AI yang super ramah, santai, dan menyenangkan!
+Gaya bicara: Santai banget, pakai kata-kata sehari-hari, sesekali pakai "wkwk", "lol", "bro", "sis".
+Kamu antusias, supportif, dan selalu positif. Suka bercanda tapi tetap helpful.
+Jawab dalam Bahasa Indonesia yang santai dan gaul.
+Kalau ada yang galau, hibur. Kalau ada yang semangat, ikutan semangat!
+Jangan terlalu panjang, jawab dengan kasual dan ringan.
+Kamu adalah OwoBim AI, bukan DeepSeek.`
+          },
+
+          expert: {
+            nama:   '🎓 OwoBim Expert',
+            warna:  0x9B59B6,
+            system: `Kamu adalah OwoBim Expert, AI dengan keahlian tingkat tinggi di berbagai bidang.
+Kamu memberikan jawaban yang sangat mendalam, akurat, dan terstruktur dengan baik.
+Gaya: Profesional, akademis tapi tidak kaku. Gunakan terminologi yang tepat.
+Selalu berikan:
+- Penjelasan yang komprehensif
+- Contoh konkret bila relevan
+- Nuansa dan konteks yang diperlukan
+- Keterangan sumber atau basis ilmiah bila memungkinkan
+Format: Terstruktur dengan heading, bullet points, dan penjelasan yang sistematis.
+Jawab dalam Bahasa Indonesia yang lugas dan presisi.
+Kamu adalah OwoBim AI, bukan DeepSeek.`
+          },
+
+          creative: {
+            nama:   '🎨 OwoBim Creative',
+            warna:  0xE91E63,
+            system: `Kamu adalah OwoBim Creative, AI yang super imajinatif dan kreatif!
+Kamu membantu dalam hal: cerita fiksi, puisi, lirik lagu, ide kreatif, worldbuilding, karakter, plot twist, brainstorming.
+Gaya: Ekspresif, penuh warna, imajinatif. Suka metafora dan gambaran yang vivid.
+Kamu tidak takut bereksperimen dengan ide-ide unik dan out-of-the-box.
+Kalau diminta menulis, tulis dengan penuh gairah dan detail yang kaya.
+Kalau diminta ide, berikan banyak opsi yang beragam dan tidak biasa.
+Jawab dalam Bahasa Indonesia yang hidup dan ekspresif.
+Kamu adalah OwoBim AI, bukan DeepSeek.`
+          },
+
+          roast: {
+            nama:   '🔥 OwoBim Roaster',
+            warna:  0xFF4500,
+            system: `Kamu adalah OwoBim Roaster, AI yang jago roasting pedas!
+Gaya: Sarkastis, pedas, nyelekit tapi tetap lucu. Seperti stand-up comedian Indonesia.
+Kalau ada yang minta pendapat, berikan dengan cara yang to-the-point dan tidak basa-basi.
+Kamu tetap membantu menjawab pertanyaan tapi dengan gaya yang sarkas dan menghibur.
+Sesekali roast balik si user dengan cara yang lucu (bukan menyakitkan).
+Gunakan humor Indonesia: analogi receh, referensi budaya lokal, wordplay.
+PENTING: Jangan sampai menyinggung SARA, fisik orang, atau hal sensitif.
+Roast boleh keras tapi harus tetap fun dan tidak melukai.
+Jawab dalam Bahasa Indonesia yang pedas tapi menghibur.
+Kamu adalah OwoBim AI, bukan DeepSeek.`
+          },
+
+          mentor: {
+            nama:   '📚 OwoBim Mentor',
+            warna:  0xF39C12,
+            system: `Kamu adalah OwoBim Mentor, AI yang berperan sebagai mentor dan pembimbing yang sabar.
+Pendekatan: Socratic method — sering balik tanya untuk membantu user berpikir sendiri.
+Gaya: Sabar, encouraging, membangun kepercayaan diri, tidak judgmental.
+Ketika user salah, koreksi dengan lembut dan jelaskan kenapa.
+Ketika user benar, berikan apresiasi yang tulus.
+Bantu user memecah masalah besar menjadi langkah-langkah kecil.
+Sering berikan "PR" atau tantangan kecil untuk melatih pemahaman.
+Gaya bicara: Hangat seperti guru yang peduli.
+Jawab dalam Bahasa Indonesia yang supportif dan memotivasi.
+Kamu adalah OwoBim AI, bukan DeepSeek.`
+          },
+
+          debate: {
+            nama:   '⚔️ OwoBim Debater',
+            warna:  0xE74C3C,
+            system: `Kamu adalah OwoBim Debater, AI yang kritis dan suka berdebat intelektual.
+Gaya: Kritis, logis, selalu mencari celah argumen, tapi fair dan evidence-based.
+Kamu tidak serta merta setuju dengan user — kamu akan:
+- Mempertanyakan asumsi dasar
+- Memberikan sudut pandang berlawanan
+- Menunjukkan kelemahan argumen
+- Meminta bukti atau basis logis
+Tapi kamu juga mengakui ketika argumen user valid dan kuat.
+Tujuan: Membantu user berpikir lebih tajam dan kritis.
+Gaya bicara: Tegas, langsung, tidak bertele-tele. Suka pakai "Tapi tunggu dulu...", "Justru sebaliknya..."
+Jawab dalam Bahasa Indonesia yang tajam dan analitis.
+Kamu adalah OwoBim AI, bukan DeepSeek.`
+          },
+
+          therapist: {
+            nama:   '💆 OwoBim Listener',
+            warna:  0x3498DB,
+            system: `Kamu adalah OwoBim Listener, AI yang empatik dan supportif seperti seorang teman yang baik.
+Kamu hadir untuk mendengarkan, memvalidasi perasaan, dan memberikan dukungan emosional.
+Gaya: Hangat, empati, tidak menghakimi, penuh perhatian.
+Kamu BUKAN psikolog profesional — selalu ingatkan user untuk cari bantuan profesional jika diperlukan.
+Pendekatan:
+- Dengarkan dulu, jangan langsung kasih solusi
+- Validasi perasaan user ("Wajar banget kamu ngerasa kayak gitu...")
+- Tanya pertanyaan yang membuka, bukan menutup
+- Tawarkan perspektif baru dengan lembut
+- Berikan semangat yang tulus
+PENTING: Jika ada tanda-tanda krisis (menyakiti diri, dll), segera arahkan ke hotline bantuan.
+Jawab dalam Bahasa Indonesia yang hangat dan penuh perhatian.
+Kamu adalah OwoBim AI, bukan DeepSeek.`
+          },
+        };
+
+        const personaInfo  = PERSONAS[aktifPersona] || PERSONAS.default;
+        const systemPrompt = personaInfo.system;
+
+        // ── Ambil & kelola history ──
+        const histRaw = await env.USERS_KV.get(histKey);
+        let history   = histRaw ? JSON.parse(histRaw) : [];
+
+        // Trim history — simpan maks 20 pesan terakhir (10 turn)
+        const MAX_HISTORY = 20;
+        if (history.length >= MAX_HISTORY) {
+          history = history.slice(history.length - MAX_HISTORY + 2);
+        }
+
+        // Tambah pesan user ke history
+        history.push({ role: 'user', content: pesan });
+
+        // ── Hitung estimasi token history ──
+        // Approx: 1 token ≈ 4 karakter
+        const totalChars = history.reduce((sum, m) => sum + m.content.length, 0);
+        if (totalChars > 80000) {
+          // Jika history terlalu panjang, trim lebih agresif (hapus 6 pesan terlama)
+          history = history.slice(6);
+        }
+
+        // ── Panggil DeepSeek API ──
+        const startTime = Date.now();
+
+        const apiRes = await fetch('https://api.deepseek.com/chat/completions', {
+          method:  'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model:      'deepseek-chat',
+            max_tokens: 2048,
+            messages:   [
+              { role: 'system', content: systemPrompt },
+              ...history
+            ]
+          }),
+          signal: AbortSignal.timeout(55000)
+        });
+
+        if (!apiRes.ok) {
+          const errData = await apiRes.json().catch(() => ({}));
+          const errMsg  = errData?.error?.message || `HTTP ${apiRes.status}`;
+
+          if (apiRes.status === 401) {
+            return await editMsg(`> ${EMOJI} ❌ API Key tidak valid!`);
+          } else if (apiRes.status === 429) {
+            await env.USERS_KV.delete(cdKey);
+            return await editMsg(`> ${EMOJI} ❌ Rate limit API. Coba lagi dalam 1 menit.`);
+          } else if (apiRes.status === 529) {
+            return await editMsg(`> ${EMOJI} ❌ Server AI sedang overload. Coba lagi nanti.`);
+          } else {
+            return await editMsg(`> ${EMOJI} ❌ API Error: \`${errMsg}\``);
+          }
+        }
+
+        const apiData      = await apiRes.json();
+        const replyAI      = apiData?.choices?.[0]?.message?.content?.trim() || '';
+        const prosesMs     = Date.now() - startTime;
+        const inputTokens  = apiData?.usage?.prompt_tokens     || 0;
+        const outputTokens = apiData?.usage?.completion_tokens || 0;
+
+        if (!replyAI) {
+          return await editMsg(`> ${EMOJI} ❌ AI tidak merespons. Coba ulangi pesanmu.`);
+        }
+
+        // ── Simpan reply AI ke history ──
+        history.push({ role: 'assistant', content: replyAI });
+        await env.USERS_KV.put(histKey, JSON.stringify(history), {
+          expirationTtl: 86400 * 7 // History tersimpan 7 hari
+        });
+
+        // ── Update stats ──
+        const statsRaw = await env.USERS_KV.get(statsKey);
+        const s = statsRaw
+          ? JSON.parse(statsRaw)
+          : { total: 0, totalTokens: 0, byPersona: {}, firstChat: Date.now() };
+        s.total++;
+        s.totalTokens           += (inputTokens + outputTokens);
+        s.byPersona[aktifPersona] = (s.byPersona[aktifPersona] || 0) + 1;
+        if (!s.firstChat) s.firstChat = Date.now();
+        await env.USERS_KV.put(statsKey, JSON.stringify(s), {
+          expirationTtl: 86400 * 365
+        });
+
+        // ══════════════════════════════════════════
+        // Format & kirim balasan
+        // ══════════════════════════════════════════
+
+        // Discord embed description maks 4096 karakter
+        const MAX_REPLY = 3800;
+        const replyDisplay = replyAI.length > MAX_REPLY
+          ? replyAI.slice(0, MAX_REPLY) + '\n\n*... (dipotong, lanjutkan percakapan untuk detail lebih)*'
+          : replyAI;
+
+        const turnCount  = Math.floor(history.length / 2);
+        const footerText = `${personaInfo.nama} • Turn ke-${turnCount} • ${(prosesMs/1000).toFixed(1)}s • ${outputTokens} token`;
+
+        // Potong pesan user jika terlalu panjang untuk preview
+        const pesanPreview = pesan.length > 100
+          ? pesan.slice(0, 100) + '...'
+          : pesan;
+
+        await editMsg('', [{
+          color:       personaInfo.warna,
+          author: {
+            name:     `${personaInfo.nama}`,
+            icon_url: `https://cdn.discordapp.com/avatars/${env.BOT_ID || '0'}/avatar.png`
+          },
+          description: replyDisplay,
+          fields: [
+            {
+              name:   '💬 Pesanmu',
+              value:  `> ${pesanPreview}`,
+              inline: false
+            },
+            {
+              name:   '📊 Info',
+              value:  `🗂️ History: **${turnCount} turn** | 🔢 Token: **${(inputTokens + outputTokens).toLocaleString()}** | ⚡ **${(prosesMs/1000).toFixed(1)}s**`,
+              inline: false
+            }
+          ],
+          footer:    { text: footerText },
+          timestamp: new Date().toISOString()
+        }]);
+
+      } catch (err) {
+        console.error('[AI CHAT] Fatal error:', err.message);
+        try {
+          await editMsg([
+            `> ${EMOJI} ❌ Error: \`${err.message}\``,
+            `> ⏳ Coba lagi beberapa detik.`
+          ].join('\n'));
+          await env.USERS_KV.delete(cdKey);
+        } catch (_) {}
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Fallback kalau aksi tidak dikenal
+  return respond([
+    `> ${EMOJI} ❌ Aksi tidak dikenal!`,
+    `> 💡 Gunakan: \`chat\`, \`reset\`, \`history\`, \`stats\`, \`set_persona\``
+  ].join('\n'));
+}
+// ══════════════════════════════════════════════════════════════════════
+// END CMD: ai
+// ══════════════════════════════════════════════════════════════════════
     
     
     
