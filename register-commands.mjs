@@ -1113,8 +1113,8 @@ const commands = [
         "type": 3,
         "required": true,
         "choices": [
-          { "name": "7 hari",  "value": "7"  },
-          { "name": "30 hari", "value": "30" }
+          { "name": "7 hari - Rp 70.000",  "value": "7"  },
+          { "name": "30 hari - Rp 280.000", "value": "30" }
         ]
       }
     ]
