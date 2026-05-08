@@ -9759,9 +9759,9 @@ if (cmd === 'qr') {
 
 // ══════════════════════════════════════════════════════════════════════
 // CMD: ai — AI Chat Engine (Multi-Turn, High Context)
-// Provider: DeepSeek deepseek-chat
-// Fitur: Memory percakapan, persona, gambar, reset, stats
-// Env: DEEPSEEK_API_KEY (wajib)
+// Provider: Groq llama-3.3-70b-versatile
+// Fitur: Memory percakapan, persona, reset, stats
+// Env: GROQ_API_KEY (wajib)
 // Cooldown: 5 detik per user
 // Max history: 20 pesan terakhir per user
 // ══════════════════════════════════════════════════════════════════════
@@ -9907,8 +9907,8 @@ if (cmd === 'ai') {
     }
 
     // Cek API key
-    if (!env.DEEPSEEK_API_KEY) {
-      return respond(`> ${EMOJI} ❌ \`DEEPSEEK_API_KEY\` belum diset di Cloudflare env!`);
+    if (!env.GROQ_API_KEY) {
+      return respond(`> ${EMOJI} ❌ \`GROQ_API_KEY\` belum diset di Cloudflare env!`);
     }
 
     // ── Cooldown 5 detik ──
@@ -9919,6 +9919,7 @@ if (cmd === 'ai') {
         return respond(`> ${EMOJI} ⏳ Pelan-pelan! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
       }
     }
+    // ── Fix: Cloudflare KV minimum TTL adalah 60 detik ──
     await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
 
     // ── Defer dulu ──
@@ -9950,7 +9951,7 @@ Kamu membantu menjawab pertanyaan, menjelaskan konsep, membantu coding, menulis,
 Jawab dalam Bahasa Indonesia secara default, kecuali user minta bahasa lain.
 Gaya: Cerdas, informatif, jelas, dan sedikit ramah. Tidak terlalu formal tapi tetap profesional.
 Format: Gunakan markdown Discord (**bold**, *italic*, \`code\`, \`\`\`blok code\`\`\`) bila perlu.
-Penting: Jangan pernah menyebut dirimu sebagai DeepSeek atau AI dari DeepSeek. Kamu adalah OwoBim AI.`
+Penting: Jangan pernah menyebut dirimu sebagai Llama, Groq, atau AI dari Meta/Groq. Kamu adalah OwoBim AI.`
           },
 
           friendly: {
@@ -9962,7 +9963,7 @@ Kamu antusias, supportif, dan selalu positif. Suka bercanda tapi tetap helpful.
 Jawab dalam Bahasa Indonesia yang santai dan gaul.
 Kalau ada yang galau, hibur. Kalau ada yang semangat, ikutan semangat!
 Jangan terlalu panjang, jawab dengan kasual dan ringan.
-Kamu adalah OwoBim AI, bukan DeepSeek.`
+Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
 
           expert: {
@@ -9978,7 +9979,7 @@ Selalu berikan:
 - Keterangan sumber atau basis ilmiah bila memungkinkan
 Format: Terstruktur dengan heading, bullet points, dan penjelasan yang sistematis.
 Jawab dalam Bahasa Indonesia yang lugas dan presisi.
-Kamu adalah OwoBim AI, bukan DeepSeek.`
+Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
 
           creative: {
@@ -9991,7 +9992,7 @@ Kamu tidak takut bereksperimen dengan ide-ide unik dan out-of-the-box.
 Kalau diminta menulis, tulis dengan penuh gairah dan detail yang kaya.
 Kalau diminta ide, berikan banyak opsi yang beragam dan tidak biasa.
 Jawab dalam Bahasa Indonesia yang hidup dan ekspresif.
-Kamu adalah OwoBim AI, bukan DeepSeek.`
+Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
 
           roast: {
@@ -10006,7 +10007,7 @@ Gunakan humor Indonesia: analogi receh, referensi budaya lokal, wordplay.
 PENTING: Jangan sampai menyinggung SARA, fisik orang, atau hal sensitif.
 Roast boleh keras tapi harus tetap fun dan tidak melukai.
 Jawab dalam Bahasa Indonesia yang pedas tapi menghibur.
-Kamu adalah OwoBim AI, bukan DeepSeek.`
+Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
 
           mentor: {
@@ -10021,7 +10022,7 @@ Bantu user memecah masalah besar menjadi langkah-langkah kecil.
 Sering berikan "PR" atau tantangan kecil untuk melatih pemahaman.
 Gaya bicara: Hangat seperti guru yang peduli.
 Jawab dalam Bahasa Indonesia yang supportif dan memotivasi.
-Kamu adalah OwoBim AI, bukan DeepSeek.`
+Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
 
           debate: {
@@ -10038,7 +10039,7 @@ Tapi kamu juga mengakui ketika argumen user valid dan kuat.
 Tujuan: Membantu user berpikir lebih tajam dan kritis.
 Gaya bicara: Tegas, langsung, tidak bertele-tele. Suka pakai "Tapi tunggu dulu...", "Justru sebaliknya..."
 Jawab dalam Bahasa Indonesia yang tajam dan analitis.
-Kamu adalah OwoBim AI, bukan DeepSeek.`
+Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
 
           therapist: {
@@ -10056,7 +10057,7 @@ Pendekatan:
 - Berikan semangat yang tulus
 PENTING: Jika ada tanda-tanda krisis (menyakiti diri, dll), segera arahkan ke hotline bantuan.
 Jawab dalam Bahasa Indonesia yang hangat dan penuh perhatian.
-Kamu adalah OwoBim AI, bukan DeepSeek.`
+Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
         };
 
@@ -10084,17 +10085,17 @@ Kamu adalah OwoBim AI, bukan DeepSeek.`
           history = history.slice(6);
         }
 
-        // ── Panggil DeepSeek API ──
+        // ── Panggil Groq API ──
         const startTime = Date.now();
 
-        const apiRes = await fetch('https://api.deepseek.com/chat/completions', {
+        const apiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method:  'POST',
           headers: {
             'Content-Type':  'application/json',
-            'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`,
+            'Authorization': `Bearer ${env.GROQ_API_KEY}`,
           },
           body: JSON.stringify({
-            model:      'deepseek-chat',
+            model:      'llama-3.3-70b-versatile',
             max_tokens: 2048,
             messages:   [
               { role: 'system', content: systemPrompt },
@@ -10142,8 +10143,8 @@ Kamu adalah OwoBim AI, bukan DeepSeek.`
           ? JSON.parse(statsRaw)
           : { total: 0, totalTokens: 0, byPersona: {}, firstChat: Date.now() };
         s.total++;
-        s.totalTokens           += (inputTokens + outputTokens);
-        s.byPersona[aktifPersona] = (s.byPersona[aktifPersona] || 0) + 1;
+        s.totalTokens             += (inputTokens + outputTokens);
+        s.byPersona[aktifPersona]  = (s.byPersona[aktifPersona] || 0) + 1;
         if (!s.firstChat) s.firstChat = Date.now();
         await env.USERS_KV.put(statsKey, JSON.stringify(s), {
           expirationTtl: 86400 * 365
