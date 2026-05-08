@@ -1049,6 +1049,54 @@ const commands = [
       required: false
     }
   ]
+},
+
+
+  
+
+
+
+
+  {
+  "name": "ai",
+  "description": "🤖 Chat dengan AI OwoBim — multi-turn dengan memory percakapan",
+  "options": [
+    {
+      "name": "aksi",
+      "description": "Pilih aksi yang ingin dilakukan",
+      "type": 3,
+      "required": true,
+      "choices": [
+        { "name": "💬 Chat  — Ngobrol dengan AI",            "value": "chat"       },
+        { "name": "🔄 Reset — Hapus riwayat percakapan",     "value": "reset"      },
+        { "name": "📜 History — Lihat riwayat chat",         "value": "history"    },
+        { "name": "📊 Stats  — Statistik penggunaan AI",     "value": "stats"      },
+        { "name": "🎭 Set Persona — Ubah persona permanen",  "value": "set_persona"}
+      ]
+    },
+    {
+      "name": "pesan",
+      "description": "Pesanmu untuk AI (wajib untuk aksi chat)",
+      "type": 3,
+      "required": false
+    },
+    {
+      "name": "persona",
+      "description": "Pilih kepribadian AI",
+      "type": 3,
+      "required": false,
+      "choices": [
+        { "name": "🤖 Default   — Serbaguna & cerdas",       "value": "default"   },
+        { "name": "😊 Friendly  — Santai & gaul",            "value": "friendly"  },
+        { "name": "🎓 Expert    — Mendalam & profesional",   "value": "expert"    },
+        { "name": "🎨 Creative  — Imajinatif & ekspresif",   "value": "creative"  },
+        { "name": "🔥 Roast     — Pedas & nyelekit",         "value": "roast"     },
+        { "name": "📚 Mentor    — Sabar & membimbing",       "value": "mentor"    },
+        { "name": "⚔️ Debater   — Kritis & analitis",        "value": "debate"    },
+        { "name": "💆 Therapist — Empatik & supportif",      "value": "therapist" }
+      ]
+    }
+  ]
 }
   
   
