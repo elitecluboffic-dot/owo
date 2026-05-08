@@ -9758,12 +9758,252 @@ if (cmd === 'qr') {
 
 
 // ══════════════════════════════════════════════════════════════════════
+// CMD: ai — AI Chat Engine + Premium Key System
+// Provider: Groq llama-3.3-70b-versatile
+// Env: GROQ_API_KEY, OWNER_ID (wajib)
+// KV Keys:
+//   aikey:{key}         → { duration, createdAt, used, usedBy, usedAt }
+//   aipremium:{userId}  → { expiresAt, key, duration }
+// ══════════════════════════════════════════════════════════════════════
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  CMD: genkey-ai — Generate premium key (OWNER ONLY)            ║
+// ╚══════════════════════════════════════════════════════════════════╝
+if (cmd === 'genkey-ai') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+
+  // ── Cek apakah user adalah owner ──
+  if (discordId !== env.OWNER_ID) {
+    return respond(`> ${EMOJI} ❌ Command ini hanya untuk **Owner Bot**!`);
+  }
+
+  const durasi  = parseInt(getOption(options, 'durasi') || '30');
+  const jumlah  = parseInt(getOption(options, 'jumlah') || '1');
+
+  if (![7, 30].includes(durasi)) {
+    return respond(`> ${EMOJI} ❌ Durasi hanya boleh **7** atau **30** hari!`);
+  }
+
+  if (jumlah < 1 || jumlah > 10) {
+    return respond(`> ${EMOJI} ❌ Jumlah key antara **1–10** sekaligus!`);
+  }
+
+  // ── Generate key ──
+  const generateKey = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const rand  = (n) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    return `OWO-${rand(4)}-${rand(4)}-${rand(4)}`;
+  };
+
+  const keys = [];
+  for (let i = 0; i < jumlah; i++) {
+    const key  = generateKey();
+    const data = {
+      duration:  durasi,
+      createdAt: Date.now(),
+      used:      false,
+      usedBy:    null,
+      usedAt:    null
+    };
+    await env.USERS_KV.put(`aikey:${key}`, JSON.stringify(data), {
+      expirationTtl: 86400 * 90 // Key expired kalau 90 hari tidak dipakai
+    });
+    keys.push(key);
+  }
+
+  const keyList = keys.map((k, i) => `\`${k}\``).join('\n');
+
+  return respond([
+    '```ansi',
+    '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[1;33m║  🔑  KEY PREMIUM GENERATED  🔑      ║\u001b[0m',
+    '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `> ${EMOJI} ✅ Berhasil generate **${jumlah} key** premium!`,
+    `> ⏳ Durasi: **${durasi} hari** per key`,
+    `> 📋 Cara pakai: \`/redeemkey-ai key:<KEY>\``,
+    '',
+    '**Key yang digenerate:**',
+    keyList,
+    '',
+    `> 💡 Bagikan key ini ke pembeli setelah konfirmasi pembayaran.`
+  ].join('\n'));
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  CMD: redeemkey-ai — Aktivasi premium key (USER)               ║
+// ╚══════════════════════════════════════════════════════════════════╝
+if (cmd === 'redeemkey-ai') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const key   = (getOption(options, 'key') || '').trim().toUpperCase();
+
+  if (!key) {
+    return respond(`> ${EMOJI} ❌ Masukkan key premium kamu!\n> 💡 Contoh: \`/redeemkey-ai key:OWO-ABCD-1234-EFGH\``);
+  }
+
+  const keyRaw = await env.USERS_KV.get(`aikey:${key}`);
+  if (!keyRaw) {
+    return respond([
+      `> ${EMOJI} ❌ Key **tidak ditemukan** atau sudah expired!`,
+      `> 💡 Pastikan key kamu benar. Hubungi owner jika ada masalah.`
+    ].join('\n'));
+  }
+
+  const keyData = JSON.parse(keyRaw);
+
+  if (keyData.used) {
+    return respond([
+      `> ${EMOJI} ❌ Key ini sudah **pernah digunakan**!`,
+      `> 👤 Digunakan oleh: <@${keyData.usedBy}>`,
+      `> 💡 Hubungi owner jika kamu merasa ini kesalahan.`
+    ].join('\n'));
+  }
+
+  // ── Cek apakah user sudah punya premium aktif ──
+  const premiumRaw = await env.USERS_KV.get(`aipremium:${discordId}`);
+  let expiresAt    = Date.now();
+  if (premiumRaw) {
+    const existing = JSON.parse(premiumRaw);
+    if (existing.expiresAt > Date.now()) {
+      // Extend dari masa aktif yang ada
+      expiresAt = existing.expiresAt;
+    }
+  }
+
+  // ── Aktifkan premium ──
+  const newExpiresAt = expiresAt + (keyData.duration * 86400000);
+  await env.USERS_KV.put(`aipremium:${discordId}`, JSON.stringify({
+    expiresAt: newExpiresAt,
+    key:       key,
+    duration:  keyData.duration
+  }), { expirationTtl: keyData.duration * 86400 + 86400 });
+
+  // ── Tandai key sebagai sudah digunakan ──
+  keyData.used   = true;
+  keyData.usedBy = discordId;
+  keyData.usedAt = Date.now();
+  await env.USERS_KV.put(`aikey:${key}`, JSON.stringify(keyData), {
+    expirationTtl: 86400 * 90
+  });
+
+  const expDate = new Date(newExpiresAt).toLocaleDateString('id-ID', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  });
+
+  return respond([
+    '```ansi',
+    '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[1;32m║  ✨  PREMIUM AKTIF!  ✨              ║\u001b[0m',
+    '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `> ${EMOJI} 🎉 Premium berhasil diaktifkan!`,
+    `> ⏳ Durasi: **+${keyData.duration} hari**`,
+    `> 📅 Aktif hingga: **${expDate}**`,
+    `> 💬 Sekarang kamu bisa pakai \`/ai\` tanpa batas!`
+  ].join('\n'));
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  CMD: cek-premium — Cek status premium user                    ║
+// ╚══════════════════════════════════════════════════════════════════╝
+if (cmd === 'cek-premium') {
+  const EMOJI      = '<a:GifOwoBim:1492599199038967878>';
+  const targetId   = getOption(options, 'user') || discordId;
+  const premiumRaw = await env.USERS_KV.get(`aipremium:${targetId}`);
+
+  if (!premiumRaw) {
+    return respond([
+      `> ${EMOJI} ❌ <@${targetId}> **tidak memiliki** premium aktif.`,
+      `> 💡 Beli premium: hubungi <@${env.OWNER_ID}> atau ketik \`/beli-ai\``
+    ].join('\n'));
+  }
+
+  const p        = JSON.parse(premiumRaw);
+  const now      = Date.now();
+  const sisaMs   = p.expiresAt - now;
+
+  if (sisaMs <= 0) {
+    return respond([
+      `> ${EMOJI} ⚠️ Premium <@${targetId}> sudah **expired**!`,
+      `> 💡 Perpanjang: hubungi <@${env.OWNER_ID}> atau ketik \`/beli-ai\``
+    ].join('\n'));
+  }
+
+  const sisaHari = Math.ceil(sisaMs / 86400000);
+  const expDate  = new Date(p.expiresAt).toLocaleDateString('id-ID', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  });
+
+  return respond([
+    '```ansi',
+    '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[1;33m║  ✨  STATUS PREMIUM  ✨              ║\u001b[0m',
+    '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `> ${EMOJI} ✅ <@${targetId}> memiliki **premium aktif**!`,
+    `> 📅 Expired: **${expDate}**`,
+    `> ⏳ Sisa: **${sisaHari} hari** lagi`
+  ].join('\n'));
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  CMD: beli-ai — Kirim notif pembelian ke owner                 ║
+// ╚══════════════════════════════════════════════════════════════════╝
+if (cmd === 'beli-ai') {
+  const EMOJI   = '<a:GifOwoBim:1492599199038967878>';
+  const durasi  = getOption(options, 'durasi') || '30';
+
+  // ── Kirim DM ke Owner ──
+  try {
+    // Buat DM channel ke owner
+    const dmRes = await fetch(`https://discord.com/api/v10/users/@me/channels`, {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bot ${env.BOT_TOKEN}`
+      },
+      body: JSON.stringify({ recipient_id: env.OWNER_ID })
+    });
+
+    if (dmRes.ok) {
+      const dmChannel = await dmRes.json();
+      await fetch(`https://discord.com/api/v10/channels/${dmChannel.id}/messages`, {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bot ${env.BOT_TOKEN}`
+        },
+        body: JSON.stringify({
+          embeds: [{
+            color: 0xF1C40F,
+            title: '🛒 Ada yang Mau Beli Premium AI!',
+            fields: [
+              { name: '👤 User',    value: `<@${discordId}> (\`${discordId}\`)`, inline: true },
+              { name: '⏳ Durasi', value: `**${durasi} hari**`,                  inline: true },
+            ],
+            footer:    { text: 'OwoBim Premium System' },
+            timestamp: new Date().toISOString()
+          }]
+        })
+      });
+    }
+  } catch (_) {}
+
+  return respond([
+    '```ansi',
+    '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[1;33m║  🛒  PERMINTAAN TERKIRIM!  🛒       ║\u001b[0m',
+    '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+    `> ${EMOJI} ✅ Permintaan pembelian **${durasi} hari** berhasil dikirim!`,
+    `> 👤 Owner akan segera menghubungi kamu lewat DM.`,
+    `> ⏳ Harap tunggu konfirmasi dari <@${env.OWNER_ID}>.`
+  ].join('\n'));
+}
+
+// ══════════════════════════════════════════════════════════════════════
 // CMD: ai — AI Chat Engine (Multi-Turn, High Context)
 // Provider: Groq llama-3.3-70b-versatile
-// Fitur: Memory percakapan, persona, reset, stats
-// Env: GROQ_API_KEY (wajib)
-// Cooldown: 5 detik per user
-// Max history: 20 pesan terakhir per user
 // ══════════════════════════════════════════════════════════════════════
 if (cmd === 'ai') {
   const EMOJI = '<a:GifOwoBim:1492599199038967878>';
@@ -9777,6 +10017,36 @@ if (cmd === 'ai') {
   const personaKey = `ai_persona:${discordId}`;
   const statsKey   = `ai_stats:${discordId}`;
   const cdKey      = `ai_cd:${discordId}`;
+
+  // ══════════════════════════════════════════════
+  // ── CEK PREMIUM (kecuali owner & sub non-chat)
+  // ══════════════════════════════════════════════
+  const isOwner = discordId === env.OWNER_ID;
+  if (!isOwner && sub === 'chat') {
+    const premiumRaw = await env.USERS_KV.get(`aipremium:${discordId}`);
+    const premium    = premiumRaw ? JSON.parse(premiumRaw) : null;
+    const isPremium  = premium && premium.expiresAt > Date.now();
+
+    if (!isPremium) {
+      const sisaHari = premium
+        ? 0
+        : null;
+
+      return respond([
+        '```ansi',
+        '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[1;31m║  🔒  FITUR PREMIUM  🔒              ║\u001b[0m',
+        '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> ${EMOJI} ❌ Fitur \`/ai\` hanya untuk member **Premium**!`,
+        premium
+          ? `> ⚠️ Premium kamu sudah **expired**.`
+          : `> 💡 Kamu belum memiliki akses premium.`,
+        `> 🛒 Ketik \`/beli-ai\` untuk membeli premium!`,
+        `> 👤 Atau langsung DM <@${env.OWNER_ID}>`
+      ].join('\n'));
+    }
+  }
 
   // ══════════════════════════════════════════════
   // SUB: reset — hapus riwayat percakapan
@@ -9809,6 +10079,13 @@ if (cmd === 'ai') {
       ? Math.floor((Date.now() - s.firstChat) / 86400000)
       : 0;
 
+    // Sisa premium
+    const premiumRaw = await env.USERS_KV.get(`aipremium:${discordId}`);
+    const premium    = premiumRaw ? JSON.parse(premiumRaw) : null;
+    const sisaHari   = premium && premium.expiresAt > Date.now()
+      ? Math.ceil((premium.expiresAt - Date.now()) / 86400000)
+      : 0;
+
     return respond([
       '```ansi',
       '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
@@ -9821,6 +10098,7 @@ if (cmd === 'ai') {
       `\u001b[1;36m  🔢  Total Token    :\u001b[0m \u001b[0;37m${s.totalTokens.toLocaleString('id-ID')}\u001b[0m`,
       `\u001b[1;36m  📜  History Aktif  :\u001b[0m \u001b[0;37m${hist.length} pesan tersimpan\u001b[0m`,
       `\u001b[1;36m  📅  Chat Sejak     :\u001b[0m \u001b[0;37m${aktiveSejak} hari lalu\u001b[0m`,
+      `\u001b[1;36m  ✨  Sisa Premium   :\u001b[0m \u001b[0;37m${isOwner ? 'Owner (unlimited)' : sisaHari + ' hari'}\u001b[0m`,
       '\u001b[1;33m━━━━━━━━━━━━ 🎭 PER PERSONA ━━━━━━━━━\u001b[0m',
       ...Object.entries(s.byPersona || {}).map(([p, n]) =>
         `\u001b[1;36m  🤖  ${p.padEnd(12)}:\u001b[0m \u001b[0;37m${n}x\u001b[0m`
@@ -9832,7 +10110,7 @@ if (cmd === 'ai') {
   }
 
   // ══════════════════════════════════════════════
-  // SUB: persona — set persona permanen
+  // SUB: set_persona
   // ══════════════════════════════════════════════
   if (sub === 'set_persona') {
     const pilihanPersona = getOption(options, 'persona') || 'default';
@@ -9857,7 +10135,7 @@ if (cmd === 'ai') {
   }
 
   // ══════════════════════════════════════════════
-  // SUB: history — lihat riwayat chat
+  // SUB: history
   // ══════════════════════════════════════════════
   if (sub === 'history') {
     const histRaw = await env.USERS_KV.get(histKey);
@@ -9867,9 +10145,9 @@ if (cmd === 'ai') {
       return respond(`> ${EMOJI} 📭 Belum ada riwayat chat! Mulai dengan \`/ai aksi:chat pesan:Halo!\``);
     }
 
-    const preview = hist.slice(-6).map((msg, i) => {
-      const role  = msg.role === 'user' ? '👤 Kamu' : '🤖 AI';
-      const isi   = msg.content.slice(0, 80) + (msg.content.length > 80 ? '...' : '');
+    const preview = hist.slice(-6).map((msg) => {
+      const role = msg.role === 'user' ? '👤 Kamu' : '🤖 AI';
+      const isi  = msg.content.slice(0, 80) + (msg.content.length > 80 ? '...' : '');
       return `${role}: *${isi}*`;
     }).join('\n');
 
@@ -9906,7 +10184,6 @@ if (cmd === 'ai') {
       ].join('\n'));
     }
 
-    // Cek API key
     if (!env.GROQ_API_KEY) {
       return respond(`> ${EMOJI} ❌ \`GROQ_API_KEY\` belum diset di Cloudflare env!`);
     }
@@ -9919,10 +10196,8 @@ if (cmd === 'ai') {
         return respond(`> ${EMOJI} ⏳ Pelan-pelan! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
       }
     }
-    // ── Fix: Cloudflare KV minimum TTL adalah 60 detik ──
     await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
 
-    // ── Defer dulu ──
     waitUntil((async () => {
 
       const editMsg = async (content, embeds) => {
@@ -9937,11 +10212,9 @@ if (cmd === 'ai') {
 
       try {
 
-        // ── Ambil persona aktif (opsi langsung > KV > default) ──
-        const savedPersona  = await env.USERS_KV.get(personaKey);
-        const aktifPersona  = persona !== 'default' ? persona : (savedPersona || 'default');
+        const savedPersona = await env.USERS_KV.get(personaKey);
+        const aktifPersona = persona !== 'default' ? persona : (savedPersona || 'default');
 
-        // ── Definisi persona ──
         const PERSONAS = {
           default: {
             nama:   '🤖 OwoBim AI',
@@ -9953,7 +10226,6 @@ Gaya: Cerdas, informatif, jelas, dan sedikit ramah. Tidak terlalu formal tapi te
 Format: Gunakan markdown Discord (**bold**, *italic*, \`code\`, \`\`\`blok code\`\`\`) bila perlu.
 Penting: Jangan pernah menyebut dirimu sebagai Llama, Groq, atau AI dari Meta/Groq. Kamu adalah OwoBim AI.`
           },
-
           friendly: {
             nama:   '😊 OwoBim Friendly',
             warna:  0x2ECC71,
@@ -9965,97 +10237,60 @@ Kalau ada yang galau, hibur. Kalau ada yang semangat, ikutan semangat!
 Jangan terlalu panjang, jawab dengan kasual dan ringan.
 Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
-
           expert: {
             nama:   '🎓 OwoBim Expert',
             warna:  0x9B59B6,
             system: `Kamu adalah OwoBim Expert, AI dengan keahlian tingkat tinggi di berbagai bidang.
 Kamu memberikan jawaban yang sangat mendalam, akurat, dan terstruktur dengan baik.
 Gaya: Profesional, akademis tapi tidak kaku. Gunakan terminologi yang tepat.
-Selalu berikan:
-- Penjelasan yang komprehensif
-- Contoh konkret bila relevan
-- Nuansa dan konteks yang diperlukan
-- Keterangan sumber atau basis ilmiah bila memungkinkan
+Selalu berikan penjelasan komprehensif, contoh konkret, dan konteks yang diperlukan.
 Format: Terstruktur dengan heading, bullet points, dan penjelasan yang sistematis.
 Jawab dalam Bahasa Indonesia yang lugas dan presisi.
 Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
-
           creative: {
             nama:   '🎨 OwoBim Creative',
             warna:  0xE91E63,
             system: `Kamu adalah OwoBim Creative, AI yang super imajinatif dan kreatif!
 Kamu membantu dalam hal: cerita fiksi, puisi, lirik lagu, ide kreatif, worldbuilding, karakter, plot twist, brainstorming.
 Gaya: Ekspresif, penuh warna, imajinatif. Suka metafora dan gambaran yang vivid.
-Kamu tidak takut bereksperimen dengan ide-ide unik dan out-of-the-box.
-Kalau diminta menulis, tulis dengan penuh gairah dan detail yang kaya.
-Kalau diminta ide, berikan banyak opsi yang beragam dan tidak biasa.
 Jawab dalam Bahasa Indonesia yang hidup dan ekspresif.
 Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
-
           roast: {
             nama:   '🔥 OwoBim Roaster',
             warna:  0xFF4500,
             system: `Kamu adalah OwoBim Roaster, AI yang jago roasting pedas!
 Gaya: Sarkastis, pedas, nyelekit tapi tetap lucu. Seperti stand-up comedian Indonesia.
-Kalau ada yang minta pendapat, berikan dengan cara yang to-the-point dan tidak basa-basi.
-Kamu tetap membantu menjawab pertanyaan tapi dengan gaya yang sarkas dan menghibur.
-Sesekali roast balik si user dengan cara yang lucu (bukan menyakitkan).
 Gunakan humor Indonesia: analogi receh, referensi budaya lokal, wordplay.
 PENTING: Jangan sampai menyinggung SARA, fisik orang, atau hal sensitif.
-Roast boleh keras tapi harus tetap fun dan tidak melukai.
-Jawab dalam Bahasa Indonesia yang pedas tapi menghibur.
 Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
-
           mentor: {
             nama:   '📚 OwoBim Mentor',
             warna:  0xF39C12,
             system: `Kamu adalah OwoBim Mentor, AI yang berperan sebagai mentor dan pembimbing yang sabar.
 Pendekatan: Socratic method — sering balik tanya untuk membantu user berpikir sendiri.
 Gaya: Sabar, encouraging, membangun kepercayaan diri, tidak judgmental.
-Ketika user salah, koreksi dengan lembut dan jelaskan kenapa.
-Ketika user benar, berikan apresiasi yang tulus.
-Bantu user memecah masalah besar menjadi langkah-langkah kecil.
-Sering berikan "PR" atau tantangan kecil untuk melatih pemahaman.
-Gaya bicara: Hangat seperti guru yang peduli.
 Jawab dalam Bahasa Indonesia yang supportif dan memotivasi.
 Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
-
           debate: {
             nama:   '⚔️ OwoBim Debater',
             warna:  0xE74C3C,
             system: `Kamu adalah OwoBim Debater, AI yang kritis dan suka berdebat intelektual.
 Gaya: Kritis, logis, selalu mencari celah argumen, tapi fair dan evidence-based.
-Kamu tidak serta merta setuju dengan user — kamu akan:
-- Mempertanyakan asumsi dasar
-- Memberikan sudut pandang berlawanan
-- Menunjukkan kelemahan argumen
-- Meminta bukti atau basis logis
-Tapi kamu juga mengakui ketika argumen user valid dan kuat.
-Tujuan: Membantu user berpikir lebih tajam dan kritis.
-Gaya bicara: Tegas, langsung, tidak bertele-tele. Suka pakai "Tapi tunggu dulu...", "Justru sebaliknya..."
+Gaya bicara: Tegas, langsung. Suka pakai "Tapi tunggu dulu...", "Justru sebaliknya..."
 Jawab dalam Bahasa Indonesia yang tajam dan analitis.
 Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
-
           therapist: {
             nama:   '💆 OwoBim Listener',
             warna:  0x3498DB,
             system: `Kamu adalah OwoBim Listener, AI yang empatik dan supportif seperti seorang teman yang baik.
-Kamu hadir untuk mendengarkan, memvalidasi perasaan, dan memberikan dukungan emosional.
 Gaya: Hangat, empati, tidak menghakimi, penuh perhatian.
 Kamu BUKAN psikolog profesional — selalu ingatkan user untuk cari bantuan profesional jika diperlukan.
-Pendekatan:
-- Dengarkan dulu, jangan langsung kasih solusi
-- Validasi perasaan user ("Wajar banget kamu ngerasa kayak gitu...")
-- Tanya pertanyaan yang membuka, bukan menutup
-- Tawarkan perspektif baru dengan lembut
-- Berikan semangat yang tulus
-PENTING: Jika ada tanda-tanda krisis (menyakiti diri, dll), segera arahkan ke hotline bantuan.
+PENTING: Jika ada tanda-tanda krisis, segera arahkan ke hotline bantuan.
 Jawab dalam Bahasa Indonesia yang hangat dan penuh perhatian.
 Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           },
@@ -10064,28 +10299,21 @@ Kamu adalah OwoBim AI, bukan Llama atau Groq.`
         const personaInfo  = PERSONAS[aktifPersona] || PERSONAS.default;
         const systemPrompt = personaInfo.system;
 
-        // ── Ambil & kelola history ──
         const histRaw = await env.USERS_KV.get(histKey);
         let history   = histRaw ? JSON.parse(histRaw) : [];
 
-        // Trim history — simpan maks 20 pesan terakhir (10 turn)
         const MAX_HISTORY = 20;
         if (history.length >= MAX_HISTORY) {
           history = history.slice(history.length - MAX_HISTORY + 2);
         }
 
-        // Tambah pesan user ke history
         history.push({ role: 'user', content: pesan });
 
-        // ── Hitung estimasi token history ──
-        // Approx: 1 token ≈ 4 karakter
         const totalChars = history.reduce((sum, m) => sum + m.content.length, 0);
         if (totalChars > 80000) {
-          // Jika history terlalu panjang, trim lebih agresif (hapus 6 pesan terlama)
           history = history.slice(6);
         }
 
-        // ── Panggil Groq API ──
         const startTime = Date.now();
 
         const apiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -10108,7 +10336,6 @@ Kamu adalah OwoBim AI, bukan Llama atau Groq.`
         if (!apiRes.ok) {
           const errData = await apiRes.json().catch(() => ({}));
           const errMsg  = errData?.error?.message || `HTTP ${apiRes.status}`;
-
           if (apiRes.status === 401) {
             return await editMsg(`> ${EMOJI} ❌ API Key tidak valid!`);
           } else if (apiRes.status === 429) {
@@ -10131,42 +10358,40 @@ Kamu adalah OwoBim AI, bukan Llama atau Groq.`
           return await editMsg(`> ${EMOJI} ❌ AI tidak merespons. Coba ulangi pesanmu.`);
         }
 
-        // ── Simpan reply AI ke history ──
         history.push({ role: 'assistant', content: replyAI });
         await env.USERS_KV.put(histKey, JSON.stringify(history), {
-          expirationTtl: 86400 * 7 // History tersimpan 7 hari
+          expirationTtl: 86400 * 7
         });
 
-        // ── Update stats ──
         const statsRaw = await env.USERS_KV.get(statsKey);
         const s = statsRaw
           ? JSON.parse(statsRaw)
           : { total: 0, totalTokens: 0, byPersona: {}, firstChat: Date.now() };
         s.total++;
-        s.totalTokens             += (inputTokens + outputTokens);
-        s.byPersona[aktifPersona]  = (s.byPersona[aktifPersona] || 0) + 1;
+        s.totalTokens            += (inputTokens + outputTokens);
+        s.byPersona[aktifPersona] = (s.byPersona[aktifPersona] || 0) + 1;
         if (!s.firstChat) s.firstChat = Date.now();
         await env.USERS_KV.put(statsKey, JSON.stringify(s), {
           expirationTtl: 86400 * 365
         });
 
-        // ══════════════════════════════════════════
-        // Format & kirim balasan
-        // ══════════════════════════════════════════
-
-        // Discord embed description maks 4096 karakter
-        const MAX_REPLY = 3800;
+        const MAX_REPLY    = 3800;
         const replyDisplay = replyAI.length > MAX_REPLY
           ? replyAI.slice(0, MAX_REPLY) + '\n\n*... (dipotong, lanjutkan percakapan untuk detail lebih)*'
           : replyAI;
 
-        const turnCount  = Math.floor(history.length / 2);
-        const footerText = `${personaInfo.nama} • Turn ke-${turnCount} • ${(prosesMs/1000).toFixed(1)}s • ${outputTokens} token`;
+        const turnCount    = Math.floor(history.length / 2);
+        const footerText   = `${personaInfo.nama} • Turn ke-${turnCount} • ${(prosesMs/1000).toFixed(1)}s • ${outputTokens} token`;
+        const pesanPreview = pesan.length > 100 ? pesan.slice(0, 100) + '...' : pesan;
 
-        // Potong pesan user jika terlalu panjang untuk preview
-        const pesanPreview = pesan.length > 100
-          ? pesan.slice(0, 100) + '...'
-          : pesan;
+        // Sisa premium di footer
+        const premiumRaw2 = await env.USERS_KV.get(`aipremium:${discordId}`);
+        const premium2    = premiumRaw2 ? JSON.parse(premiumRaw2) : null;
+        const sisaHari2   = isOwner
+          ? '∞'
+          : premium2 && premium2.expiresAt > Date.now()
+            ? Math.ceil((premium2.expiresAt - Date.now()) / 86400000) + ' hari'
+            : '-';
 
         await editMsg('', [{
           color:       personaInfo.warna,
@@ -10183,7 +10408,7 @@ Kamu adalah OwoBim AI, bukan Llama atau Groq.`
             },
             {
               name:   '📊 Info',
-              value:  `🗂️ History: **${turnCount} turn** | 🔢 Token: **${(inputTokens + outputTokens).toLocaleString()}** | ⚡ **${(prosesMs/1000).toFixed(1)}s**`,
+              value:  `🗂️ History: **${turnCount} turn** | 🔢 Token: **${(inputTokens + outputTokens).toLocaleString()}** | ⚡ **${(prosesMs/1000).toFixed(1)}s** | ✨ Premium: **${sisaHari2}**`,
               inline: false
             }
           ],
@@ -10208,14 +10433,13 @@ Kamu adalah OwoBim AI, bukan Llama atau Groq.`
     });
   }
 
-  // Fallback kalau aksi tidak dikenal
   return respond([
     `> ${EMOJI} ❌ Aksi tidak dikenal!`,
     `> 💡 Gunakan: \`chat\`, \`reset\`, \`history\`, \`stats\`, \`set_persona\``
   ].join('\n'));
 }
 // ══════════════════════════════════════════════════════════════════════
-// END CMD: ai
+// END CMD: ai + premium system
 // ══════════════════════════════════════════════════════════════════════
     
     
