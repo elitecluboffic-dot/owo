@@ -11027,9 +11027,24 @@ if (cmd === 'whois-username') {
 // CMD: snake — Snake Game
 // ══════════════════════════════════════════════════════════════════════
 if (cmd === 'snake') {
-  const GRID  = 8;
+  const GRID = 8;
+  const aksi = getOption(options, 'aksi') || 'play';
 
-  // Cek apakah sudah ada game aktif
+  // ── RESET: paksa hapus game lama yang stuck ──
+  if (aksi === 'reset') {
+    await env.USERS_KV.delete(`snake_game:${discordId}`);
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  ✅  GAME DIRESET!  ✅               ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '> 🔄 Game lama berhasil dihapus!',
+      '> 💡 Sekarang ketik `/snake` untuk mulai game baru.'
+    ].join('\n'));
+  }
+
+  // ── Cek apakah sudah ada game aktif ──
   const existingRaw = await env.USERS_KV.get(`snake_game:${discordId}`);
   if (existingRaw) {
     const existing = JSON.parse(existingRaw);
@@ -11044,7 +11059,8 @@ if (cmd === 'snake') {
             '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
             '```',
             '> ⚠️ Kamu masih punya game aktif!',
-            '> 💡 Klik tombol **🚪 Quit** di game sebelumnya, atau tunggu sampai expired (5 menit).'
+            '> 💡 Ketik `/snake aksi:reset` untuk paksa hapus, lalu mulai lagi.',
+            '> ⏳ Atau tunggu **5 menit** sampai sesi expired otomatis.'
           ].join('\n'),
           flags: 64
         }
@@ -11052,7 +11068,7 @@ if (cmd === 'snake') {
     }
   }
 
-  // Inisialisasi snake di tengah grid
+  // ── Inisialisasi snake di tengah grid ──
   const initSnake = [[4, 4], [4, 3], [4, 2]]; // head first [row, col]
   const initFood  = snakeRandomFood(initSnake, GRID);
 
