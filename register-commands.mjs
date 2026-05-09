@@ -1174,7 +1174,20 @@ const commands = [
       required: true,
     }
   ]
+},
+
+
+
+
+
+  {
+  "name": "snake",
+  "description": "🐍 Main Snake Game! Makan apel, hindari dinding & ekormu sendiri.",
+  "options": []
 }
+
+
+  
 
 
   
