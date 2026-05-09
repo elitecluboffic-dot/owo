@@ -1159,7 +1159,25 @@ const commands = [
         ]
       }
     ]
-  }
+  },
+
+
+
+  {
+  name: 'whois-username',
+  description: '🔍 Cek username di 20+ platform sekaligus',
+  options: [
+    {
+      name: 'username',
+      description: 'Username yang mau dicek (tanpa @)',
+      type: 3,        // STRING
+      required: true,
+    }
+  ]
+}
+
+
+  
   
   
   
