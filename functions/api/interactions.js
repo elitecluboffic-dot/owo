@@ -205,144 +205,6 @@ if (customId.startsWith('confess_report:')) {
 
 
 
-
-// ══════════════════════════════════════════════════════════════════════
-// BUTTON: snake — Snake Game Controls
-// ══════════════════════════════════════════════════════════════════════
-if (customId.startsWith('snake:')) {
-  const parts   = customId.split(':');
-  const action  = parts[1]; // up / down / left / right / quit
-  const ownerId = parts[2];
-  const GRID    = 8;
-
-  if (clickerId !== ownerId) {
-    return new Response(JSON.stringify({
-      type: 4,
-      data: { content: '❌ Ini bukan game kamu!', flags: 64 }
-    }), { headers });
-  }
-
-  const gameRaw = await env.USERS_KV.get(`snake_game:${ownerId}`);
-  if (!gameRaw) {
-    return new Response(JSON.stringify({
-      type: 7,
-      data: {
-        content: [
-          '```ansi',
-          '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
-          '\u001b[1;31m║  💀  SESI GAME EXPIRED  💀           ║\u001b[0m',
-          '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
-          '```',
-          '> ❌ Sesi game tidak ditemukan atau sudah expired!',
-          '> 💡 Mulai game baru dengan `/snake`'
-        ].join('\n'),
-        components: []
-      }
-    }), { headers });
-  }
-
-  const gs = JSON.parse(gameRaw);
-
-  if (gs.status !== 'playing') {
-    return new Response(JSON.stringify({
-      type: 4,
-      data: { content: '❌ Game sudah berakhir! Mulai lagi dengan `/snake`', flags: 64 }
-    }), { headers });
-  }
-
-  // ── QUIT ──
-  if (action === 'quit') {
-    await env.USERS_KV.delete(`snake_game:${ownerId}`);
-    const reward = gs.score * 100;
-    if (reward > 0) {
-      const uRaw = await env.USERS_KV.get(`user:${ownerId}`);
-      if (uRaw) {
-        const u = JSON.parse(uRaw);
-        u.balance     += reward;
-        u.totalEarned  = (u.totalEarned || 0) + reward;
-        await env.USERS_KV.put(`user:${ownerId}`, JSON.stringify(u));
-      }
-    }
-    return new Response(JSON.stringify({
-      type: 7,
-      data: {
-        content: buildSnakeMsg(gs, GRID, username, `\n> 🚪 Kamu keluar. Skor: **${gs.score}**${reward > 0 ? ` | +🪙 **${reward.toLocaleString()}** cowoncy!` : ''}`),
-        components: []
-      }
-    }), { headers });
-  }
-
-  // ── MOVE ──
-  const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
-  const DIR_DELTA = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
-
-  // Abaikan gerakan 180 derajat
-  if (action !== OPPOSITE[gs.direction]) {
-    gs.direction = action;
-  }
-
-  const [dr, dc] = DIR_DELTA[gs.direction];
-  const [hr, hc] = gs.snake[0];
-  const newHead  = [hr + dr, hc + dc];
-
-  // Cek tabrakan tembok
-  if (newHead[0] < 0 || newHead[0] >= GRID || newHead[1] < 0 || newHead[1] >= GRID) {
-    gs.status = 'gameover';
-  }
-  // Cek tabrakan tubuh sendiri
-  else if (gs.snake.some(([r, c]) => r === newHead[0] && c === newHead[1])) {
-    gs.status = 'gameover';
-  }
-  else {
-    gs.snake.unshift(newHead);
-    if (newHead[0] === gs.food[0] && newHead[1] === gs.food[1]) {
-      gs.score++;
-      gs.food = snakeRandomFood(gs.snake, GRID);
-      // Ekor tidak dihapus → ular memanjang
-    } else {
-      gs.snake.pop();
-    }
-  }
-
-  let rewardMsg = '';
-  if (gs.status === 'gameover') {
-    const reward = gs.score * 100;
-    if (reward > 0) {
-      const uRaw = await env.USERS_KV.get(`user:${ownerId}`);
-      if (uRaw) {
-        const u = JSON.parse(uRaw);
-        u.balance     += reward;
-        u.totalEarned  = (u.totalEarned || 0) + reward;
-        await env.USERS_KV.put(`user:${ownerId}`, JSON.stringify(u));
-      }
-      rewardMsg = ` | +🪙 **${reward.toLocaleString()}**`;
-    }
-    await env.USERS_KV.delete(`snake_game:${ownerId}`);
-
-    return new Response(JSON.stringify({
-      type: 7,
-      data: {
-        content: buildSnakeMsg(gs, GRID, username, `\n> 💀 **GAME OVER!** Skor: **${gs.score}**${rewardMsg}\n> 💡 Main lagi: \`/snake\``),
-        components: []
-      }
-    }), { headers });
-  }
-
-  await env.USERS_KV.put(`snake_game:${ownerId}`, JSON.stringify(gs), { expirationTtl: 300 });
-
-  return new Response(JSON.stringify({
-    type: 7,
-    data: {
-      content: buildSnakeMsg(gs, GRID, username),
-      components: buildSnakeButtons(ownerId)
-    }
-  }), { headers });
-}
-
-
-
-
-
   
 
 
@@ -831,6 +693,160 @@ if (customId.startsWith('love_propose:')) {
     }
   }), { headers });
 }
+
+
+
+
+
+
+
+
+
+// ══════════════════════════════════════════════════════════════════════
+// BUTTON: snake — Snake Game Controls
+// ══════════════════════════════════════════════════════════════════════
+if (customId.startsWith('snake:')) {
+  const parts   = customId.split(':');
+  const action  = parts[1]; // up / down / left / right / quit
+  const ownerId = parts[2];
+  const GRID    = 8;
+
+  if (clickerId !== ownerId) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Ini bukan game kamu!', flags: 64 }
+    }), { headers });
+  }
+
+  const gameRaw = await env.USERS_KV.get(`snake_game:${ownerId}`);
+  if (!gameRaw) {
+    return new Response(JSON.stringify({
+      type: 7,
+      data: {
+        content: [
+          '> ❌ Sesi game tidak ditemukan atau sudah expired!',
+          '> 💡 Mulai game baru dengan `/snake`'
+        ].join('\n'),
+        components: []
+      }
+    }), { headers });
+  }
+
+  const gs = JSON.parse(gameRaw);
+
+  if (gs.status !== 'playing') {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Game sudah berakhir! Mulai lagi dengan `/snake`', flags: 64 }
+    }), { headers });
+  }
+
+  // ── QUIT ──
+  if (action === 'quit') {
+    await env.USERS_KV.delete(`snake_game:${ownerId}`);
+    const reward = gs.score * 100;
+    if (reward > 0) {
+      const uRaw = await env.USERS_KV.get(`user:${ownerId}`);
+      if (uRaw) {
+        const u       = JSON.parse(uRaw);
+        u.balance    += reward;
+        u.totalEarned = (u.totalEarned || 0) + reward;
+        await env.USERS_KV.put(`user:${ownerId}`, JSON.stringify(u));
+      }
+    }
+    const rewardLine = reward > 0 ? ` | +🪙 **${reward.toLocaleString()}** cowoncy!` : '';
+    return new Response(JSON.stringify({
+      type: 7,
+      data: {
+        content: buildSnakeMsg(gs, GRID, username, `> 🚪 Kamu keluar. Skor: **${gs.score}**${rewardLine}`),
+        components: []
+      }
+    }), { headers });
+  }
+
+  // ── MOVE ──
+  const OPPOSITE  = { up: 'down', down: 'up', left: 'right', right: 'left' };
+  const DIR_DELTA = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
+
+  // Abaikan gerakan 180 derajat
+  if (action !== OPPOSITE[gs.direction]) {
+    gs.direction = action;
+  }
+
+  const [dr, dc] = DIR_DELTA[gs.direction];
+  const [hr, hc] = gs.snake[0];
+  const newHead  = [hr + dr, hc + dc];
+
+  // Cek tabrakan tembok
+  if (newHead[0] < 0 || newHead[0] >= GRID || newHead[1] < 0 || newHead[1] >= GRID) {
+    gs.status = 'gameover';
+  }
+  // Cek tabrakan tubuh sendiri
+  else if (gs.snake.some(([r, c]) => r === newHead[0] && c === newHead[1])) {
+    gs.status = 'gameover';
+  }
+  else {
+    gs.snake.unshift(newHead);
+    if (newHead[0] === gs.food[0] && newHead[1] === gs.food[1]) {
+      gs.score++;
+      gs.food = snakeRandomFood(gs.snake, GRID);
+      // Ekor tidak dihapus → ular memanjang
+    } else {
+      gs.snake.pop();
+    }
+  }
+
+  // ── GAME OVER ──
+  if (gs.status === 'gameover') {
+    const reward = gs.score * 100;
+    if (reward > 0) {
+      const uRaw = await env.USERS_KV.get(`user:${ownerId}`);
+      if (uRaw) {
+        const u       = JSON.parse(uRaw);
+        u.balance    += reward;
+        u.totalEarned = (u.totalEarned || 0) + reward;
+        await env.USERS_KV.put(`user:${ownerId}`, JSON.stringify(u));
+      }
+    }
+    await env.USERS_KV.delete(`snake_game:${ownerId}`);
+
+    const rewardMsg = reward > 0 ? ` | +🪙 **${reward.toLocaleString()}**` : '';
+    return new Response(JSON.stringify({
+      type: 7,
+      data: {
+        content: buildSnakeMsg(
+          gs, GRID, username,
+          `> 💀 **GAME OVER!** Skor: **${gs.score}**${rewardMsg}\n> 💡 Main lagi: \`/snake\``
+        ),
+        components: []
+      }
+    }), { headers });
+  }
+
+  // ── LANJUT MAIN ──
+  await env.USERS_KV.put(`snake_game:${ownerId}`, JSON.stringify(gs), { expirationTtl: 300 });
+
+  return new Response(JSON.stringify({
+    type: 7,
+    data: {
+      content:    buildSnakeMsg(gs, GRID, username),
+      components: buildSnakeButtons(ownerId)
+    }
+  }), { headers });
+}
+
+// ── noop button (spacer disabled) ──
+if (customId.startsWith('snake_noop')) {
+  return new Response(JSON.stringify({
+    type: 4,
+    data: { content: '⬛', flags: 64 }
+  }), { headers });
+}
+
+
+
+
+  
 
   
   
@@ -11400,29 +11416,22 @@ function getLoveStatus(pct) {
 // ══════════════════════════════════════════════════════════════════════
 
 function snakeRenderGrid(gs, GRID) {
-  const HEAD_EMOJI = ['😮', '😮', '😲', '😮'][Math.floor(Math.random() * 4)]; // fun lil detail
-  const CELL = {
-    empty:  '⬛',
-    body:   '🟩',
-    head:   '🔴',
-    food:   '🍎',
-  };
-
-  let out = '';
+  const rows = [];
   for (let r = 0; r < GRID; r++) {
+    let row = '';
     for (let c = 0; c < GRID; c++) {
       const isHead = gs.snake[0][0] === r && gs.snake[0][1] === c;
       const isBody = !isHead && gs.snake.some(([sr, sc]) => sr === r && sc === c);
       const isFood = gs.food[0] === r && gs.food[1] === c;
 
-      if      (isHead) out += CELL.head;
-      else if (isBody) out += CELL.body;
-      else if (isFood) out += CELL.food;
-      else             out += CELL.empty;
+      if      (isHead) row += '🔴';
+      else if (isBody) row += '🟩';
+      else if (isFood) row += '🍎';
+      else             row += '⬛';
     }
-    out += '\n';
+    rows.push(row);
   }
-  return out.trimEnd();
+  return rows.join('\n');
 }
 
 function snakeRandomFood(snake, GRID) {
@@ -11443,50 +11452,35 @@ function buildSnakeButtons(ownerId) {
     {
       type: 1,
       components: [
-        { type: 2, style: 2, label: ' ',   custom_id: `snake_noop:${ownerId}`, disabled: true },
-        { type: 2, style: 1, label: '⬆️',  custom_id: `snake:up:${ownerId}` },
-        { type: 2, style: 2, label: ' ',   custom_id: `snake_noop2:${ownerId}`, disabled: true },
-        { type: 2, style: 4, label: '🚪',  custom_id: `snake:quit:${ownerId}` },
+        { type: 2, style: 2, label: '↖', custom_id: `snake_noop:${ownerId}`,  disabled: true },
+        { type: 2, style: 1, label: '⬆️', custom_id: `snake:up:${ownerId}` },
+        { type: 2, style: 2, label: '↗', custom_id: `snake_noop2:${ownerId}`, disabled: true },
+        { type: 2, style: 4, label: '🚪', custom_id: `snake:quit:${ownerId}` },
       ]
     },
     {
       type: 1,
       components: [
-        { type: 2, style: 1, label: '⬅️',  custom_id: `snake:left:${ownerId}` },
-        { type: 2, style: 1, label: '⬇️',  custom_id: `snake:down:${ownerId}` },
-        { type: 2, style: 1, label: '➡️',  custom_id: `snake:right:${ownerId}` },
+        { type: 2, style: 1, label: '⬅️', custom_id: `snake:left:${ownerId}` },
+        { type: 2, style: 1, label: '⬇️', custom_id: `snake:down:${ownerId}` },
+        { type: 2, style: 1, label: '➡️', custom_id: `snake:right:${ownerId}` },
       ]
     }
   ];
 }
 
 function buildSnakeMsg(gs, GRID, username, extraLine = '') {
-  const grid    = snakeRenderGrid(gs, GRID);
   const DIR_ICON = { up: '⬆️', down: '⬇️', left: '⬅️', right: '➡️' };
-  const len     = gs.snake.length;
-  const reward  = gs.score * 100;
-  const isOver  = gs.status === 'gameover';
+  const reward   = gs.score * 100;
+  const grid     = snakeRenderGrid(gs, GRID);
 
-  return [
-    '```ansi',
-    '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
-    `\u001b[1;32m║  🐍  SNAKE GAME  🐍                 ║\u001b[0m`,
-    '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
-    '```',
+  const lines = [
+    `🐍 **Snake** | 👤 ${username} | 🍎 **${gs.score}** | 📏 **${gs.snake.length}** blok | ${DIR_ICON[gs.direction] || '➡️'} | 🪙 **${reward.toLocaleString()}**`,
     grid,
-    '```ansi',
-    '\u001b[1;33m━━━━━━━━━━━━ 📊 STATUS ━━━━━━━━━━━━━━\u001b[0m',
-    `\u001b[1;36m  👤  Player    :\u001b[0m \u001b[0;37m${username}\u001b[0m`,
-    `\u001b[1;36m  🍎  Skor      :\u001b[0m \u001b[1;32m${gs.score}\u001b[0m`,
-    `\u001b[1;36m  📏  Panjang   :\u001b[0m \u001b[0;37m${len} blok\u001b[0m`,
-    `\u001b[1;36m  ${DIR_ICON[gs.direction] || '➡️'}  Arah      :\u001b[0m \u001b[0;37m${gs.direction}\u001b[0m`,
-    `\u001b[1;36m  🪙  Reward    :\u001b[0m \u001b[1;33m${reward.toLocaleString()} cowoncy\u001b[0m`,
-    '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-    '```',
-    isOver
-      ? `> 💀 **GAME OVER** — Gunakan tombol di atas untuk bermain lagi.`
-      : `> 🎮 Gunakan tombol untuk bergerak | 🚪 untuk keluar`,
-    extraLine
-  ].filter(l => l !== '').join('\n');
-}
+    `> 🎮 Gunakan tombol untuk bergerak | 🚪 Quit`,
+  ];
 
+  if (extraLine) lines.push(extraLine);
+
+  return lines.join('\n');
+}
