@@ -1195,7 +1195,58 @@ const commands = [
       ]
     }
   ]
+},
+
+
+
+
+
+
+  {
+  "name": "meme",
+  "description": "Generate meme random atau custom pakai Imgflip!",
+  "options": [
+    {
+      "name": "aksi",
+      "description": "Pilih mode meme",
+      "type": 3,
+      "required": true,
+      "choices": [
+        { "name": "🎲 Random — Meme random dari Imgflip", "value": "random" },
+        { "name": "✏️ Custom — Pilih template & isi teks sendiri", "value": "custom" },
+        { "name": "📋 List — Lihat daftar template populer", "value": "list" },
+        { "name": "🔍 Search — Cari template berdasarkan nama", "value": "search" }
+      ]
+    },
+    {
+      "name": "template",
+      "description": "Nama atau ID template (untuk mode custom/search)",
+      "type": 3,
+      "required": false
+    },
+    {
+      "name": "teks1",
+      "description": "Teks bagian atas / kotak pertama",
+      "type": 3,
+      "required": false
+    },
+    {
+      "name": "teks2",
+      "description": "Teks bagian bawah / kotak kedua",
+      "type": 3,
+      "required": false
+    },
+    {
+      "name": "teks3",
+      "description": "Teks kotak ketiga (jika ada)",
+      "type": 3,
+      "required": false
+    }
+  ]
 }
+
+
+  
 
 
   
