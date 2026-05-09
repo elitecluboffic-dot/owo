@@ -1299,10 +1299,60 @@ const commands = [
       "required": false
     }
   ]
-}
+},
 
 
   
+
+
+
+  
+
+  {
+  "name": "font",
+  "description": "✏️ Konversi teks ke berbagai gaya font unik",
+  "options": [
+    {
+      "name": "teks",
+      "description": "Teks yang mau dikonversi",
+      "type": 3,
+      "required": true
+    },
+    {
+      "name": "gaya",
+      "description": "Pilih gaya font (kosongkan untuk semua)",
+      "type": 3,
+      "required": false,
+      "choices": [
+        { "name": "🔵 Bold Sans-Serif",          "value": "bold_sans"        },
+        { "name": "🔵 Italic Bold Sans-Serif",   "value": "italic_bold_sans" },
+        { "name": "📜 Bold Serif",               "value": "bold_serif"       },
+        { "name": "📜 Italic Bold Serif",        "value": "italic_bold_serif"},
+        { "name": "🖋️ Italic Serif",             "value": "italic_serif"     },
+        { "name": "⬛ Double Struck",            "value": "double_struck"    },
+        { "name": "🏰 Fraktur Bold",             "value": "fraktur_bold"     },
+        { "name": "🏰 Fraktur Regular",          "value": "fraktur"          },
+        { "name": "💻 Monospace",                "value": "mono"             },
+        { "name": "💻 Italic Monospace",         "value": "italic_mono"      },
+        { "name": "🔘 Circled",                  "value": "circled"          },
+        { "name": "🔲 Squared",                  "value": "squared"          },
+        { "name": "🔲 Negative Squared",         "value": "neg_squared"      },
+        { "name": "🅱️ Negative Circled",         "value": "neg_circled"      },
+        { "name": "🔵 Fullwidth",                "value": "fullwidth"        },
+        { "name": "🌊 Wavy Underline",           "value": "wavy"             },
+        { "name": "✏️ Strikethrough",            "value": "strikethrough"    },
+        { "name": "🔡 Upside Down",              "value": "upside_down"      },
+        { "name": "🌀 Tiny Superscript",         "value": "superscript"      },
+        { "name": "↔️ Reverse / Mirror",         "value": "mirror"           },
+        { "name": "🧩 Regional Indicator",       "value": "regional"         },
+        { "name": "🌟 Cursive Script",           "value": "cursive"          },
+        { "name": "📦 Cursive Bold",             "value": "cursive_bold"     },
+        { "name": "🫧 Bubble Text",              "value": "bubble"           },
+        { "name": "✨ Small Caps",               "value": "small_caps"       }
+      ]
+    }
+  ]
+}
 
 
   
