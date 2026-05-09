@@ -1248,7 +1248,7 @@ const commands = [
       "required": false
     }
   ]
-}
+},
 
 
   
