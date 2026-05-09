@@ -1180,10 +1180,21 @@ const commands = [
 
 
 
-  {
+{
   "name": "snake",
   "description": "🐍 Main Snake Game! Makan apel, hindari dinding & ekormu sendiri.",
-  "options": []
+  "options": [
+    {
+      "name": "aksi",
+      "description": "Pilih aksi",
+      "type": 3,
+      "required": false,
+      "choices": [
+        { "name": "▶️ Play — Mulai game baru", "value": "play" },
+        { "name": "🔄 Reset — Hapus game yang stuck", "value": "reset" }
+      ]
+    }
+  ]
 }
 
 
