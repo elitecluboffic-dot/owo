@@ -1512,7 +1512,10 @@ if (cmd === 'help') {
             "• `/quotesweb` → Kirim Quotes ke web: owo.kraxx.my.id/quotes",
             "• `/confess target:@user pesan:xxx` → Kirim pesan Anonim",
             "• `/feedback` → Kirim feedback/saran/laporan ke owner",
-            "• `/explode` → Ledakkan seseorang dengan efek api 🔥"
+            "• `/explode` → Ledakkan seseorang dengan efek api 🔥",
+            "• `/snake` → Main Snake Game! Makan apel, hindari dinding & ekormu sendiri 🐍",
+            "• `/genpass` → Password Generator Ultra Secure 🔐",
+            "• `/meme` → Generate Meme random dan custom 😂",
           ].join("\n")
         },
         {
