@@ -10441,6 +10441,436 @@ Kamu adalah OwoBim AI, bukan Llama atau Groq.`
 // ══════════════════════════════════════════════════════════════════════
 // END CMD: ai + premium system
 // ══════════════════════════════════════════════════════════════════════
+
+
+
+
+    
+
+
+// ══════════════════════════════════════════════════════════════════════
+// CMD: whois-username — Cek username di berbagai platform
+// Metode: HTTP request langsung (tanpa API key)
+// Tambahkan ke bagian interaction.type === 2 (slash command handler)
+// ══════════════════════════════════════════════════════════════════════
+ 
+if (cmd === 'whois-username') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const usernameInput = getOption(options, 'username')?.trim().toLowerCase();
+ 
+  if (!usernameInput) {
+    return respond(`> ${EMOJI} ❌ Masukkan username yang mau dicek!\n> 💡 Contoh: \`/whois-username username:bimxr\``);
+  }
+ 
+  if (usernameInput.length < 2 || usernameInput.length > 30) {
+    return respond(`> ${EMOJI} ❌ Username harus antara **2–30 karakter**!`);
+  }
+ 
+  if (!/^[a-zA-Z0-9._\-]+$/.test(usernameInput)) {
+    return respond(`> ${EMOJI} ❌ Username mengandung karakter tidak valid!\n> 💡 Hanya boleh huruf, angka, titik, underscore, dan strip.`);
+  }
+ 
+  // ── Cooldown 15 detik per user ──
+  const cdKey  = `whois_cd:${discordId}`;
+  const lastCd = await env.USERS_KV.get(cdKey);
+  if (lastCd) {
+    const sisa = 15000 - (Date.now() - parseInt(lastCd));
+    if (sisa > 0) {
+      return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
+    }
+  }
+  await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 30 });
+ 
+  // ── Defer dulu biar tidak timeout ──
+  waitUntil((async () => {
+ 
+    const editMsg = async (content, embeds) => {
+      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(embeds ? { content: content || '', embeds } : { content })
+      });
+    };
+ 
+    // ══════════════════════════════════════════════
+    // DAFTAR PLATFORM + cara cek + headers
+    // ══════════════════════════════════════════════
+    const PLATFORMS = [
+      // ── SOCIAL MEDIA ──
+      {
+        name:     'GitHub',
+        emoji:    '🐱',
+        category: 'Dev',
+        url:      `https://github.com/${usernameInput}`,
+        check:    'status',      // cek HTTP status code
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://github.com/${usernameInput}`,
+      },
+      {
+        name:     'Reddit',
+        emoji:    '🤖',
+        category: 'Forum',
+        url:      `https://www.reddit.com/user/${usernameInput}/about.json`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://reddit.com/u/${usernameInput}`,
+      },
+      {
+        name:     'Twitch',
+        emoji:    '🎮',
+        category: 'Streaming',
+        url:      `https://www.twitch.tv/${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://twitch.tv/${usernameInput}`,
+      },
+      {
+        name:     'Pinterest',
+        emoji:    '📌',
+        category: 'Social',
+        url:      `https://www.pinterest.com/${usernameInput}/`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://pinterest.com/${usernameInput}`,
+      },
+      {
+        name:     'SoundCloud',
+        emoji:    '🎵',
+        category: 'Music',
+        url:      `https://soundcloud.com/${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://soundcloud.com/${usernameInput}`,
+      },
+      {
+        name:     'Dev.to',
+        emoji:    '👨‍💻',
+        category: 'Dev',
+        url:      `https://dev.to/${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://dev.to/${usernameInput}`,
+      },
+      {
+        name:     'Replit',
+        emoji:    '💻',
+        category: 'Dev',
+        url:      `https://replit.com/@${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://replit.com/@${usernameInput}`,
+      },
+      {
+        name:     'Pastebin',
+        emoji:    '📋',
+        category: 'Dev',
+        url:      `https://pastebin.com/u/${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://pastebin.com/u/${usernameInput}`,
+      },
+      {
+        name:     'Keybase',
+        emoji:    '🔑',
+        category: 'Social',
+        url:      `https://keybase.io/${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://keybase.io/${usernameInput}`,
+      },
+      {
+        name:     'Linktree',
+        emoji:    '🌳',
+        category: 'Social',
+        url:      `https://linktr.ee/${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://linktr.ee/${usernameInput}`,
+      },
+      {
+        name:     'Gravatar',
+        emoji:    '🖼️',
+        category: 'Social',
+        url:      `https://en.gravatar.com/${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://gravatar.com/${usernameInput}`,
+      },
+      {
+        name:     'HackerNews',
+        emoji:    '🗞️',
+        category: 'Dev',
+        url:      `https://hacker-news.firebaseio.com/v0/user/${usernameInput}.json`,
+        check:    'body_not_null', // body !== "null"
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://news.ycombinator.com/user?id=${usernameInput}`,
+      },
+      {
+        name:     'NPM',
+        emoji:    '📦',
+        category: 'Dev',
+        url:      `https://www.npmjs.com/~${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://npmjs.com/~${usernameInput}`,
+      },
+      {
+        name:     'GitLab',
+        emoji:    '🦊',
+        category: 'Dev',
+        url:      `https://gitlab.com/${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://gitlab.com/${usernameInput}`,
+      },
+      {
+        name:     'Codecademy',
+        emoji:    '🎓',
+        category: 'Dev',
+        url:      `https://www.codecademy.com/profiles/${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://codecademy.com/profiles/${usernameInput}`,
+      },
+      {
+        name:     'Medium',
+        emoji:    '✍️',
+        category: 'Blog',
+        url:      `https://medium.com/@${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://medium.com/@${usernameInput}`,
+      },
+      {
+        name:     'Hashnode',
+        emoji:    '📝',
+        category: 'Blog',
+        url:      `https://hashnode.com/@${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://hashnode.com/@${usernameInput}`,
+      },
+      {
+        name:     'Steam',
+        emoji:    '🎮',
+        category: 'Gaming',
+        url:      `https://steamcommunity.com/id/${usernameInput}`,
+        check:    'body_not_contains',
+        notContains: 'The specified profile could not be found',
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://steamcommunity.com/id/${usernameInput}`,
+      },
+      {
+        name:     'Roblox',
+        emoji:    '🧱',
+        category: 'Gaming',
+        url:      `https://www.roblox.com/user.aspx?username=${usernameInput}`,
+        check:    'body_not_contains',
+        notContains: 'Page Not Found',
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://www.roblox.com/user.aspx?username=${usernameInput}`,
+      },
+      {
+        name:     'Minecraft',
+        emoji:    '⛏️',
+        category: 'Gaming',
+        url:      `https://api.mojang.com/users/profiles/minecraft/${usernameInput}`,
+        check:    'status',
+        okStatus: [200],
+        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://namemc.com/profile/${usernameInput}`,
+      },
+    ];
+ 
+    // ══════════════════════════════════════════════
+    // FUNGSI CEK SATU PLATFORM
+    // ══════════════════════════════════════════════
+    const checkPlatform = async (platform) => {
+      try {
+        const res = await fetch(platform.url, {
+          method:  'GET',
+          headers: platform.headers || { 'User-Agent': 'Mozilla/5.0' },
+          redirect: 'follow',
+          signal:  AbortSignal.timeout(6000),
+        });
+ 
+        if (platform.check === 'status') {
+          const ok = platform.okStatus.includes(res.status);
+          return { ...platform, found: ok, status: res.status };
+        }
+ 
+        if (platform.check === 'body_not_null') {
+          const text = await res.text();
+          const found = text.trim() !== 'null' && text.trim() !== '';
+          return { ...platform, found, status: res.status };
+        }
+ 
+        if (platform.check === 'body_not_contains') {
+          const text = await res.text();
+          const found = !text.includes(platform.notContains);
+          return { ...platform, found, status: res.status };
+        }
+ 
+        return { ...platform, found: false, status: res.status };
+ 
+      } catch (err) {
+        return { ...platform, found: null, status: 0, error: err.message };
+      }
+    };
+ 
+    // ══════════════════════════════════════════════
+    // CEK SEMUA PLATFORM SECARA PARALEL
+    // Dibagi batch 5 agar tidak overload
+    // ══════════════════════════════════════════════
+    const BATCH_SIZE = 5;
+    const results    = [];
+ 
+    for (let i = 0; i < PLATFORMS.length; i += BATCH_SIZE) {
+      const batch       = PLATFORMS.slice(i, i + BATCH_SIZE);
+      const batchResult = await Promise.all(batch.map(p => checkPlatform(p)));
+      results.push(...batchResult);
+    }
+ 
+    // ══════════════════════════════════════════════
+    // BUILD HASIL
+    // ══════════════════════════════════════════════
+    const found    = results.filter(r => r.found === true);
+    const notFound = results.filter(r => r.found === false);
+    const unknown  = results.filter(r => r.found === null);
+ 
+    // Group by category
+    const categories = {};
+    for (const r of results) {
+      const cat = r.category || 'Other';
+      if (!categories[cat]) categories[cat] = [];
+      categories[cat].push(r);
+    }
+ 
+    const CATEGORY_EMOJI = {
+      'Dev':       '💻',
+      'Social':    '🌐',
+      'Forum':     '💬',
+      'Streaming': '📡',
+      'Music':     '🎵',
+      'Gaming':    '🎮',
+      'Blog':      '📝',
+      'Other':     '🔗',
+    };
+ 
+    // Build embed fields per category
+    const fields = [];
+    for (const [cat, platforms] of Object.entries(categories)) {
+      const lines = platforms.map(p => {
+        if (p.found === true)  return `${p.emoji} [${p.name}](${p.profileUrl}) 🔴`;
+        if (p.found === false) return `${p.emoji} ${p.name} ✅`;
+        return `${p.emoji} ${p.name} ⚠️`;
+      }).join('\n');
+ 
+      fields.push({
+        name:   `${CATEGORY_EMOJI[cat] || '🔗'} ${cat}`,
+        value:  lines,
+        inline: true,
+      });
+    }
+ 
+    // ── Stats bar ──
+    const total    = results.length;
+    const foundPct = Math.round((found.length / total) * 10);
+    const bar      = '🟥'.repeat(foundPct) + '🟩'.repeat(10 - foundPct);
+ 
+    // ── Risk level ──
+    const riskLevel = found.length >= 10
+      ? '🔴 Sangat Terekspos'
+      : found.length >= 6
+      ? '🟠 Cukup Terekspos'
+      : found.length >= 3
+      ? '🟡 Sedikit Terekspos'
+      : '🟢 Aman / Jarang Dipakai';
+ 
+    const waktu = new Date().toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+ 
+    // ── Found list (max 5 ditampilkan sebagai link) ──
+    const foundLinks = found.slice(0, 8)
+      .map(p => `[${p.emoji} ${p.name}](${p.profileUrl})`)
+      .join(' • ') || 'Tidak ada';
+ 
+    const desc = [
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;33m🔍  USERNAME LOOKUP  🔍\u001b[0m             \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━ 📊 RINGKASAN ━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  🔍  Username   :\u001b[0m \u001b[1;37m${usernameInput}\u001b[0m`,
+      `\u001b[1;36m  🔴  Ditemukan  :\u001b[0m \u001b[1;31m${found.length} platform\u001b[0m`,
+      `\u001b[1;36m  ✅  Tersedia   :\u001b[0m \u001b[1;32m${notFound.length} platform\u001b[0m`,
+      `\u001b[1;36m  ⚠️   Unknown   :\u001b[0m \u001b[0;37m${unknown.length} platform\u001b[0m`,
+      `\u001b[1;36m  📊  Total Cek  :\u001b[0m \u001b[0;37m${total} platform\u001b[0m`,
+      `\u001b[1;36m  🛡️   Risk Level :\u001b[0m \u001b[0;37m${riskLevel}\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  📈  Exposure   :\u001b[0m \u001b[0;37m${bar}\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      found.length > 0
+        ? `> 🔴 **Profil Ditemukan:** ${foundLinks}`
+        : `> ✅ Username **${usernameInput}** tampaknya belum dipakai di mana-mana!`,
+      `> 🕐 Dicek pada: ${waktu} WIB`,
+      `> ⚠️ *Hasil mungkin tidak 100% akurat untuk beberapa platform*`,
+    ].join('\n');
+ 
+    // ── Legend ──
+    const legendField = {
+      name:   '📖 Keterangan',
+      value:  '🔴 = Username **dipakai** (ada profil)\n✅ = Username **tersedia**\n⚠️ = Tidak bisa dicek (timeout/block)',
+      inline: false,
+    };
+ 
+    const color = found.length >= 10 ? 0xFF4500
+      : found.length >= 6  ? 0xFF8C00
+      : found.length >= 3  ? 0xFFD700
+      : 0x2ECC71;
+ 
+    await editMsg('', [{
+      color,
+      title:       `🔍 Username Lookup — ${usernameInput}`,
+      description: desc,
+      fields:      [...fields, legendField],
+      footer:      { text: `OwoBim OSINT Tools • ${total} platform dicek` },
+      timestamp:   new Date().toISOString(),
+    }]);
+ 
+  })());
+ 
+  return new Response(JSON.stringify({ type: 5 }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
+
+
+
+    
     
     
     
