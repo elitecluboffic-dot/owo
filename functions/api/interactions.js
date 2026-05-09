@@ -12028,10 +12028,6 @@ if (cmd === 'font') {
     return respond(`> ${EMOJI} ❌ Maks **100 karakter**! Kamu: **${teks.length}**`);
   }
 
-  // ══════════════════════════════════════════════
-  // UNICODE MAPS — setiap karakter dipetakan manual
-  // ══════════════════════════════════════════════
-
   const MAP = {
     bold_sans: {
       upper: [...'𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭'],
@@ -12095,109 +12091,60 @@ if (cmd === 'font') {
     },
   };
 
-  // ── Circled ──
-  const CIRCLED_UPPER = [...'ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ'];
-  const CIRCLED_LOWER = [...'ⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ'];
-  const CIRCLED_DIGIT = [...'⓪①②③④⑤⑥⑦⑧⑨'];
-
-  // ── Squared ──
-  const SQUARED_UPPER = [...'🄰🄱🄲🄳🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉'];
-
-  // ── Negative Circled ──
+  const CIRCLED_UPPER  = [...'ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ'];
+  const CIRCLED_LOWER  = [...'ⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ'];
+  const CIRCLED_DIGIT  = [...'⓪①②③④⑤⑥⑦⑧⑨'];
+  const SQUARED_UPPER  = [...'🄰🄱🄲🄳🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉'];
   const NEG_CIRCLED_UPPER = [...'🅐🅑🅒🅓🅔🅕🅖🅗🅘🅙🅚🅛🅜🅝🅞🅟🅠🅡🅢🅣🅤🅥🅦🅧🅨🅩'];
-
-  // ── Negative Squared ──
   const NEG_SQUARED_UPPER = [...'🅰🅱🅲🅳🅴🅵🅶🅷🅸🅹🅺🅻🅼🅽🅾🅿🆀🆁🆂🆃🆄🆅🆆🆇🆈🆉'];
 
-  // ── Fullwidth ──
-  const toFullwidth = (c) => {
-    if (c === ' ') return '　';
-    const code = c.charCodeAt(0);
-    if (code >= 33 && code <= 126) return String.fromCharCode(code - 33 + 65281);
-    return c;
-  };
+  const toFullwidth  = c => { if (c === ' ') return '　'; const code = c.charCodeAt(0); return (code >= 33 && code <= 126) ? String.fromCharCode(code - 33 + 65281) : c; };
+  const toWavy       = str => [...str].map(c => c + '͜͡').join('');
+  const toStrike     = str => [...str].map(c => c + '̶').join('');
+  const toUnderline  = str => [...str].map(c => c + '̲').join('');
+  const toDoubleStrike = str => [...str].map(c => c + '̶̶').join('');
 
-  // ── Wavy underline ──
-  const toWavy = (str) => [...str].map(c => c + '͜͡').join('');
-
-  // ── Strikethrough ──
-  const toStrike = (str) => [...str].map(c => c + '̶').join('');
-
-  // ── Upside Down ──
   const UPSIDE_DOWN_MAP = {
-    a:'ɐ', b:'q', c:'ɔ', d:'p', e:'ǝ', f:'ɟ', g:'ƃ', h:'ɥ', i:'ᴉ', j:'ɾ',
-    k:'ʞ', l:'l', m:'ɯ', n:'u', o:'o', p:'d', q:'b', r:'ɹ', s:'s', t:'ʇ',
-    u:'n', v:'ʌ', w:'ʍ', x:'x', y:'ʎ', z:'z',
-    A:'∀', B:'ᗺ', C:'Ɔ', D:'ᗡ', E:'Ǝ', F:'Ⅎ', G:'פ', H:'H', I:'I', J:'ɾ',
-    K:'ʞ', L:'˥', M:'W', N:'N', O:'O', P:'Ԁ', Q:'Q', R:'ᴚ', S:'S', T:'⊥',
-    U:'∩', V:'Λ', W:'M', X:'X', Y:'⅄', Z:'Z',
+    a:'ɐ',b:'q',c:'ɔ',d:'p',e:'ǝ',f:'ɟ',g:'ƃ',h:'ɥ',i:'ᴉ',j:'ɾ',k:'ʞ',l:'l',m:'ɯ',n:'u',o:'o',p:'d',q:'b',r:'ɹ',s:'s',t:'ʇ',u:'n',v:'ʌ',w:'ʍ',x:'x',y:'ʎ',z:'z',
+    A:'∀',B:'ᗺ',C:'Ɔ',D:'ᗡ',E:'Ǝ',F:'Ⅎ',G:'פ',H:'H',I:'I',J:'ɾ',K:'ʞ',L:'˥',M:'W',N:'N',O:'O',P:'Ԁ',Q:'Q',R:'ᴚ',S:'S',T:'⊥',U:'∩',V:'Λ',W:'M',X:'X',Y:'⅄',Z:'Z',
     '0':'0','1':'Ɩ','2':'ᄅ','3':'Ɛ','4':'ㄣ','5':'ϛ','6':'9','7':'ㄥ','8':'8','9':'6',
-    '.':'˙',',':'\'','!':'¡','?':'¿','(':')',')':'(','{':'}','}':'{','[':']',']':'[',
-    '&':'⅋','_':'‾'
+    '.':'˙',',':'\'','!':'¡','?':'¿','(':')',')':'(','[':']',']':'[','&':'⅋','_':'‾'
   };
-  const toUpsideDown = (str) => [...str].reverse().map(c => UPSIDE_DOWN_MAP[c] || c).join('');
+  const toUpsideDown = str => [...str].reverse().map(c => UPSIDE_DOWN_MAP[c] || c).join('');
 
-  // ── Superscript ──
   const SUPERSCRIPT_MAP = {
-    a:'ᵃ', b:'ᵇ', c:'ᶜ', d:'ᵈ', e:'ᵉ', f:'ᶠ', g:'ᵍ', h:'ʰ', i:'ⁱ', j:'ʲ',
-    k:'ᵏ', l:'ˡ', m:'ᵐ', n:'ⁿ', o:'ᵒ', p:'ᵖ', r:'ʳ', s:'ˢ', t:'ᵗ', u:'ᵘ',
-    v:'ᵛ', w:'ʷ', x:'ˣ', y:'ʸ', z:'ᶻ',
-    A:'ᴬ', B:'ᴮ', D:'ᴰ', E:'ᴱ', G:'ᴳ', H:'ᴴ', I:'ᴵ', J:'ᴶ', K:'ᴷ', L:'ᴸ',
-    M:'ᴹ', N:'ᴺ', O:'ᴼ', P:'ᴾ', R:'ᴿ', T:'ᵀ', U:'ᵁ', V:'ⱽ', W:'ᵂ',
-    '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹',
-    '+':'⁺','-':'⁻','=':'⁼','(':'⁽',')':'⁾'
+    a:'ᵃ',b:'ᵇ',c:'ᶜ',d:'ᵈ',e:'ᵉ',f:'ᶠ',g:'ᵍ',h:'ʰ',i:'ⁱ',j:'ʲ',k:'ᵏ',l:'ˡ',m:'ᵐ',n:'ⁿ',o:'ᵒ',p:'ᵖ',r:'ʳ',s:'ˢ',t:'ᵗ',u:'ᵘ',v:'ᵛ',w:'ʷ',x:'ˣ',y:'ʸ',z:'ᶻ',
+    A:'ᴬ',B:'ᴮ',D:'ᴰ',E:'ᴱ',G:'ᴳ',H:'ᴴ',I:'ᴵ',J:'ᴶ',K:'ᴷ',L:'ᴸ',M:'ᴹ',N:'ᴺ',O:'ᴼ',P:'ᴾ',R:'ᴿ',T:'ᵀ',U:'ᵁ',V:'ⱽ',W:'ᵂ',
+    '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+'  :'⁺','-':'⁻','=':'⁼','(':'⁽',')':'⁾'
   };
-  const toSuperscript = (str) => [...str].map(c => SUPERSCRIPT_MAP[c] || c).join('');
+  const toSuperscript = str => [...str].map(c => SUPERSCRIPT_MAP[c] || c).join('');
 
-  // ── Small Caps ──
+  const SUBSCRIPT_MAP = {
+    a:'ₐ',e:'ₑ',h:'ₕ',i:'ᵢ',j:'ⱼ',k:'ₖ',l:'ₗ',m:'ₘ',n:'ₙ',o:'ₒ',p:'ₚ',r:'ᵣ',s:'ₛ',t:'ₜ',u:'ᵤ',v:'ᵥ',x:'ₓ',
+    '0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','+'  :'₊','-':'₋','=':'₌','(':'₍',')':'₎'
+  };
+  const toSubscript = str => [...str].map(c => SUBSCRIPT_MAP[c] || c).join('');
+
   const SMALL_CAPS_MAP = {
-    a:'ᴀ', b:'ʙ', c:'ᴄ', d:'ᴅ', e:'ᴇ', f:'ꜰ', g:'ɢ', h:'ʜ', i:'ɪ', j:'ᴊ',
-    k:'ᴋ', l:'ʟ', m:'ᴍ', n:'ɴ', o:'ᴏ', p:'ᴘ', q:'ǫ', r:'ʀ', s:'ꜱ', t:'ᴛ',
-    u:'ᴜ', v:'ᴠ', w:'ᴡ', x:'x', y:'ʏ', z:'ᴢ'
+    a:'ᴀ',b:'ʙ',c:'ᴄ',d:'ᴅ',e:'ᴇ',f:'ꜰ',g:'ɢ',h:'ʜ',i:'ɪ',j:'ᴊ',k:'ᴋ',l:'ʟ',m:'ᴍ',n:'ɴ',o:'ᴏ',p:'ᴘ',q:'ǫ',r:'ʀ',s:'ꜱ',t:'ᴛ',u:'ᴜ',v:'ᴠ',w:'ᴡ',x:'x',y:'ʏ',z:'ᴢ'
   };
-  const toSmallCaps = (str) => [...str].map(c => SMALL_CAPS_MAP[c.toLowerCase()] || c).join('');
+  const toSmallCaps = str => [...str].map(c => SMALL_CAPS_MAP[c.toLowerCase()] || c).join('');
 
-  // ── Mirror / Reverse ──
   const MIRROR_MAP = {
-    a:'ɒ', b:'d', c:'ɔ', d:'b', e:'ɘ', f:'ʇ', g:'ϱ', h:'ʜ', j:'ꞁ', k:'ʞ',
-    n:'ᴎ', p:'q', q:'p', r:'ɿ', s:'ƨ', y:'γ', z:'ƹ',
-    B:'ᗺ', C:'Ɔ', D:'ᗡ', E:'Ǝ', J:'Ⴑ', K:'⋊', N:'ᴎ', P:'ꟼ', R:'Я', S:'Ƨ',
-    Z:'Ƹ'
+    a:'ɒ',b:'d',c:'ɔ',d:'b',e:'ɘ',f:'ʇ',g:'ϱ',h:'ʜ',j:'ꞁ',k:'ʞ',n:'ᴎ',p:'q',q:'p',r:'ɿ',s:'ƨ',y:'γ',z:'ƹ',
+    B:'ᗺ',C:'Ɔ',D:'ᗡ',E:'Ǝ',J:'Ⴑ',K:'⋊',N:'ᴎ',P:'ꟼ',R:'Я',S:'Ƨ',Z:'Ƹ'
   };
-  const toMirror = (str) => [...str].reverse().map(c => MIRROR_MAP[c] || c).join('');
+  const toMirror = str => [...str].reverse().map(c => MIRROR_MAP[c] || c).join('');
 
-  // ── Bubble / Enclosed ──
-  const toBubble = (str) => {
-    const bubbleMap = {
-      a:'ⓐ',b:'ⓑ',c:'ⓒ',d:'ⓓ',e:'ⓔ',f:'ⓕ',g:'ⓖ',h:'ⓗ',i:'ⓘ',j:'ⓙ',
-      k:'ⓚ',l:'ⓛ',m:'ⓜ',n:'ⓝ',o:'ⓞ',p:'ⓟ',q:'ⓠ',r:'ⓡ',s:'ⓢ',t:'ⓣ',
-      u:'ⓤ',v:'ⓥ',w:'ⓦ',x:'ⓧ',y:'ⓨ',z:'ⓩ',
-      A:'Ⓐ',B:'Ⓑ',C:'Ⓒ',D:'Ⓓ',E:'Ⓔ',F:'Ⓕ',G:'Ⓖ',H:'Ⓗ',I:'Ⓘ',J:'Ⓙ',
-      K:'Ⓚ',L:'Ⓛ',M:'Ⓜ',N:'Ⓝ',O:'Ⓞ',P:'Ⓟ',Q:'Ⓠ',R:'Ⓡ',S:'Ⓢ',T:'Ⓣ',
-      U:'Ⓤ',V:'Ⓥ',W:'Ⓦ',X:'Ⓧ',Y:'Ⓨ',Z:'Ⓩ',
-      '0':'⓪','1':'①','2':'②','3':'③','4':'④','5':'⑤','6':'⑥','7':'⑦','8':'⑧','9':'⑨'
-    };
-    return [...str].map(c => bubbleMap[c] || c).join('');
+  const toBubble = str => {
+    const m = {a:'ⓐ',b:'ⓑ',c:'ⓒ',d:'ⓓ',e:'ⓔ',f:'ⓕ',g:'ⓖ',h:'ⓗ',i:'ⓘ',j:'ⓙ',k:'ⓚ',l:'ⓛ',m:'ⓜ',n:'ⓝ',o:'ⓞ',p:'ⓟ',q:'ⓠ',r:'ⓡ',s:'ⓢ',t:'ⓣ',u:'ⓤ',v:'ⓥ',w:'ⓦ',x:'ⓧ',y:'ⓨ',z:'ⓩ',A:'Ⓐ',B:'Ⓑ',C:'Ⓒ',D:'Ⓓ',E:'Ⓔ',F:'Ⓕ',G:'Ⓖ',H:'Ⓗ',I:'Ⓘ',J:'Ⓙ',K:'Ⓚ',L:'Ⓛ',M:'Ⓜ',N:'Ⓝ',O:'Ⓞ',P:'Ⓟ',Q:'Ⓠ',R:'Ⓡ',S:'Ⓢ',T:'Ⓣ',U:'Ⓤ',V:'Ⓥ',W:'Ⓦ',X:'Ⓧ',Y:'Ⓨ',Z:'Ⓩ','0':'⓪','1':'①','2':'②','3':'③','4':'④','5':'⑤','6':'⑥','7':'⑦','8':'⑧','9':'⑨'};
+    return [...str].map(c => m[c] || c).join('');
   };
 
-  // ── Regional Indicator ──
-  const toRegional = (str) => {
-    return [...str.toUpperCase()].map(c => {
-      const code = c.charCodeAt(0);
-      if (code >= 65 && code <= 90) return String.fromCodePoint(0x1F1E0 + code - 65) + ' ';
-      if (c === ' ') return '  ';
-      return c + ' ';
-    }).join('');
-  };
+  const toRegional = str => [...str.toUpperCase()].map(c => { const code = c.charCodeAt(0); if (code >= 65 && code <= 90) return String.fromCodePoint(0x1F1E0 + code - 65) + ' '; return c === ' ' ? '  ' : c + ' '; }).join('');
 
-  // ══════════════════════════════════════════════
-  // CORE CONVERTER
-  // ══════════════════════════════════════════════
   const convertWith = (str, mapObj) => {
-    const upper = mapObj.upper || [];
-    const lower = mapObj.lower || [];
-    const digit = mapObj.digit || [];
-
+    const upper = mapObj.upper || [], lower = mapObj.lower || [], digit = mapObj.digit || [];
     return [...str].map(c => {
       const code = c.charCodeAt(0);
       if (code >= 65 && code <= 90  && upper.length) return upper[code - 65];
@@ -12207,42 +12154,40 @@ if (cmd === 'font') {
     }).join('');
   };
 
-  // ── Semua gaya yang tersedia ──
   const ALL_STYLES = [
-    { id: 'bold_sans',         label: '🔵 Bold Sans',           fn: t => convertWith(t, MAP.bold_sans)         },
-    { id: 'italic_bold_sans',  label: '🔵 Italic Bold Sans',    fn: t => convertWith(t, MAP.italic_bold_sans)  },
-    { id: 'bold_serif',        label: '📜 Bold Serif',          fn: t => convertWith(t, MAP.bold_serif)        },
-    { id: 'italic_bold_serif', label: '📜 Italic Bold Serif',   fn: t => convertWith(t, MAP.italic_bold_serif) },
-    { id: 'italic_serif',      label: '📜 Italic Serif',        fn: t => convertWith(t, MAP.italic_serif)      },
-    { id: 'double_struck',     label: '⬛ Double Struck',       fn: t => convertWith(t, MAP.double_struck)     },
-    { id: 'fraktur_bold',      label: '🏰 Fraktur Bold',        fn: t => convertWith(t, MAP.fraktur_bold)      },
-    { id: 'fraktur',           label: '🏰 Fraktur',             fn: t => convertWith(t, MAP.fraktur)           },
-    { id: 'mono',              label: '💻 Monospace',           fn: t => convertWith(t, MAP.mono)              },
-    { id: 'italic_mono',       label: '💻 Italic Mono',         fn: t => convertWith(t, MAP.italic_mono)       },
-    { id: 'cursive',           label: '🌟 Cursive Script',      fn: t => convertWith(t, MAP.cursive)           },
-    { id: 'cursive_bold',      label: '📦 Cursive Bold',        fn: t => convertWith(t, MAP.cursive_bold)      },
-    { id: 'circled',           label: '🔘 Circled',             fn: t => convertWith(t, { upper: CIRCLED_UPPER, lower: CIRCLED_LOWER, digit: CIRCLED_DIGIT }) },
-    { id: 'squared',           label: '🔲 Squared',             fn: t => convertWith(t, { upper: SQUARED_UPPER, lower: SQUARED_UPPER.map(c => c), digit: [...'0123456789'] }) },
-    { id: 'neg_circled',       label: '🅱️ Neg Circled',         fn: t => convertWith(t, { upper: NEG_CIRCLED_UPPER, lower: NEG_CIRCLED_UPPER.map(c => c), digit: [...'0123456789'] }) },
-    { id: 'neg_squared',       label: '🔲 Neg Squared',         fn: t => convertWith(t, { upper: NEG_SQUARED_UPPER, lower: NEG_SQUARED_UPPER.map(c => c), digit: [...'0123456789'] }) },
-    { id: 'fullwidth',         label: '🔵 Fullwidth',           fn: t => [...t].map(toFullwidth).join('') },
-    { id: 'wavy',              label: '🌊 Wavy Underline',      fn: t => toWavy(t)        },
-    { id: 'strikethrough',     label: '✏️ Strikethrough',       fn: t => toStrike(t)      },
-    { id: 'upside_down',       label: '🔡 Upside Down',         fn: t => toUpsideDown(t)  },
-    { id: 'superscript',       label: '🌀 Superscript',         fn: t => toSuperscript(t) },
-    { id: 'small_caps',        label: '✨ Small Caps',          fn: t => toSmallCaps(t)   },
-    { id: 'mirror',            label: '↔️ Mirror',              fn: t => toMirror(t)      },
-    { id: 'bubble',            label: '🫧 Bubble',              fn: t => toBubble(t)      },
-    { id: 'regional',          label: '🧩 Regional Indicator',  fn: t => toRegional(t)    },
+    { id: 'bold_sans',         label: '🔵 Bold Sans',          fn: t => convertWith(t, MAP.bold_sans)         },
+    { id: 'italic_bold_sans',  label: '🔵 Italic Bold Sans',   fn: t => convertWith(t, MAP.italic_bold_sans)  },
+    { id: 'bold_serif',        label: '📜 Bold Serif',         fn: t => convertWith(t, MAP.bold_serif)        },
+    { id: 'italic_bold_serif', label: '📜 Italic Bold Serif',  fn: t => convertWith(t, MAP.italic_bold_serif) },
+    { id: 'italic_serif',      label: '📜 Italic Serif',       fn: t => convertWith(t, MAP.italic_serif)      },
+    { id: 'double_struck',     label: '⬛ Double Struck',      fn: t => convertWith(t, MAP.double_struck)     },
+    { id: 'fraktur_bold',      label: '🏰 Fraktur Bold',       fn: t => convertWith(t, MAP.fraktur_bold)      },
+    { id: 'fraktur',           label: '🏰 Fraktur',            fn: t => convertWith(t, MAP.fraktur)           },
+    { id: 'mono',              label: '💻 Monospace',          fn: t => convertWith(t, MAP.mono)              },
+    { id: 'italic_mono',       label: '💻 Italic Mono',        fn: t => convertWith(t, MAP.italic_mono)       },
+    { id: 'cursive',           label: '🌟 Cursive Script',     fn: t => convertWith(t, MAP.cursive)           },
+    { id: 'cursive_bold',      label: '📦 Cursive Bold',       fn: t => convertWith(t, MAP.cursive_bold)      },
+    { id: 'circled',           label: '🔘 Circled',            fn: t => convertWith(t, { upper: CIRCLED_UPPER, lower: CIRCLED_LOWER, digit: CIRCLED_DIGIT }) },
+    { id: 'squared',           label: '🔲 Squared',            fn: t => convertWith(t, { upper: SQUARED_UPPER, lower: SQUARED_UPPER, digit: [...'0123456789'] }) },
+    { id: 'neg_circled',       label: '🅱️ Neg Circled',        fn: t => convertWith(t, { upper: NEG_CIRCLED_UPPER, lower: NEG_CIRCLED_UPPER, digit: [...'0123456789'] }) },
+    { id: 'neg_squared',       label: '🔲 Neg Squared',        fn: t => convertWith(t, { upper: NEG_SQUARED_UPPER, lower: NEG_SQUARED_UPPER, digit: [...'0123456789'] }) },
+    { id: 'fullwidth',         label: '🔵 Fullwidth',          fn: t => [...t].map(toFullwidth).join('')      },
+    { id: 'wavy',              label: '🌊 Wavy Underline',     fn: t => toWavy(t)                             },
+    { id: 'strikethrough',     label: '✏️ Strikethrough',      fn: t => toStrike(t)                           },
+    { id: 'underline',         label: '📏 Underline',          fn: t => toUnderline(t)                        },
+    { id: 'upside_down',       label: '🔡 Upside Down',        fn: t => toUpsideDown(t)                       },
+    { id: 'superscript',       label: '🌀 Superscript',        fn: t => toSuperscript(t)                      },
+    { id: 'subscript',         label: '🔽 Subscript',          fn: t => toSubscript(t)                        },
+    { id: 'small_caps',        label: '✨ Small Caps',         fn: t => toSmallCaps(t)                        },
+    { id: 'mirror',            label: '↔️ Mirror',             fn: t => toMirror(t)                           },
+    { id: 'bubble',            label: '🫧 Bubble',             fn: t => toBubble(t)                           },
+    { id: 'regional',          label: '🧩 Regional Indicator', fn: t => toRegional(t)                         },
   ];
 
-  const waktu = new Date().toLocaleString('id-ID', {
-    timeZone: 'Asia/Jakarta',
-    hour: '2-digit', minute: '2-digit'
-  });
+  const waktu = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' });
 
   // ══════════════════════════════════════════════
-  // MODE 1: Satu gaya spesifik
+  // MODE 1: Satu gaya spesifik — hasil di luar code block, bisa disalin
   // ══════════════════════════════════════════════
   if (gaya) {
     const style = ALL_STYLES.find(s => s.id === gaya);
@@ -12251,79 +12196,74 @@ if (cmd === 'font') {
     }
 
     let hasil;
-    try {
-      hasil = style.fn(teks);
-    } catch (_) {
-      hasil = teks;
-    }
+    try { hasil = style.fn(teks); } catch (_) { hasil = teks; }
 
-    return respond([
-      '```ansi',
-      '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
-      '\u001b[2;35m║  \u001b[1;33m✏️  FONT CONVERTER  ✏️\u001b[0m             \u001b[2;35m║\u001b[0m',
-      '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
-      '```',
-      '```ansi',
-      '\u001b[1;33m━━━━━━━━━━━━ 📋 HASIL ━━━━━━━━━━━━━━━\u001b[0m',
-      `\u001b[1;36m  📝  Teks Asli :\u001b[0m \u001b[0;37m${teks}\u001b[0m`,
-      `\u001b[1;36m  🎨  Gaya      :\u001b[0m \u001b[0;37m${style.label}\u001b[0m`,
-      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-      '```',
-      `> ${hasil}`,
-      `> 🕐 ${waktu} WIB | 🤖 *OwoBim Font Engine* ${EMOJI}`
-    ].join('\n'));
+    return new Response(JSON.stringify({
+      type: 4,
+      data: {
+        embeds: [{
+          color: 0x9B59B6,
+          title: `✏️ Font Converter — ${style.label}`,
+          description: [
+            `📝 **Teks Asli:** ${teks}`,
+            `🎨 **Gaya:** ${style.label}`,
+            ``,
+            `✨ **Hasil** *(klik teks di bawah untuk menyalin):*`,
+          ].join('\n'),
+          fields: [
+            {
+              name: '📋 Copy text:',
+              value: hasil,
+              inline: false
+            }
+          ],
+          footer: { text: `OwoBim Font Engine • ${waktu} WIB • ${ALL_STYLES.length} gaya tersedia` },
+          timestamp: new Date().toISOString()
+        }]
+      }
+    }), { headers: { 'Content-Type': 'application/json' } });
   }
 
   // ══════════════════════════════════════════════
-  // MODE 2: Tampilkan semua gaya (paginated)
+  // MODE 2: Semua gaya — hasil tiap gaya di field embed (bisa disalin)
+  // Dibagi 2 embed karena Discord max 25 fields per embed
   // ══════════════════════════════════════════════
-  // Discord embed max 6000 char — kita split jadi 2 respons
-  // atau tampilkan 12 gaya populer saja di mode "semua"
 
-  const TOP_STYLES = ALL_STYLES.slice(0, 16); // 16 gaya utama
-
-  const rows = TOP_STYLES.map(s => {
+  // Ambil semua hasil dulu
+  const allResults = ALL_STYLES.map(s => {
     let hasil;
     try { hasil = s.fn(teks); } catch (_) { hasil = teks; }
-    return `${s.label}\n> ${hasil}`;
+    return { label: s.label, hasil };
   });
 
-  // Split 2 bagian agar tidak melebihi limit Discord (2000 char)
-  const part1 = rows.slice(0, 8);
-  const part2 = rows.slice(8, 16);
+  // Bagi jadi 2 grup — masing-masing max 25 fields
+  const grup1 = allResults.slice(0, 14);
+  const grup2 = allResults.slice(14);
 
-  const header = [
-    '```ansi',
-    '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
-    '\u001b[2;35m║  \u001b[1;33m✏️  FONT CONVERTER — ALL STYLES  ✏️\u001b[0m  \u001b[2;35m║\u001b[0m',
-    '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
-    '```',
-    `> ${EMOJI} Teks asli: **${teks}**`,
-    `> 💡 Pakai \`/font gaya:<nama>\` untuk gaya spesifik!`,
-    '',
-  ].join('\n');
+  const fields1 = grup1.map(r => ({ name: r.label, value: r.hasil, inline: true }));
+  const fields2 = grup2.map(r => ({ name: r.label, value: r.hasil, inline: true }));
 
-  const body1 = part1.join('\n\n');
-  const body2 = part2.join('\n\n');
-  const footer = [
-    '',
-    '```ansi',
-    '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-    `\u001b[1;36m  🎨  Total Gaya :\u001b[0m \u001b[0;37m${ALL_STYLES.length} gaya tersedia\u001b[0m`,
-    `\u001b[1;36m  🕐  Waktu      :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
-    '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
-    '```',
-  ].join('\n');
-
-  const fullContent = header + body1 + '\n\n' + body2 + footer;
-
-  // Truncate kalau masih panjang
-  const MAX_LEN   = 1980;
-  const finalContent = fullContent.length > MAX_LEN
-    ? fullContent.slice(0, MAX_LEN) + '\n> *(dipotong — pakai `/font gaya:xxx` untuk lebih)*'
-    : fullContent;
-
-  return respond(finalContent);
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: `${EMOJI} **Font Converter** | Teks: \`${teks}\` | 🕐 ${waktu} WIB\n> 💡 Klik teks di setiap kotak untuk menyalin! Pakai \`/font gaya:<nama>\` untuk satu gaya saja.`,
+      embeds: [
+        {
+          color: 0x9B59B6,
+          title: `✏️ Font Converter — Part 1/2 (${grup1.length} gaya)`,
+          fields: fields1,
+          footer: { text: `OwoBim Font Engine • ${ALL_STYLES.length} total gaya` }
+        },
+        {
+          color: 0x5865F2,
+          title: `✏️ Font Converter — Part 2/2 (${grup2.length} gaya)`,
+          fields: fields2,
+          footer: { text: `OwoBim Font Engine • ${waktu} WIB` },
+          timestamp: new Date().toISOString()
+        }
+      ]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
 }
 // ══════════════════════════════════════════════════════════════════════
 // END CMD: font
