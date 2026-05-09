@@ -1202,6 +1202,62 @@ const commands = [
 
 
 
+
+  {
+  "name": "genpass",
+  "description": "Generate password super kuat & aman!",
+  "options": [
+    {
+      "name": "panjang",
+      "description": "Panjang password (default: 16, max: 128)",
+      "type": 4,
+      "required": false
+    },
+    {
+      "name": "tipe",
+      "description": "Tipe password yang mau digenerate",
+      "type": 3,
+      "required": false,
+      "choices": [
+        { "name": "🔐 Ultra — Semua karakter + simbol (paling kuat)", "value": "ultra" },
+        { "name": "💪 Strong — Huruf + angka + simbol umum", "value": "strong" },
+        { "name": "📝 Medium — Huruf + angka saja", "value": "medium" },
+        { "name": "🔢 PIN — Angka saja", "value": "pin" },
+        { "name": "🎯 Memorable — Kata-kata random yang mudah diingat", "value": "memorable" },
+        { "name": "🔑 Passphrase — Beberapa kata digabung (sangat kuat)", "value": "passphrase" },
+        { "name": "🌐 API Key — Format mirip API key", "value": "apikey" },
+        { "name": "🆔 UUID — Format UUID v4", "value": "uuid" }
+      ]
+    },
+    {
+      "name": "jumlah",
+      "description": "Berapa password yang digenerate (default: 1, max: 10)",
+      "type": 4,
+      "required": false
+    },
+    {
+      "name": "exclude_ambiguous",
+      "description": "Hindari karakter mirip (0/O, 1/l/I) — default: false",
+      "type": 5,
+      "required": false
+    },
+    {
+      "name": "no_simbol",
+      "description": "Tanpa simbol — default: false",
+      "type": 5,
+      "required": false
+    }
+  ]
+}
+
+
+  
+
+
+
+
+
+
   {
   "name": "meme",
   "description": "Generate meme random atau custom pakai Imgflip!",
