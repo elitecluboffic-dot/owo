@@ -11567,6 +11567,442 @@ if (cmd === 'meme') {
 
 
 
+// ══════════════════════════════════════════════════════════════════════
+// CMD: genpass — Password Generator Ultra Secure
+// No external API needed — pure crypto.getRandomValues()
+// ══════════════════════════════════════════════════════════════════════
+if (cmd === 'genpass') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+
+  // ── Ambil options ──
+  const tipe             = getOption(options, 'tipe')              || 'strong';
+  const panjangRaw       = parseInt(getOption(options, 'panjang')  || '16');
+  const jumlahRaw        = parseInt(getOption(options, 'jumlah')   || '1');
+  const excludeAmbiguous = getOption(options, 'exclude_ambiguous') === 'true';
+  const noSimbol         = getOption(options, 'no_simbol')         === 'true';
+
+  // ── Validasi ──
+  const panjang = Math.min(Math.max(panjangRaw, 4), 128);
+  const jumlah  = Math.min(Math.max(jumlahRaw,  1), 10);
+
+  // ══════════════════════════════════════════════
+  // CHARSET DEFINITIONS
+  // ══════════════════════════════════════════════
+  const CHARS = {
+    upper:         'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    lower:         'abcdefghijklmnopqrstuvwxyz',
+    digits:        '0123456789',
+    simbol_common: '!@#$%^&*',
+    simbol_extra:  '()_+-=[]{}|;:,.<>?',
+    simbol_ultra:  '~`!@#$%^&*()-_+=[]{}|\\;:\'",./<>?',
+    ambiguous:     '0O1lI',
+  };
+
+  // Remove ambiguous chars kalau diaktifkan
+  const removeAmbiguous = (str) => {
+    if (!excludeAmbiguous) return str;
+    return str.split('').filter(c => !CHARS.ambiguous.includes(c)).join('');
+  };
+
+  // ── Charset per tipe ──
+  const getCharset = (tipe) => {
+    const u = removeAmbiguous(CHARS.upper);
+    const l = removeAmbiguous(CHARS.lower);
+    const d = removeAmbiguous(CHARS.digits);
+    const s = noSimbol ? '' : removeAmbiguous(CHARS.simbol_common);
+    const sx = noSimbol ? '' : removeAmbiguous(CHARS.simbol_extra);
+    const su = noSimbol ? '' : removeAmbiguous(CHARS.simbol_ultra);
+
+    switch (tipe) {
+      case 'ultra':  return u + l + d + su;
+      case 'strong': return u + l + d + s;
+      case 'medium': return u + l + d;
+      case 'pin':    return d;
+      default:       return u + l + d + s;
+    }
+  };
+
+  // ══════════════════════════════════════════════
+  // CRYPTO RANDOM — pakai Web Crypto API
+  // Jauh lebih secure dari Math.random()
+  // ══════════════════════════════════════════════
+  const cryptoRandom = (max) => {
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return arr[0] % max;
+  };
+
+  const generateFromCharset = (charset, length) => {
+    if (!charset.length) return '';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += charset[cryptoRandom(charset.length)];
+    }
+    return result;
+  };
+
+  // Shuffle string securely
+  const secureShuffle = (str) => {
+    const arr = str.split('');
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = cryptoRandom(i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr.join('');
+  };
+
+  // ══════════════════════════════════════════════
+  // ENSURE CHARSET REQUIREMENTS
+  // Pastikan ada minimal 1 dari setiap kategori
+  // ══════════════════════════════════════════════
+  const generateStrong = (length) => {
+    const u = removeAmbiguous(CHARS.upper);
+    const l = removeAmbiguous(CHARS.lower);
+    const d = removeAmbiguous(CHARS.digits);
+    const s = noSimbol ? '' : removeAmbiguous(CHARS.simbol_common);
+
+    // Ambil minimal 1 dari setiap kategori
+    let required = '';
+    required += u[cryptoRandom(u.length)];
+    required += l[cryptoRandom(l.length)];
+    required += d[cryptoRandom(d.length)];
+    if (s.length && !noSimbol) required += s[cryptoRandom(s.length)];
+
+    // Sisa karakter dari full charset
+    const charset = getCharset('strong');
+    const rest    = generateFromCharset(charset, length - required.length);
+
+    // Shuffle semua
+    return secureShuffle(required + rest);
+  };
+
+  const generateUltra = (length) => {
+    const u  = removeAmbiguous(CHARS.upper);
+    const l  = removeAmbiguous(CHARS.lower);
+    const d  = removeAmbiguous(CHARS.digits);
+    const su = noSimbol ? '' : removeAmbiguous(CHARS.simbol_ultra);
+
+    let required = '';
+    required += u[cryptoRandom(u.length)];
+    required += l[cryptoRandom(l.length)];
+    required += d[cryptoRandom(d.length)];
+    if (su.length) {
+      required += su[cryptoRandom(su.length)];
+      required += su[cryptoRandom(su.length)]; // 2 simbol ultra
+    }
+
+    const charset = getCharset('ultra');
+    const rest    = generateFromCharset(charset, length - required.length);
+    return secureShuffle(required + rest);
+  };
+
+  // ══════════════════════════════════════════════
+  // MEMORABLE PASSWORD
+  // Format: Word+Number+Word+Simbol
+  // ══════════════════════════════════════════════
+  const WORD_LIST = [
+    'Tiger','Dragon','Phoenix','Wolf','Eagle','Storm','Fire','Ice',
+    'Shadow','Light','Dark','Neon','Cyber','Ghost','Steel','Iron',
+    'Blade','Storm','Flash','Thunder','Crystal','Void','Nova','Apex',
+    'Frost','Blaze','Viper','Cobra','Falcon','Hawk','Raven','Lynx',
+    'Panther','Jaguar','Onyx','Ruby','Sapphire','Emerald','Diamond',
+    'Obsidian','Crimson','Azure','Scarlet','Violet','Amber','Silver',
+    'Golden','Cosmic','Stellar','Nebula','Pulsar','Quasar','Orbit',
+    'Matrix','Vector','Cipher','Nexus','Proxy','Torrent','Cascade',
+    'Vertex','Zenith','Apex','Summit','Peak','Ridge','Canyon','Abyss',
+  ];
+
+  const SIMBOL_SIMPLE = ['!', '@', '#', '$', '%', '&', '*', '+', '=', '?'];
+
+  const generateMemorable = () => {
+    const w1  = WORD_LIST[cryptoRandom(WORD_LIST.length)];
+    const w2  = WORD_LIST[cryptoRandom(WORD_LIST.length)];
+    const num = String(cryptoRandom(900) + 100); // 3 digit
+    const sym = SIMBOL_SIMPLE[cryptoRandom(SIMBOL_SIMPLE.length)];
+    return `${w1}${num}${w2}${sym}`;
+  };
+
+  // ══════════════════════════════════════════════
+  // PASSPHRASE
+  // Format: word-word-word-word (EFF Diceware style)
+  // ══════════════════════════════════════════════
+  const PHRASE_WORDS = [
+    'apple','brave','cloud','dance','earth','flame','grace','honey',
+    'ivory','jewel','kings','lemon','magic','night','ocean','pearl',
+    'queen','river','solar','tiger','ultra','vivid','water','xenon',
+    'yacht','zebra','alpha','bravo','cyber','delta','ember','forge',
+    'ghost','hyper','indie','joker','karma','lunar','metro','ninja',
+    'orbit','pixel','quota','radar','sigma','titan','umbra','vapor',
+    'woven','xylem','youth','zonal','amber','blaze','crisp','dover',
+    'elbow','frost','gavel','haste','inbox','jelly','knack','latch',
+    'maple','noble','olive','paint','quirk','ranch','swirl','thyme',
+    'usher','visor','witch','exact','yield','zippy','acorn','birch',
+    'cloak','drown','evoke','flair','gloom','hoist','igloo','joust',
+  ];
+
+  const generatePassphrase = (wordCount = 4) => {
+    const words = [];
+    for (let i = 0; i < wordCount; i++) {
+      words.push(PHRASE_WORDS[cryptoRandom(PHRASE_WORDS.length)]);
+    }
+    const num = cryptoRandom(999) + 1;
+    const sep = ['-', '_', '.', '+'][cryptoRandom(4)];
+    return words.join(sep) + sep + num;
+  };
+
+  // ══════════════════════════════════════════════
+  // API KEY FORMAT
+  // Format: XXXX-XXXXXXXXXXXX-XXXX
+  // ══════════════════════════════════════════════
+  const generateApiKey = () => {
+    const charset = removeAmbiguous(CHARS.upper + CHARS.digits);
+    const seg1    = generateFromCharset(charset, 8);
+    const seg2    = generateFromCharset(charset, 16);
+    const seg3    = generateFromCharset(charset, 8);
+    const seg4    = generateFromCharset(charset, 8);
+    return `${seg1}-${seg2}-${seg3}-${seg4}`;
+  };
+
+  // ══════════════════════════════════════════════
+  // UUID v4
+  // ══════════════════════════════════════════════
+  const generateUUID = () => {
+    const hex = () => cryptoRandom(16).toString(16);
+    const seg = (n) => Array.from({ length: n }, hex).join('');
+    return `${seg(8)}-${seg(4)}-4${seg(3)}-${[8,9,'a','b'][cryptoRandom(4)]}${seg(3)}-${seg(12)}`;
+  };
+
+  // ══════════════════════════════════════════════
+  // PASSWORD STRENGTH ANALYZER
+  // ══════════════════════════════════════════════
+  const analyzeStrength = (password) => {
+    let score  = 0;
+    const len  = password.length;
+
+    // Length scoring
+    if (len >= 8)   score += 10;
+    if (len >= 12)  score += 10;
+    if (len >= 16)  score += 10;
+    if (len >= 24)  score += 10;
+    if (len >= 32)  score += 10;
+
+    // Character variety
+    if (/[a-z]/.test(password))           score += 10;
+    if (/[A-Z]/.test(password))           score += 10;
+    if (/[0-9]/.test(password))           score += 10;
+    if (/[^a-zA-Z0-9]/.test(password))   score += 15;
+    if (/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?~`\\'"\/]/.test(password)) score += 5;
+
+    // Penalti
+    if (/(.)\1{2,}/.test(password))       score -= 10; // karakter berulang
+    if (/^[a-zA-Z]+$/.test(password))     score -= 5;  // huruf semua
+    if (/^[0-9]+$/.test(password))        score -= 5;  // angka semua
+    if (len < 8)                           score -= 20;
+
+    score = Math.max(0, Math.min(100, score));
+
+    if (score >= 90) return { label: '🟢 SANGAT KUAT',  color: '\u001b[1;32m', bar: '█████████████████████', pct: score };
+    if (score >= 75) return { label: '🟢 KUAT',         color: '\u001b[1;32m', bar: '████████████████░░░░░', pct: score };
+    if (score >= 60) return { label: '🟡 CUKUP KUAT',   color: '\u001b[1;33m', bar: '█████████████░░░░░░░░', pct: score };
+    if (score >= 40) return { label: '🟠 SEDANG',        color: '\u001b[1;33m', bar: '█████████░░░░░░░░░░░░', pct: score };
+    if (score >= 20) return { label: '🔴 LEMAH',         color: '\u001b[1;31m', bar: '█████░░░░░░░░░░░░░░░░', pct: score };
+    return                  { label: '🔴 SANGAT LEMAH',  color: '\u001b[1;31m', bar: '██░░░░░░░░░░░░░░░░░░░', pct: score };
+  };
+
+  // ══════════════════════════════════════════════
+  // ENTROPY CALCULATOR
+  // ══════════════════════════════════════════════
+  const calcEntropy = (password, tipe) => {
+    let poolSize = 0;
+    if (/[a-z]/.test(password))         poolSize += 26;
+    if (/[A-Z]/.test(password))         poolSize += 26;
+    if (/[0-9]/.test(password))         poolSize += 10;
+    if (/[^a-zA-Z0-9]/.test(password))  poolSize += 32;
+    const entropy = Math.floor(password.length * Math.log2(poolSize || 1));
+    return entropy;
+  };
+
+  // ══════════════════════════════════════════════
+  // CRACK TIME ESTIMATOR
+  // Asumsi: 1 billion guess/second (brute force modern)
+  // ══════════════════════════════════════════════
+  const estimateCrackTime = (entropy) => {
+    const guesses     = Math.pow(2, entropy);
+    const perSecond   = 1e9; // 1 miliar/detik
+    const seconds     = guesses / perSecond / 2; // rata-rata setengah
+
+    if (seconds < 1)           return '⚡ Instan';
+    if (seconds < 60)          return `⚡ ${Math.round(seconds)} detik`;
+    if (seconds < 3600)        return `🕐 ${Math.round(seconds/60)} menit`;
+    if (seconds < 86400)       return `🕐 ${Math.round(seconds/3600)} jam`;
+    if (seconds < 2592000)     return `📅 ${Math.round(seconds/86400)} hari`;
+    if (seconds < 31536000)    return `📅 ${Math.round(seconds/2592000)} bulan`;
+    if (seconds < 3153600000)  return `🗓️ ${Math.round(seconds/31536000)} tahun`;
+    if (seconds < 3.15e13)     return `🌌 ${(seconds/3153600000).toFixed(1)} ribu tahun`;
+    if (seconds < 3.15e16)     return `🌌 ${(seconds/3.15e13).toFixed(1)} juta tahun`;
+    return `♾️ Praktis tidak bisa di-crack`;
+  };
+
+  // ══════════════════════════════════════════════
+  // GENERATE PASSWORD BERDASARKAN TIPE
+  // ══════════════════════════════════════════════
+  const generatePassword = (tipe, length) => {
+    switch (tipe) {
+      case 'ultra':      return generateUltra(length);
+      case 'strong':     return generateStrong(length);
+      case 'medium':     return generateFromCharset(getCharset('medium'), length);
+      case 'pin':        return generateFromCharset(CHARS.digits, length);
+      case 'memorable':  return generateMemorable();
+      case 'passphrase': return generatePassphrase(Math.max(3, Math.floor(length / 5)));
+      case 'apikey':     return generateApiKey();
+      case 'uuid':       return generateUUID();
+      default:           return generateStrong(length);
+    }
+  };
+
+  // ══════════════════════════════════════════════
+  // GENERATE SEMUA PASSWORD
+  // ══════════════════════════════════════════════
+  const passwords = [];
+  for (let i = 0; i < jumlah; i++) {
+    passwords.push(generatePassword(tipe, panjang));
+  }
+
+  // Analisis password pertama (atau satu-satunya)
+  const mainPass  = passwords[0];
+  const strength  = analyzeStrength(mainPass);
+  const entropy   = calcEntropy(mainPass, tipe);
+  const crackTime = estimateCrackTime(entropy);
+
+  // ── Label tipe ──
+  const TIPE_LABEL = {
+    ultra:      '🔐 Ultra',
+    strong:     '💪 Strong',
+    medium:     '📝 Medium',
+    pin:        '🔢 PIN',
+    memorable:  '🎯 Memorable',
+    passphrase: '🔑 Passphrase',
+    apikey:     '🌐 API Key',
+    uuid:       '🆔 UUID',
+  };
+
+  const waktu = new Date().toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  // ── Build password list display ──
+  const passLines = passwords.map((p, i) => {
+    const s = analyzeStrength(p);
+    const e = calcEntropy(p, tipe);
+    if (jumlah === 1) return null; // handled separately
+    return `\`${String(i+1).padStart(2)}.\` \`\`${p}\`\` ${s.label} | 🔢 ${e} bit`;
+  }).filter(Boolean);
+
+  // ── Tips berdasarkan tipe ──
+  const TIPS = {
+    ultra:      '🔐 Cocok untuk: master password, enkripsi file, vault',
+    strong:     '💪 Cocok untuk: akun utama, email, banking',
+    medium:     '📝 Cocok untuk: akun secondary, forum, newsletter',
+    pin:        '🔢 Cocok untuk: PIN ATM, kode loker, phone lock',
+    memorable:  '🎯 Cocok untuk: akun yang sering diketik manual',
+    passphrase: '🔑 Cocok untuk: SSH key, GPG, master password (mudah diingat!)',
+    apikey:     '🌐 Cocok untuk: API keys, token, secret keys',
+    uuid:       '🆔 Cocok untuk: session token, request ID, UUID database',
+  };
+
+  // ── Security tips ──
+  const SECURITY_TIPS = [
+    '🔒 Jangan pakai password yang sama di banyak akun',
+    '📱 Gunakan password manager (Bitwarden, 1Password)',
+    '🔄 Ganti password secara berkala (3-6 bulan sekali)',
+    '👁️ Jangan simpan password di notepad/chat',
+    '🛡️ Aktifkan 2FA di semua akun penting',
+    '❌ Jangan share password ke siapapun',
+  ];
+  const randomTip = SECURITY_TIPS[cryptoRandom(SECURITY_TIPS.length)];
+
+  // ── Build embed description ──
+  const descLines = [
+    '```ansi',
+    '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
+    '\u001b[1;35m║  🔐  PASSWORD GENERATOR  🔐         ║\u001b[0m',
+    '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
+    '```',
+  ];
+
+  // Password utama (kalau cuma 1)
+  if (jumlah === 1) {
+    descLines.push(
+      '```ansi',
+      '\u001b[1;32m━━━━━━━━━━━━ 🔑 PASSWORD ━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;37m  ${mainPass}\u001b[0m`,
+      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+    );
+  } else {
+    descLines.push(
+      '```ansi',
+      '\u001b[1;32m━━━━━━━━━━━━ 🔑 PASSWORDS ━━━━━━━━━━━\u001b[0m',
+      ...passwords.map((p, i) => `\u001b[1;36m ${i+1}.\u001b[0m \u001b[1;37m${p}\u001b[0m`),
+      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+    );
+  }
+
+  descLines.push(
+    '```ansi',
+    '\u001b[1;33m━━━━━━━━━━━━ 📊 ANALISIS ━━━━━━━━━━━━\u001b[0m',
+    `\u001b[1;36m  🎭  Tipe       :\u001b[0m \u001b[0;37m${TIPE_LABEL[tipe] || tipe}\u001b[0m`,
+    `\u001b[1;36m  📏  Panjang    :\u001b[0m \u001b[0;37m${mainPass.length} karakter\u001b[0m`,
+    `\u001b[1;36m  🔢  Entropy    :\u001b[0m \u001b[0;37m${entropy} bit\u001b[0m`,
+    `\u001b[1;36m  💪  Kekuatan   :\u001b[0m ${strength.color}${strength.label}\u001b[0m`,
+    `\u001b[1;36m  📊  Score      :\u001b[0m ${strength.color}[${strength.bar}] ${strength.pct}%\u001b[0m`,
+    `\u001b[1;36m  ⏱️   Crack Time :\u001b[0m \u001b[0;37m${crackTime}\u001b[0m`,
+    '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '\u001b[1;32m━━━━━━━━━━━━ ⚙️ OPSI ━━━━━━━━━━━━━━━━\u001b[0m',
+    `\u001b[1;36m  🚫  No Ambigu  :\u001b[0m \u001b[0;37m${excludeAmbiguous ? '✅ Ya' : '❌ Tidak'}\u001b[0m`,
+    `\u001b[1;36m  🚫  No Simbol  :\u001b[0m \u001b[0;37m${noSimbol ? '✅ Ya' : '❌ Tidak'}\u001b[0m`,
+    `\u001b[1;36m  🔢  Jumlah     :\u001b[0m \u001b[0;37m${jumlah} password\u001b[0m`,
+    '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+    '```',
+    `> 💡 ${TIPS[tipe] || ''}`,
+    `> 🛡️ **Tips:** ${randomTip}`,
+    `> ⚠️ *Password hanya ditampilkan sekali, simpan segera!*`,
+    `> 🤖 *Powered by OwoBim SecurePass × Web Crypto API* ${EMOJI}`
+  );
+
+  // ── Color berdasarkan strength ──
+  const embedColor =
+    strength.pct >= 75 ? 0x2ECC71 :
+    strength.pct >= 50 ? 0xF1C40F :
+    strength.pct >= 25 ? 0xFF8C00 : 0xFF4444;
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      embeds: [{
+        color: embedColor,
+        title: `🔐 Password Generator — ${TIPE_LABEL[tipe] || tipe}`,
+        description: descLines.join('\n'),
+        footer: {
+          text: `OwoBim SecurePass • ${waktu} WIB • Crypto-secure random`
+        },
+        timestamp: new Date().toISOString()
+      }],
+      // Ephemeral — hanya user yang bisa lihat!
+      flags: 64
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+// ══════════════════════════════════════════════════════════════════════
+// END CMD: genpass
+// ══════════════════════════════════════════════════════════════════════
+
+
+
+
     
 
 
