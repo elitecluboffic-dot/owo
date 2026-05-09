@@ -10449,9 +10449,7 @@ Kamu adalah OwoBim AI, bukan Llama atau Groq.`
 
 
 // ══════════════════════════════════════════════════════════════════════
-// CMD: whois-username — Cek username di berbagai platform
-// Metode: HTTP request langsung (tanpa API key)
-// Tambahkan ke bagian interaction.type === 2 (slash command handler)
+// CMD: whois-username — Cek username di berbagai platform (FULL FIX)
 // ══════════════════════════════════════════════════════════════════════
  
 if (cmd === 'whois-username') {
@@ -10471,6 +10469,7 @@ if (cmd === 'whois-username') {
   }
  
   // ── Cooldown 15 detik per user ──
+  // FIX: expirationTtl minimum 60 detik di Cloudflare KV
   const cdKey  = `whois_cd:${discordId}`;
   const lastCd = await env.USERS_KV.get(cdKey);
   if (lastCd) {
@@ -10479,7 +10478,7 @@ if (cmd === 'whois-username') {
       return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
     }
   }
-  await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
+  await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 }); // FIX: was 30, min is 60
  
   // ── Defer dulu biar tidak timeout ──
   waitUntil((async () => {
@@ -10492,252 +10491,259 @@ if (cmd === 'whois-username') {
       });
     };
  
-    // ══════════════════════════════════════════════
-    // DAFTAR PLATFORM + cara cek + headers
-    // ══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
+    // DAFTAR PLATFORM
+    // FIX: semua pakai body_not_contains / API resmi biar akurat
+    // Tidak lagi pakai cek 'status' untuk platform yang return
+    // HTTP 200 meskipun user tidak ada (false positive)
+    // ══════════════════════════════════════════════════════════════
     const PLATFORMS = [
-      // ── SOCIAL MEDIA ──
+ 
+      // ── DEV ──
       {
-        name:     'GitHub',
-        emoji:    '🐱',
-        category: 'Dev',
-        url:      `https://github.com/${usernameInput}`,
-        check:    'status',      // cek HTTP status code
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        name: 'GitHub', emoji: '🐱', category: 'Dev',
+        // GitHub return 404 kalau user tidak ada — aman pakai status
+        url: `https://github.com/${usernameInput}`,
+        check: 'status', okStatus: [200],
+        headers: { 'User-Agent': 'Mozilla/5.0' },
         profileUrl: `https://github.com/${usernameInput}`,
       },
       {
-        name:     'Reddit',
-        emoji:    '🤖',
-        category: 'Forum',
-        url:      `https://www.reddit.com/user/${usernameInput}/about.json`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://reddit.com/u/${usernameInput}`,
-      },
-      {
-        name:     'Twitch',
-        emoji:    '🎮',
-        category: 'Streaming',
-        url:      `https://www.twitch.tv/${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://twitch.tv/${usernameInput}`,
-      },
-      {
-        name:     'Pinterest',
-        emoji:    '📌',
-        category: 'Social',
-        url:      `https://www.pinterest.com/${usernameInput}/`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://pinterest.com/${usernameInput}`,
-      },
-      {
-        name:     'SoundCloud',
-        emoji:    '🎵',
-        category: 'Music',
-        url:      `https://soundcloud.com/${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://soundcloud.com/${usernameInput}`,
-      },
-      {
-        name:     'Dev.to',
-        emoji:    '👨‍💻',
-        category: 'Dev',
-        url:      `https://dev.to/${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://dev.to/${usernameInput}`,
-      },
-      {
-        name:     'Replit',
-        emoji:    '💻',
-        category: 'Dev',
-        url:      `https://replit.com/@${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://replit.com/@${usernameInput}`,
-      },
-      {
-        name:     'Pastebin',
-        emoji:    '📋',
-        category: 'Dev',
-        url:      `https://pastebin.com/u/${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://pastebin.com/u/${usernameInput}`,
-      },
-      {
-        name:     'Keybase',
-        emoji:    '🔑',
-        category: 'Social',
-        url:      `https://keybase.io/${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://keybase.io/${usernameInput}`,
-      },
-      {
-        name:     'Linktree',
-        emoji:    '🌳',
-        category: 'Social',
-        url:      `https://linktr.ee/${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://linktr.ee/${usernameInput}`,
-      },
-      {
-        name:     'Gravatar',
-        emoji:    '🖼️',
-        category: 'Social',
-        url:      `https://en.gravatar.com/${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://gravatar.com/${usernameInput}`,
-      },
-      {
-        name:     'HackerNews',
-        emoji:    '🗞️',
-        category: 'Dev',
-        url:      `https://hacker-news.firebaseio.com/v0/user/${usernameInput}.json`,
-        check:    'body_not_null', // body !== "null"
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://news.ycombinator.com/user?id=${usernameInput}`,
-      },
-      {
-        name:     'NPM',
-        emoji:    '📦',
-        category: 'Dev',
-        url:      `https://www.npmjs.com/~${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://npmjs.com/~${usernameInput}`,
-      },
-      {
-        name:     'GitLab',
-        emoji:    '🦊',
-        category: 'Dev',
-        url:      `https://gitlab.com/${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        name: 'GitLab', emoji: '🦊', category: 'Dev',
+        // Pakai API resmi GitLab — return array kosong kalau tidak ada
+        url: `https://gitlab.com/api/v4/users?username=${usernameInput}`,
+        check: 'body_not_empty_array',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
         profileUrl: `https://gitlab.com/${usernameInput}`,
       },
       {
-        name:     'Codecademy',
-        emoji:    '🎓',
-        category: 'Dev',
-        url:      `https://www.codecademy.com/profiles/${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
-        profileUrl: `https://codecademy.com/profiles/${usernameInput}`,
+        name: 'Dev.to', emoji: '👨‍💻', category: 'Dev',
+        // API resmi dev.to — 404 kalau tidak ada
+        url: `https://dev.to/api/users/by_username?url=${usernameInput}`,
+        check: 'status', okStatus: [200],
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://dev.to/${usernameInput}`,
       },
       {
-        name:     'Medium',
-        emoji:    '✍️',
-        category: 'Blog',
-        url:      `https://medium.com/@${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        name: 'NPM', emoji: '📦', category: 'Dev',
+        // Registry NPM — 404 kalau user tidak ada
+        url: `https://registry.npmjs.org/-/user/org.couchdb.user:${usernameInput}`,
+        check: 'status', okStatus: [200],
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://npmjs.com/~${usernameInput}`,
+      },
+      {
+        name: 'HackerNews', emoji: '🗞️', category: 'Dev',
+        // Firebase API — return literal "null" kalau tidak ada
+        url: `https://hacker-news.firebaseio.com/v0/user/${usernameInput}.json`,
+        check: 'body_not_null',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://news.ycombinator.com/user?id=${usernameInput}`,
+      },
+      {
+        name: 'Replit', emoji: '💻', category: 'Dev',
+        url: `https://replit.com/@${usernameInput}`,
+        check: 'body_not_contains',
+        notContains: 'Page not found',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://replit.com/@${usernameInput}`,
+      },
+      {
+        name: 'Pastebin', emoji: '📋', category: 'Dev',
+        url: `https://pastebin.com/u/${usernameInput}`,
+        check: 'body_not_contains',
+        notContains: 'Not Found (#404)',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://pastebin.com/u/${usernameInput}`,
+      },
+      {
+        name: 'Codecademy', emoji: '🎓', category: 'Dev',
+        url: `https://www.codecademy.com/profiles/${usernameInput}`,
+        check: 'body_not_contains',
+        notContains: 'Page Not Found',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://codecademy.com/profiles/${usernameInput}`,
+      },
+ 
+      // ── FORUM ──
+      {
+        name: 'Reddit', emoji: '🤖', category: 'Forum',
+        // Reddit about.json — 404 kalau tidak ada
+        url: `https://www.reddit.com/user/${usernameInput}/about.json`,
+        check: 'status', okStatus: [200],
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OwoBimBot/1.0)' },
+        profileUrl: `https://reddit.com/u/${usernameInput}`,
+      },
+ 
+      // ── STREAMING ──
+      {
+        name: 'Twitch', emoji: '📡', category: 'Streaming',
+        // Twitch selalu 200 — cek body untuk tanda user tidak ada
+        url: `https://www.twitch.tv/${usernameInput}`,
+        check: 'body_not_contains',
+        notContains: 'Sorry. Unless you\'ve got a time machine',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://twitch.tv/${usernameInput}`,
+      },
+ 
+      // ── SOCIAL ──
+      {
+        name: 'Pinterest', emoji: '📌', category: 'Social',
+        // Pinterest selalu 200 — cek body
+        url: `https://www.pinterest.com/${usernameInput}/`,
+        check: 'body_not_contains',
+        notContains: 'User not found',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://pinterest.com/${usernameInput}`,
+      },
+      {
+        name: 'Keybase', emoji: '🔑', category: 'Social',
+        url: `https://keybase.io/_/api/1.0/user/lookup.json?usernames=${usernameInput}`,
+        check: 'body_contains_them',
+        // Keybase return "them":[] kalau tidak ada
+        containsKey: '"them":[{',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://keybase.io/${usernameInput}`,
+      },
+      {
+        name: 'Linktree', emoji: '🌳', category: 'Social',
+        url: `https://linktr.ee/${usernameInput}`,
+        check: 'body_not_contains',
+        notContains: 'Sorry, this page isn\'t available',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://linktr.ee/${usernameInput}`,
+      },
+      {
+        name: 'Gravatar', emoji: '🖼️', category: 'Social',
+        // Gravatar punya endpoint JSON yang bersih
+        url: `https://en.gravatar.com/${usernameInput}.json`,
+        check: 'status', okStatus: [200],
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://gravatar.com/${usernameInput}`,
+      },
+ 
+      // ── MUSIC ──
+      {
+        name: 'SoundCloud', emoji: '🎵', category: 'Music',
+        url: `https://soundcloud.com/${usernameInput}`,
+        check: 'body_not_contains',
+        notContains: 'We can\'t find that user.',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        profileUrl: `https://soundcloud.com/${usernameInput}`,
+      },
+ 
+      // ── BLOG ──
+      {
+        name: 'Medium', emoji: '✍️', category: 'Blog',
+        url: `https://medium.com/@${usernameInput}`,
+        check: 'body_not_contains',
+        notContains: 'Page Not Found',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
         profileUrl: `https://medium.com/@${usernameInput}`,
       },
       {
-        name:     'Hashnode',
-        emoji:    '📝',
-        category: 'Blog',
-        url:      `https://hashnode.com/@${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        name: 'Hashnode', emoji: '📝', category: 'Blog',
+        url: `https://hashnode.com/@${usernameInput}`,
+        check: 'body_not_contains',
+        notContains: 'This page could not be found',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
         profileUrl: `https://hashnode.com/@${usernameInput}`,
       },
+ 
+      // ── GAMING ──
       {
-        name:     'Steam',
-        emoji:    '🎮',
-        category: 'Gaming',
-        url:      `https://steamcommunity.com/id/${usernameInput}`,
-        check:    'body_not_contains',
-        notContains: 'The specified profile could not be found',
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        name: 'Steam', emoji: '🎮', category: 'Gaming',
+        url: `https://steamcommunity.com/id/${usernameInput}`,
+        check: 'body_not_contains',
+        notContains: 'The specified profile could not be found.',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
         profileUrl: `https://steamcommunity.com/id/${usernameInput}`,
       },
       {
-        name:     'Roblox',
-        emoji:    '🧱',
-        category: 'Gaming',
-        url:      `https://www.roblox.com/user.aspx?username=${usernameInput}`,
-        check:    'body_not_contains',
-        notContains: 'Page Not Found',
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        name: 'Roblox', emoji: '🧱', category: 'Gaming',
+        // Pakai API resmi Roblox — return errorMessage kalau tidak ada
+        url: `https://api.roblox.com/users/get-by-username?username=${usernameInput}`,
+        check: 'body_not_contains',
+        notContains: '"errorMessage"',
+        headers: { 'User-Agent': 'Mozilla/5.0' },
         profileUrl: `https://www.roblox.com/user.aspx?username=${usernameInput}`,
       },
       {
-        name:     'Minecraft',
-        emoji:    '⛏️',
-        category: 'Gaming',
-        url:      `https://api.mojang.com/users/profiles/minecraft/${usernameInput}`,
-        check:    'status',
-        okStatus: [200],
-        headers:  { 'User-Agent': 'Mozilla/5.0' },
+        name: 'Minecraft', emoji: '⛏️', category: 'Gaming',
+        // Mojang API — 404 kalau username tidak ada
+        url: `https://api.mojang.com/users/profiles/minecraft/${usernameInput}`,
+        check: 'status', okStatus: [200],
+        headers: { 'User-Agent': 'Mozilla/5.0' },
         profileUrl: `https://namemc.com/profile/${usernameInput}`,
       },
+ 
     ];
  
-    // ══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
     // FUNGSI CEK SATU PLATFORM
-    // ══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
     const checkPlatform = async (platform) => {
       try {
         const res = await fetch(platform.url, {
-          method:  'GET',
-          headers: platform.headers || { 'User-Agent': 'Mozilla/5.0' },
+          method:   'GET',
+          headers:  platform.headers || { 'User-Agent': 'Mozilla/5.0' },
           redirect: 'follow',
-          signal:  AbortSignal.timeout(6000),
+          signal:   AbortSignal.timeout(7000),
         });
  
+        // Cek HTTP status code
         if (platform.check === 'status') {
           const ok = platform.okStatus.includes(res.status);
           return { ...platform, found: ok, status: res.status };
         }
  
+        // Cek body bukan "null" (untuk HackerNews Firebase API)
         if (platform.check === 'body_not_null') {
           const text = await res.text();
-          const found = text.trim() !== 'null' && text.trim() !== '';
+          const found = text.trim() !== 'null' && text.trim() !== '' && res.status === 200;
           return { ...platform, found, status: res.status };
         }
  
+        // Cek body tidak mengandung string error tertentu
         if (platform.check === 'body_not_contains') {
+          if (res.status === 404) return { ...platform, found: false, status: 404 };
           const text = await res.text();
           const found = !text.includes(platform.notContains);
           return { ...platform, found, status: res.status };
         }
  
+        // Cek body mengandung key tertentu (untuk Keybase)
+        if (platform.check === 'body_contains_them') {
+          const text = await res.text();
+          const found = text.includes(platform.containsKey);
+          return { ...platform, found, status: res.status };
+        }
+ 
+        // Cek array tidak kosong (untuk GitLab API)
+        if (platform.check === 'body_not_empty_array') {
+          if (res.status !== 200) return { ...platform, found: false, status: res.status };
+          const text = await res.text();
+          try {
+            const json = JSON.parse(text);
+            const found = Array.isArray(json) && json.length > 0;
+            return { ...platform, found, status: res.status };
+          } catch {
+            return { ...platform, found: false, status: res.status };
+          }
+        }
+ 
         return { ...platform, found: false, status: res.status };
  
       } catch (err) {
+        // Timeout atau network error → unknown
         return { ...platform, found: null, status: 0, error: err.message };
       }
     };
  
-    // ══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
     // CEK SEMUA PLATFORM SECARA PARALEL
-    // Dibagi batch 5 agar tidak overload
-    // ══════════════════════════════════════════════
+    // Batch 5 agar tidak overload CPU time Cloudflare Workers
+    // ══════════════════════════════════════════════════════════════
     const BATCH_SIZE = 5;
     const results    = [];
  
@@ -10747,9 +10753,9 @@ if (cmd === 'whois-username') {
       results.push(...batchResult);
     }
  
-    // ══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
     // BUILD HASIL
-    // ══════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
     const found    = results.filter(r => r.found === true);
     const notFound = results.filter(r => r.found === false);
     const unknown  = results.filter(r => r.found === null);
@@ -10809,7 +10815,7 @@ if (cmd === 'whois-username') {
       hour: '2-digit', minute: '2-digit'
     });
  
-    // ── Found list (max 5 ditampilkan sebagai link) ──
+    // ── Found list ──
     const foundLinks = found.slice(0, 8)
       .map(p => `[${p.emoji} ${p.name}](${p.profileUrl})`)
       .join(' • ') || 'Tidak ada';
