@@ -11112,6 +11112,461 @@ if (cmd === 'snake') {
 
 
 
+
+
+
+
+
+// ══════════════════════════════════════════════════════════════════════
+// CMD: meme — Meme Generator via Imgflip API
+// Env: IMGFLIP_USERNAME, IMGFLIP_PASSWORD (wajib untuk generate)
+// Gratis: https://imgflip.com/api
+// ══════════════════════════════════════════════════════════════════════
+if (cmd === 'meme') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const sub   = getOption(options, 'aksi') || 'random';
+
+  // ── Cooldown 10 detik per user ──
+  const cdKey  = `meme_cd:${discordId}`;
+  const lastCd = await env.USERS_KV.get(cdKey);
+  if (lastCd) {
+    const sisa = 10000 - (Date.now() - parseInt(lastCd));
+    if (sisa > 0) {
+      return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
+    }
+  }
+
+  // ── Helper: fetch semua template dari Imgflip ──
+  const fetchTemplates = async () => {
+    const cacheRaw = await env.USERS_KV.get('meme_templates_cache');
+    if (cacheRaw) {
+      const cached = JSON.parse(cacheRaw);
+      if (Date.now() - cached.ts < 3600000) return cached.data; // cache 1 jam
+    }
+    const res  = await fetch('https://api.imgflip.com/get_memes');
+    const json = await res.json();
+    if (!json.success) return [];
+    const templates = json.data.memes;
+    await env.USERS_KV.put('meme_templates_cache', JSON.stringify({
+      data: templates,
+      ts:   Date.now()
+    }), { expirationTtl: 7200 });
+    return templates;
+  };
+
+  // ── Helper: generate meme via Imgflip API ──
+  const generateMeme = async (templateId, text0, text1, text2) => {
+    const params = new URLSearchParams({
+      template_id: templateId,
+      username:    env.IMGFLIP_USERNAME || '',
+      password:    env.IMGFLIP_PASSWORD || '',
+      'boxes[0][text]': text0 || '',
+      'boxes[1][text]': text1 || '',
+    });
+    if (text2) params.append('boxes[2][text]', text2);
+
+    const res  = await fetch('https://api.imgflip.com/caption_image', {
+      method: 'POST',
+      body:   params,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+    const json = await res.json();
+    return json;
+  };
+
+  // ── Helper: random teks lucu untuk meme ──
+  const RANDOM_TEXTS = {
+    top: [
+      'ketika liat notif dari',
+      'gw pas tau',
+      'bos gw waktu',
+      'otak gw jam 3 pagi',
+      'gw setelah deadline',
+      'ekspektasi vs realita',
+      'temen gw bilang',
+      'pas lagi meeting zoom',
+      'semua orang vs gw',
+      'gw waktu kecil vs sekarang',
+      'sistem down jam 5 sore',
+      'deploy ke production hari jumat',
+      'interview: bisa kerja overtime?',
+      'pas lupa push ke git',
+      'bug di production jam 12 malem',
+    ],
+    bottom: [
+      'ternyata salah sendiri',
+      'langsung kabur',
+      'udah lah, besok aja',
+      'pura-pura gak tau',
+      'malah makin parah',
+      'gw: iya bisa',
+      'coffee ke-5 hari ini',
+      'stackoverflow to the rescue',
+      'it works on my machine',
+      'ctrl+z berkali-kali',
+      'reset factory settings',
+      'hapus node_modules lagi',
+      'gak bisa, punya meeting',
+      'works as intended',
+      'bukan bug, itu feature',
+    ]
+  };
+
+  const randText = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  // ══════════════════════════════════════════════
+  // SUB: list — tampilkan template populer
+  // ══════════════════════════════════════════════
+  if (sub === 'list') {
+    const templates = await fetchTemplates();
+    if (!templates.length) {
+      return respond(`> ${EMOJI} ❌ Gagal ambil daftar template!`);
+    }
+
+    const top20 = templates.slice(0, 20);
+    const rows  = top20.map((t, i) =>
+      `\`${String(i+1).padStart(2)}.\` **${t.name}** — \`ID: ${t.id}\` — 📐 ${t.width}×${t.height} — 📦 ${t.box_count} kotak`
+    ).join('\n');
+
+    return new Response(JSON.stringify({
+      type: 4,
+      data: {
+        embeds: [{
+          color: 0xF1C40F,
+          title: '📋 Top 20 Meme Templates — Imgflip',
+          description: [
+            '```ansi',
+            '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;33m║  📋  MEME TEMPLATE LIST  📋         ║\u001b[0m',
+            '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            rows,
+            '',
+            `> 💡 Pakai \`/meme aksi:custom template:<nama atau ID>\` untuk generate!`,
+            `> 🔍 Cari template: \`/meme aksi:search template:<kata kunci>\``,
+            `> 📦 Total tersedia: **${templates.length}** template`
+          ].join('\n'),
+          footer: { text: 'OwoBim Meme Generator • Powered by Imgflip' },
+          timestamp: new Date().toISOString()
+        }]
+      }
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ══════════════════════════════════════════════
+  // SUB: search — cari template berdasarkan nama
+  // ══════════════════════════════════════════════
+  if (sub === 'search') {
+    const query = getOption(options, 'template')?.toLowerCase().trim();
+    if (!query) {
+      return respond(`> ${EMOJI} ❌ Masukkan kata kunci!\n> 💡 Contoh: \`/meme aksi:search template:drake\``);
+    }
+
+    const templates = await fetchTemplates();
+    const results   = templates.filter(t =>
+      t.name.toLowerCase().includes(query)
+    ).slice(0, 10);
+
+    if (!results.length) {
+      return respond([
+        `> ${EMOJI} ❌ Template **"${query}"** tidak ditemukan!`,
+        `> 💡 Cek daftar lengkap: \`/meme aksi:list\``
+      ].join('\n'));
+    }
+
+    const rows = results.map((t, i) => {
+      const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+      return `${medals[i]} **${t.name}**\n> 🆔 ID: \`${t.id}\` | 📐 ${t.width}×${t.height} | 📦 ${t.box_count} teks box`;
+    }).join('\n\n');
+
+    // Preview thumbnail template pertama
+    const previewUrl = results[0]?.url || null;
+
+    return new Response(JSON.stringify({
+      type: 4,
+      data: {
+        embeds: [{
+          color: 0x3498DB,
+          title: `🔍 Hasil Pencarian: "${query}"`,
+          description: [
+            '```ansi',
+            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[2;34m║  \u001b[1;34m🔍  SEARCH RESULTS  🔍\u001b[0m              \u001b[2;34m║\u001b[0m',
+            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            rows,
+            '',
+            `> 💡 Generate: \`/meme aksi:custom template:${results[0]?.id} teks1:atas teks2:bawah\``
+          ].join('\n'),
+          thumbnail: previewUrl ? { url: previewUrl } : undefined,
+          footer: { text: `OwoBim Meme Generator • ${results.length} hasil ditemukan` },
+          timestamp: new Date().toISOString()
+        }]
+      }
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ══════════════════════════════════════════════
+  // SUB: random — generate meme random + teks random
+  // ══════════════════════════════════════════════
+  if (sub === 'random') {
+    await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
+
+    waitUntil((async () => {
+      const editMsg = async (content, embeds) => {
+        await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(embeds ? { content: content || '', embeds } : { content })
+        });
+      };
+
+      try {
+        const templates = await fetchTemplates();
+        if (!templates.length) {
+          return await editMsg(`> ${EMOJI} ❌ Gagal ambil template dari Imgflip!`);
+        }
+
+        // Pilih template random dari top 100 (yang paling populer)
+        const pool     = templates.slice(0, 100);
+        const template = pool[Math.floor(Math.random() * pool.length)];
+        const boxCount = template.box_count || 2;
+
+        // Generate teks random sesuai jumlah box
+        const t1 = randText(RANDOM_TEXTS.top);
+        const t2 = randText(RANDOM_TEXTS.bottom);
+        const t3 = boxCount >= 3 ? randText(RANDOM_TEXTS.bottom) : '';
+
+        const result = await generateMeme(template.id, t1, t2, t3);
+
+        if (!result.success) {
+          // Fallback: tampilkan template saja tanpa teks kalau generate gagal
+          return await editMsg('', [{
+            color: 0xF1C40F,
+            title: `😂 Random Meme — ${template.name}`,
+            description: [
+              `> ${EMOJI} 🎲 Template: **${template.name}**`,
+              `> ⚠️ Generate gagal, tampilkan template original`,
+              `> 💡 Coba \`/meme aksi:custom\` untuk kontrol penuh`
+            ].join('\n'),
+            image:  { url: template.url },
+            footer: { text: `OwoBim Meme Generator • Template: ${template.id}` },
+            timestamp: new Date().toISOString()
+          }]);
+        }
+
+        const memeUrl = result.data.url;
+
+        // Update stats
+        const statsKey = `meme_stats:${discordId}`;
+        const statsRaw = await env.USERS_KV.get(statsKey);
+        const stats    = statsRaw
+          ? JSON.parse(statsRaw)
+          : { total: 0, random: 0, custom: 0, favorite: null };
+        stats.total++;
+        stats.random++;
+        await env.USERS_KV.put(statsKey, JSON.stringify(stats), { expirationTtl: 86400 * 365 });
+
+        const waktu = new Date().toLocaleString('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          day: '2-digit', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        });
+
+        await editMsg('', [{
+          color: 0xF1C40F,
+          title: `😂 Random Meme — ${template.name}`,
+          description: [
+            '```ansi',
+            '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;33m║  😂  RANDOM MEME GENERATED  😂     ║\u001b[0m',
+            '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━━ 📋 INFO ━━━━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m  🎭  Template  :\u001b[0m \u001b[1;37m${template.name}\u001b[0m`,
+            `\u001b[1;36m  🆔  ID        :\u001b[0m \u001b[2;37m${template.id}\u001b[0m`,
+            `\u001b[1;36m  📝  Teks 1    :\u001b[0m \u001b[0;37m${t1}\u001b[0m`,
+            `\u001b[1;36m  📝  Teks 2    :\u001b[0m \u001b[0;37m${t2}\u001b[0m`,
+            t3 ? `\u001b[1;36m  📝  Teks 3    :\u001b[0m \u001b[0;37m${t3}\u001b[0m` : null,
+            `\u001b[1;36m  👤  Dibuat    :\u001b[0m \u001b[0;37m${username}\u001b[0m`,
+            `\u001b[1;36m  🕐  Waktu     :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+            `\u001b[1;36m  📊  Total     :\u001b[0m \u001b[0;37m${stats.total}x meme dibuat\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 🔗 [Download Meme](${memeUrl})`,
+            `> 💡 Custom teks: \`/meme aksi:custom template:${template.id} teks1:... teks2:...\``,
+            `> 🤖 *Powered by OwoBim Meme Engine × Imgflip* ${EMOJI}`
+          ].filter(Boolean).join('\n'),
+          image:  { url: memeUrl },
+          footer: { text: `OwoBim Meme Generator • ${template.name} • ${template.id}` },
+          timestamp: new Date().toISOString()
+        }]);
+
+      } catch (err) {
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // ══════════════════════════════════════════════
+  // SUB: custom — pilih template & isi teks sendiri
+  // ══════════════════════════════════════════════
+  if (sub === 'custom') {
+    const templateInput = getOption(options, 'template')?.trim();
+    const teks1         = getOption(options, 'teks1') || '';
+    const teks2         = getOption(options, 'teks2') || '';
+    const teks3         = getOption(options, 'teks3') || '';
+
+    if (!templateInput) {
+      return respond([
+        `> ${EMOJI} ❌ Masukkan nama atau ID template!`,
+        `> 💡 Cek list: \`/meme aksi:list\``,
+        `> 🔍 Cari: \`/meme aksi:search template:drake\``,
+        `> 📋 Contoh: \`/meme aksi:custom template:181913649 teks1:Gw teks2:Pas tau ada bug\``
+      ].join('\n'));
+    }
+
+    if (!teks1 && !teks2) {
+      return respond([
+        `> ${EMOJI} ❌ Isi minimal satu teks!`,
+        `> 💡 Contoh: \`/meme aksi:custom template:drake teks1:Side A teks2:Side B\``
+      ].join('\n'));
+    }
+
+    await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
+
+    waitUntil((async () => {
+      const editMsg = async (content, embeds) => {
+        await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(embeds ? { content: content || '', embeds } : { content })
+        });
+      };
+
+      try {
+        const templates = await fetchTemplates();
+
+        // Cari template berdasarkan ID atau nama (fuzzy)
+        let template = templates.find(t => t.id === templateInput);
+        if (!template) {
+          const query = templateInput.toLowerCase();
+          // Exact name match dulu
+          template = templates.find(t => t.name.toLowerCase() === query);
+          // Kalau tidak ada, partial match
+          if (!template) {
+            template = templates.find(t => t.name.toLowerCase().includes(query));
+          }
+        }
+
+        if (!template) {
+          return await editMsg([
+            `> ${EMOJI} ❌ Template **"${templateInput}"** tidak ditemukan!`,
+            `> 🔍 Cari: \`/meme aksi:search template:${templateInput}\``,
+            `> 📋 Atau lihat list: \`/meme aksi:list\``
+          ].join('\n'));
+        }
+
+        const result = await generateMeme(template.id, teks1, teks2, teks3);
+
+        if (!result.success) {
+          const errMsg = result.error_message || 'Unknown error';
+
+          // Handle specific errors
+          let errHint = '';
+          if (errMsg.includes('username')) {
+            errHint = '\n> 🔑 Set `IMGFLIP_USERNAME` & `IMGFLIP_PASSWORD` di Cloudflare env!';
+          } else if (errMsg.includes('template')) {
+            errHint = `\n> 💡 Template ID mungkin tidak valid. Cek: \`/meme aksi:list\``;
+          }
+
+          return await editMsg([
+            `> ${EMOJI} ❌ Gagal generate meme: \`${errMsg}\``,
+            errHint
+          ].join('\n'));
+        }
+
+        const memeUrl = result.data.url;
+        const pageUrl = result.data.page_url;
+
+        // Update stats
+        const statsKey = `meme_stats:${discordId}`;
+        const statsRaw = await env.USERS_KV.get(statsKey);
+        const stats    = statsRaw
+          ? JSON.parse(statsRaw)
+          : { total: 0, random: 0, custom: 0, lastTemplate: null };
+        stats.total++;
+        stats.custom++;
+        stats.lastTemplate = template.name;
+        await env.USERS_KV.put(statsKey, JSON.stringify(stats), { expirationTtl: 86400 * 365 });
+
+        const waktu = new Date().toLocaleString('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          day: '2-digit', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        });
+
+        await editMsg('', [{
+          color: 0x2ECC71,
+          title: `✏️ Custom Meme — ${template.name}`,
+          description: [
+            '```ansi',
+            '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;32m║  ✏️   CUSTOM MEME GENERATED  ✏️      ║\u001b[0m',
+            '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━━ 📋 INFO ━━━━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m  🎭  Template  :\u001b[0m \u001b[1;37m${template.name}\u001b[0m`,
+            `\u001b[1;36m  🆔  ID        :\u001b[0m \u001b[2;37m${template.id}\u001b[0m`,
+            `\u001b[1;36m  📐  Ukuran    :\u001b[0m \u001b[0;37m${template.width}×${template.height}px\u001b[0m`,
+            teks1 ? `\u001b[1;36m  📝  Teks 1    :\u001b[0m \u001b[0;37m${teks1.slice(0, 50)}${teks1.length > 50 ? '...' : ''}\u001b[0m` : null,
+            teks2 ? `\u001b[1;36m  📝  Teks 2    :\u001b[0m \u001b[0;37m${teks2.slice(0, 50)}${teks2.length > 50 ? '...' : ''}\u001b[0m` : null,
+            teks3 ? `\u001b[1;36m  📝  Teks 3    :\u001b[0m \u001b[0;37m${teks3.slice(0, 50)}${teks3.length > 50 ? '...' : ''}\u001b[0m` : null,
+            `\u001b[1;36m  👤  Dibuat    :\u001b[0m \u001b[0;37m${username}\u001b[0m`,
+            `\u001b[1;36m  🕐  Waktu     :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+            `\u001b[1;36m  📊  Total     :\u001b[0m \u001b[0;37m${stats.total}x meme dibuat\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 🔗 [Download Meme](${memeUrl})`,
+            pageUrl ? `> 🌐 [Lihat di Imgflip](${pageUrl})` : null,
+            `> 🎲 Random meme: \`/meme aksi:random\``,
+            `> 🤖 *Powered by OwoBim Meme Engine × Imgflip* ${EMOJI}`
+          ].filter(Boolean).join('\n'),
+          image:  { url: memeUrl },
+          footer: { text: `OwoBim Meme Generator • ${template.name} • by ${username}` },
+          timestamp: new Date().toISOString()
+        }]);
+
+      } catch (err) {
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  return respond(`> ❌ Aksi tidak dikenal! Gunakan: \`random\`, \`custom\`, \`list\`, \`search\``);
+}
+// ══════════════════════════════════════════════════════════════════════
+// END CMD: meme
+// ══════════════════════════════════════════════════════════════════════
+
+
+
+
+    
+
+
+
+
     
 
 
