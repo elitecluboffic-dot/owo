@@ -1386,6 +1386,28 @@ if (isSpamming) {
 }
 
 
+    if (cmd === 'nyatakan-cinta') {
+  const tema   = getOption(options, 'tema');
+  const target = getOption(options, 'target');
+  const mention = target ? `<@${target}>` : '';
+
+  const THEMES = {
+    bucin1: { pesan: '💌 Hei, ada yang mau gw sampaikan ke lo... buka ini ya', link: 'https://buatkamu-dihatiku.pages.dev/' },
+    bucin2: { pesan: '💕 Gw udah lama mau bilang sesuatu... coba buka ini dulu', link: 'https://crushku.pages.dev/' },
+    bucin3: { pesan: '🥺 Lo pernah kepikiran kita cocok ga? Coba buka ini',     link: 'https://quizcinta.pages.dev/' },
+  };
+
+  const t = THEMES[tema];
+  if (!t) return respond(`❌ Tema tidak dikenal! Tema: \`${tema}\``);
+
+  return respond([
+    `💌 ${mention}`,
+    `> ${t.pesan}`,
+    `> 🔗 ${t.link}`
+  ].join('\n'));
+}
+
+
     if (cmd === 'register') {
       if (userKey) return respond('❌ Kamu sudah punya akun!');
       const password = getOption(options, 'password');
@@ -12268,40 +12290,6 @@ if (cmd === 'font') {
 // ══════════════════════════════════════════════════════════════════════
 // END CMD: font
 // ══════════════════════════════════════════════════════════════════════
-
-
-
-
-
-    
-
-
-
-    if (cmd === 'nyatakan-cinta') {
-  const tema  = getOption(options, 'tema');
-  const target = getOption(options, 'target');
-  const mention = target ? `<@${target}>` : '';
-
-  const THEMES = {
-    bucin1:    { pesan: '💌 Hei, ada yang mau gw sampaikan ke lo... buka ini ya',               link: 'https://buatkamu-dihatiku.pages.dev/' },
-    bucin2:    { pesan: '💕 Gw udah lama mau bilang sesuatu... coba buka ini dulu',             link: 'https://crushku.pages.dev/' },
-    bucin3:    { pesan: '🥺 Lo pernah kepikiran kita cocok ga? Coba buka ini',                  link: 'https://quizcinta.pages.dev/' },
-  };
-
-  const t = THEMES[tema];
-  if (!t) return respond('❌ Tema tidak dikenal!');
-
-  return respond([
-    `💌 ${mention}`,
-    `> ${t.pesan}`,
-    `> 🔗 ${t.link}`
-  ].join('\n'));
-}
-
-
-
-
-    
 
 
 
