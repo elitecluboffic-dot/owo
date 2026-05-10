@@ -1352,6 +1352,33 @@ const commands = [
       ]
     }
   ]
+},
+
+
+
+
+{
+  "name": "nyatakan-cinta",
+  "description": "Nyatakan perasaan ke crush lo secara anonymous!",
+  "options": [
+    {
+      "name": "tema",
+      "description": "Pilih gaya nyatakan cinta",
+      "type": 3,
+      "required": true,
+      "choices": [
+        { "name": "Bucin 1", "value": "bucin1" },
+        { "name": "Bucin 2", "value": "bucin2" },
+        { "name": "Bucin 3", "value": "bucin3" }
+      ]
+    },
+    {
+      "name": "target",
+      "description": "Mention orang yang mau lo kirimin (opsional)",
+      "type": 6,
+      "required": false
+    }
+  ]
 }
 
 
