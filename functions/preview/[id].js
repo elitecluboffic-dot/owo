@@ -33,12 +33,10 @@ export const onRequestGet = async ({ params, env }) => {
   });
 };
 
-// Hanya perlu escape lt untuk cegah tag script ditutup HTML parser.
-// Tidak perlu escape lain karena data ditaruh di script type=application/json
-// yang tidak dieksekusi browser sebagai JS sama sekali.
 function jsonForHtml(obj) {
   return JSON.stringify(obj)
-    .replace(/</g, '\\u003c');
+    .replace(/</g,    '\\u003c')
+    .replace(/\$\{/g, '\\u0024{');
 }
 
 function generatePreviewPage(data, createdDate) {
@@ -48,12 +46,20 @@ function generatePreviewPage(data, createdDate) {
     js:   data.js   || ''
   });
 
+  const title     = escapeHtml(data.title);
+  const ownerName = escapeHtml(data.ownerName);
+  const dataId    = escapeHtml(data.id);
+  const views     = data.views;
+  const htmlLen   = (data.html || '').length;
+  const cssLen    = (data.css  || '').length;
+  const jsLen     = (data.js   || '').length;
+
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>💻 ${escapeHtml(data.title)} — OwoBim Preview</title>
+<title>💻 ${title} — OwoBim Preview</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -117,7 +123,6 @@ function generatePreviewPage(data, createdDate) {
   }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
   #clock { color: var(--green); font-size: 12px; text-shadow: 0 0 6px var(--green); }
-
   #metabar {
     background: var(--mid); border-bottom: 1px solid var(--border);
     padding: 5px 16px; display: flex; align-items: center;
@@ -125,9 +130,7 @@ function generatePreviewPage(data, createdDate) {
     flex-shrink: 0; flex-wrap: wrap;
   }
   .meta-item span { color: var(--green-dim); }
-
   #main { display: flex; flex: 1; overflow: hidden; }
-
   #code-panel {
     width: 48%; display: flex; flex-direction: column;
     border-right: 2px solid var(--border);
@@ -156,7 +159,6 @@ function generatePreviewPage(data, createdDate) {
   .tab-css.active::after  { background: #6b9fff; box-shadow: 0 0 8px #6b9fff; }
   .tab-js.active   { color: #ffdf6b; text-shadow: 0 0 8px #ffdf6b; }
   .tab-js.active::after   { background: #ffdf6b; box-shadow: 0 0 8px #ffdf6b; }
-
   .code-pane { display: none; flex: 1; overflow: hidden; }
   .code-pane.active { display: flex; }
   .line-numbers {
@@ -180,7 +182,6 @@ function generatePreviewPage(data, createdDate) {
   .code-area.html { color: #ff9999; }
   .code-area.css  { color: #9fb3ff; }
   .code-area.js   { color: #ffe08a; }
-
   .action-bar {
     background: var(--darker); border-top: 1px solid var(--border);
     padding: 6px 12px; display: flex; align-items: center;
@@ -201,7 +202,6 @@ function generatePreviewPage(data, createdDate) {
   .btn-fs          { color: var(--amber); border-color: var(--amber); }
   .btn-fs:hover    { background: var(--amber);  color: var(--darker); box-shadow: 0 0 12px var(--amber); }
   .char-count { margin-left: auto; font-size: 10px; color: var(--text-dim); }
-
   #preview-panel { flex: 1; display: flex; flex-direction: column; background: var(--dark); min-width: 180px; }
   .preview-header {
     background: var(--darker); border-bottom: 1px solid var(--border);
@@ -217,7 +217,6 @@ function generatePreviewPage(data, createdDate) {
   .preview-status.ok  { color: var(--green); }
   .preview-status.err { color: var(--red); }
   #preview-frame { flex: 1; border: none; width: 100%; background: #fff; }
-
   .resize-handle {
     width: 6px; background: var(--border); cursor: col-resize;
     flex-shrink: 0; position: relative; transition: background .2s;
@@ -227,7 +226,6 @@ function generatePreviewPage(data, createdDate) {
     content: '⠿'; position: absolute; top: 50%; left: 50%;
     transform: translate(-50%,-50%); color: var(--green-dim); font-size: 14px;
   }
-
   #console-panel {
     background: var(--darker); border-top: 2px solid var(--border);
     height: 120px; display: flex; flex-direction: column;
@@ -250,7 +248,6 @@ function generatePreviewPage(data, createdDate) {
   .warn-line  { color: var(--amber); }
   .info-line  { color: var(--cyan); }
   .sys-line   { color: var(--text-dim); }
-
   @media (max-width: 768px) {
     #main { flex-direction: column; }
     #code-panel { width: 100% !important; height: 50%; border-right: none; border-bottom: 2px solid var(--border); }
@@ -270,20 +267,20 @@ function generatePreviewPage(data, createdDate) {
   <div class="topbar-left">
     <span class="logo">[ OWOBIM ]</span>
     <span class="separator">//</span>
-    <span class="preview-title">${escapeHtml(data.title)}</span>
+    <span class="preview-title">${title}</span>
   </div>
   <div class="topbar-right">
     <span><span class="status-dot"></span> LIVE PREVIEW</span>
-    <span>BY: ${escapeHtml(data.ownerName)}</span>
+    <span>BY: ${ownerName}</span>
     <span id="clock">--:--:--</span>
   </div>
 </div>
 
 <div id="metabar">
-  <span class="meta-item">🆔 <span>${escapeHtml(data.id)}</span></span>
+  <span class="meta-item">🆔 <span>${dataId}</span></span>
   <span class="meta-item">📅 <span>${createdDate} WIB</span></span>
-  <span class="meta-item">👁️ <span>${data.views}</span> views</span>
-  <span class="meta-item">📏 HTML:<span>${(data.html||'').length}</span> CSS:<span>${(data.css||'').length}</span> JS:<span>${(data.js||'').length}</span> chars</span>
+  <span class="meta-item">👁️ <span>${views}</span> views</span>
+  <span class="meta-item">📏 HTML:<span>${htmlLen}</span> CSS:<span>${cssLen}</span> JS:<span>${jsLen}</span> chars</span>
 </div>
 
 <div id="main">
@@ -338,8 +335,8 @@ function generatePreviewPage(data, createdDate) {
     <span id="console-toggle" style="margin-left:auto">▼</span>
   </div>
   <div id="console-output">
-    <div class="sys-line">[ OwoBim Preview Console — ${escapeHtml(data.id)} ]</div>
-    <div class="sys-line">[ By: ${escapeHtml(data.ownerName)} | ${createdDate} WIB ]</div>
+    <div class="sys-line">[ OwoBim Preview Console — ${dataId} ]</div>
+    <div class="sys-line">[ By: ${ownerName} | ${createdDate} WIB ]</div>
   </div>
 </div>
 
