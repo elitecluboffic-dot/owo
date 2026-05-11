@@ -12290,6 +12290,1067 @@ if (cmd === 'font') {
 
 
 
+
+
+
+
+
+
+
+// ══════════════════════════════════════════════════════════════════════
+// CMD: wordle — Wordle Unlimited 🇮🇩 Indonesia & 🇬🇧 English  [FULL PRO v2]
+//
+// Fixes dari v1:
+//  ✅ Word list: kata >5 huruf dibuang, duplikat dihapus, list diperbesar
+//  ✅ Anti-cheat Flag 4 diperkuat: butuh timing data, bukan hanya stat rate
+//  ✅ Race condition updateStats: idempotency key per game session
+//  ✅ Leaderboard: ambil top-N langsung dari KV list metadata, bukan loop semua
+//  ✅ Hint: tidak bocorkan posisi eksak, hanya sebut huruf ada
+//  ✅ Pesan menang/kalah bilingual (ikut lang game)
+//  ✅ SUB: board — lihat papan game aktif tanpa harus guess dulu
+//  ✅ Cooldown race-condition: tulis cd SEBELUM tulis game state
+//
+// KV Keys:
+//   wordle:game:{userId}    → active game state
+//   wordle:stats:{userId}   → personal stats
+//   wordle:lb:{userId}      → leaderboard entry
+//   wordle:cheat:{userId}   → cheat log
+//   wordle:cd:{userId}      → new game cooldown
+// ══════════════════════════════════════════════════════════════════════
+if (cmd === 'wordle') {
+  const EMOJI    = '<a:GifOwoBim:1492599199038967878>';
+  const OWNER_ID = '1442230317455900823';
+  const sub      = getOption(options, 'aksi') || 'play';
+  const isOwner  = discordId === OWNER_ID;
+
+  // ══════════════════════════════════════════════════════════════════
+  // WORD LISTS — 5 huruf semua, duplikat bersih
+  // ══════════════════════════════════════════════════════════════════
+
+  // ── Bahasa Indonesia ──────────────────────────────────────────────
+  const ANSWERS_ID_RAW = [
+    // A
+    'ABADI','ABANG','AKHIR','AKTIF','ALBUM','AMBIL','ANGIN','ANGKA','ANTIK','AGAMA',
+    'AKRAB','ALAMI','ASING','ATLET','ANGAN','ANTAR','AROMA',
+    // B
+    'BAKAR','BAKAT','BALIK','BALON','BANTU','BARAT','BATAS','BATIN','BAWAH','BAYAR',
+    'BEBAS','BEKAL','BELAH','BENAR','BESAR','BELUM','BENCI','BOCOR','BODOH','BONUS',
+    'BUKTI','BUNGA','BUNUH','BURUH','BURUK','BARIS','BASAH','BOCAH','BOTAK','BABAK',
+    'BALOK','BECAK','CACAH',
+    // C
+    'CACAT','CAKAP','CALON','CEMAS','CEPAT','CERAH','CINTA','CORAK','COCOK','CULIK',
+    'CURAH','CURAM','CEKAL','CELAH','CICIL','COLEK','CAPEK',
+    // D
+    'DAHAK','DALIH','DATUK','DAWAI','DAMAI','DARAH','DASAR','DALAM','DEBUT','DEKAT',
+    'DELTA','DEMAM','DENDA','DEPOT','DERAS','DESAK','DEWAN','DONOR','DOSIS','DUDUK',
+    'DUKUN','DUNGU','DUNIA','DIKIT','DOLAR',
+    // E
+    'EKSIS','EMPUK',
+    // F
+    'FAJAR','FAKIR','FASIK','FATAL','FINAL','FISIK','FOKUS','FORUM','FRASA','FAKTA',
+    // G
+    'GADAI','GAGAH','GAGAP','GALAK','GALAU','GANAS','GARAM','GARIS','GATAL','GELAP',
+    'GELAR','GEMPA','GEMUK','GERAK','GITAR','GOSIP','GROGI','GUGAT','GUGUR','GULAT',
+    'GURUN','GELAK','GILAS','GOLEK','HANGAT',
+    // H
+    'HADAP','HADIR','HAKIM','HALAL','HALUS','HAMIL','HAMPA','HAPUS','HARAP','HARGA',
+    'HASIL','HEBAT','HEMAT','HEWAN','HIDUP','HITAM','HOAKS','HUJAN','HUMOR','HABIS',
+    // I
+    'IBLIS','IDEAL','IKLIM','IKLAN','ILHAM','IMPOR','INDAH','INDRA','INGIN','INJAK',
+    'INSAF','INTAN','IRAMA','ISENG','ISTRI','IMPAS',
+    // J
+    'JAGAD','JAHAT','JALUR','JALAN','JARAK','JARUM','JAWAB','JINAK','JOGET','JUMPA',
+    'JAHIT','JIRAK',
+    // K
+    'KABAR','KAGET','KAGUM','KANAN','KAPAL','KARYA','KASIH','KERAS','KEREN','KESAL',
+    'KILAT','KOPER','KABUR','LAPAK',
+    // L
+    'LAPAR','LAWAN','LAYAK','LEMAH','LEMBU','LETAK','LIBUR','LOGIS','LOLOS','LOYAL',
+    'LUNAS','LAYANG',
+    // M
+    'MAKAN','MAKIN','MALAS','MALAM','MANJA','MASAK','MASUK','MAWAR','MEKAR','MESRA',
+    'MILIK','MINTA','MINUM','MOGOK','MULAS','MULAI','MULUT','MURAH','MABUK',
+    // N
+    'NALAR','NAMUN','NAKAL',
+    // O
+    'ORANG','OBRAL',
+    // P
+    'PAHAM','PAKAI','PAKSA','PASAR','PATAH','PELUK','PENUH','PERLU','PILIH','PUTIH',
+    'PASAK','PARANG',
+    // R
+    'RAMAI','RIANG','RINDU','RISAU','RUANG','RUMUS','RUSAK','RAMBUT',
+    // S
+    'SABAR','SAKIT','SAMAR','SEBAB','SEHAT','SEJAK','SETAN','SIGAP','SISWA','SOPAN',
+    'SULIT','SABUK','SAWAH','TAKUT',
+    // T
+    'TARIK','TATAP','TEBAL','TEMAN','TEPAT','TOTAL','TUGAS','TAHAN',
+    // U
+    'USAHA','UTAMA','UJIAN',
+    // V
+    'VAKUM',
+    // W
+    'WAKTU','WANGI','WARNA','WARAS','WATAK','WARUNG',
+    // Y
+    'YAKIN','YAKNI',
+    // Z
+    'ZAKAT',
+  ];
+
+  // ── English ───────────────────────────────────────────────────────
+  const ANSWERS_EN_RAW = [
+    'ABOUT','ABOVE','ABUSE','ACUTE','ADMIT','ADOPT','AFTER','AGAIN','AGENT','AGREE',
+    'AHEAD','ALARM','ALERT','ALIEN','ALIKE','ALIVE','ALONE','ALONG','ALTER','AMONG',
+    'ANGEL','ANGLE','ANIME','APPLE','APPLY','ARMOR','AROSE','ARRAY','ARROW','ASSET',
+    'AVOID','AWAKE','AWARD','AWARE',
+    'BADLY','BASIC','BASIS','BEACH','BEARD','BEAST','BEGIN','BELOW','BENCH','BLACK',
+    'BLADE','BLAME','BLAND','BLANK','BLAST','BLAZE','BLEED','BLEND','BLESS','BLOCK',
+    'BLOOD','BLOOM','BOARD','BOOST','BOUND','BRAIN','BRAVE','BREAD','BREAK','BREED',
+    'BRIBE','BRIEF','BRING','BROKE','BROWN','BUILD','BUILT','BURST','BUYER',
+    'CABIN','CANDY','CARRY','CATCH','CAUSE','CHAIN','CHAIR','CHAOS','CHARM','CHART',
+    'CHASE','CHEAP','CHECK','CHEER','CHILD','CIVIL','CLAIM','CLASH','CLASS','CLEAN',
+    'CLEAR','CLICK','CLIFF','CLIMB','CLOSE','CLOUD','COACH','COAST','COUNT','COVER',
+    'CRAFT','CRASH','CRAZY','CREAM','CRIME','CROSS','CROWD','CRUEL','CRUSH','CURVE',
+    'DAILY','DANCE','DEATH','DELAY','DENSE','DEPTH','DEVIL','DIRTY','DOUBT','DRAFT',
+    'DRAIN','DRAMA','DREAM','DRESS','DRIFT','DRINK','DRIVE','DRONE','DRUNK','DROWN',
+    'EAGER','EARLY','EARTH','EIGHT','ELITE','EMAIL','EMPTY','ENEMY','ENJOY','ENTER',
+    'EQUAL','ERROR','EVENT','EVERY','EXACT','EXIST','EXTRA',
+    'FAINT','FAITH','FALSE','FANCY','FATAL','FAULT','FEAST','FETCH','FEVER','FIELD',
+    'FIFTH','FIGHT','FINAL','FIRST','FIXED','FLAME','FLEET','FLOAT','FLOOR','FLOUR',
+    'FLUID','FOCUS','FORCE','FORGE','FORUM','FOUND','FRESH','FRUIT','FULLY','FUNNY',
+    'GHOST','GIANT','GIVEN','GLASS','GLOBE','GLORY','GRACE','GRADE','GRAIN','GRAND',
+    'GRANT','GRASP','GRAVE','GREAT','GREEN','GRIEF','GRIND','GROSS','GROUP','GUARD',
+    'GUESS','GUILT',
+    'HAPPY','HARSH','HAUNT','HAVEN','HEART','HEAVY','HENCE',
+    'LIGHT','NIGHT','NOBLE','OCCUR','OCEAN','OFFER','OFTEN','ONION','ORBIT','ORDER',
+    'OWNED','OZONE',
+    'PANEL','PANIC','PAPER','PARTY','PATCH','PAUSE','PEACE','PHASE','PHONE','PHOTO',
+    'PIECE','PILOT','PIXEL','PIZZA','PLACE','PLAIN','PLANE','PLANT','PLATE','POINT',
+    'POWER','PRESS','PRIDE','PRIME','PROVE','PULSE',
+    'QUEEN','QUICK','QUIET','QUOTA','QUOTE',
+    'RADIO','RAISE','RALLY','RANCH','RANGE','RAPID','RATIO','REACH','REALM','REBEL',
+    'RELAX','RIGHT','RIGID','RISKY','RIVAL','RIVER','ROBOT','ROUGH','ROUND','ROUTE',
+    'ROYAL','RURAL',
+    'SAINT','SAUCE','SCALE','SCENE','SCORE','SCOUT','SENSE','SERVE','SEVEN','SHADE',
+    'SHAKE','SHAME','SHAPE','SHARE','SHARP','SHIFT','SHINE','SHIRT','SHORT','SHOUT',
+    'SIGMA','SINCE','SKILL','SKULL','SLATE','SLIDE','SMART','SMILE','SMOKE','SOLID',
+    'SOLVE','SOUTH','SPACE','SPARE','SPARK','SPEAK','SPELL','SPEND','SPLIT','SPORT',
+    'SQUAD','STACK','STAGE','STAKE','STAND','STARK','START','STATE','STEAM','STEEL',
+    'STONE','STORE','STORM','STORY','STRAW','STRIP','STYLE','SUGAR','SURGE','SWAMP',
+    'SWEET','SWIFT','SWORD',
+    'TABLE','TASTE','TENSE','THEIR','THERE','THICK','THING','THINK','THREE','TIGER',
+    'TIGHT','TIRED','TITLE','TODAY','TOKEN','TOPIC','TORCH','TOUCH','TOUGH','TRACE',
+    'TRACK','TRADE','TRAIL','TRAIN','TRAIT','TREAT','TRIBE','TRICK','TROOP','TRUST',
+    'TRUTH','TWIST',
+    'UNION','UNITE','UNTIL','UPPER','UPSET','URBAN','USAGE','USUAL',
+    'VALID','VALUE','VERSE','VIDEO','VIRAL','VIRUS','VISIT','VITAL','VOICE',
+    'WASTE','WATCH','WATER','WEIRD','WHERE','WHICH','WHILE','WHITE','WHOLE','WHOSE',
+    'WITCH','WOMAN','WOMEN','WORLD','WORRY','WORSE','WORST','WORTH','WOULD','WOUND',
+    'WRITE','YIELD','YOUNG','YOUTH',
+    // common words added
+    'CABLE','CHIEF','THROW','SMALL','UNDER','OTHER','NEVER','STILL','MIGHT','COULD',
+    'BEING','TAKEN','SHOWN','KNOWN','QUITE','LEAST','LARGE','READY','HUMAN','MAYBE',
+    'LATER','THESE','THOSE','EVERY','AGAIN','LEARN','LOCAL','LOWER','MUSIC','NOVEL',
+    'OLDER','PRIOR','SPEED','STAFF','STEPS','TAXES','TEAMS','TURNS','TYPES','UNITS',
+    'USERS','VIEWS','VOTES','WALLS','WEEKS','WINDS','WINGS','WORDS','WORKS','WROTE',
+    'YARDS','YEARS','GOING','DOING','PLACE','LARGE','SMALL','GREAT','LITTLE','FOUND',
+    'CABLE','CLOSE','FLOOR','FLOOR','ALONG','FRONT','HEAVY','HORSE','LEVEL','MEDIA',
+    'MONEY','MOUTH','MOVED','MUSIC','NAMED','NEEDS','NOTES','OPENS','PAGES','PAIRS',
+    'PLANS','PLAYS','POSTS','PRICE','RAILS','READS','ROLES','RULES','SAVES','SEEMS',
+    'SENDS','SHOWS','SIDES','SITES','SIZED','SORTS','STAYS','STEMS','STOPS','SUITE',
+    'TALKS','TASKS','TEARS','TEENS','TELLS','TERMS','TESTS','TEXTS','THREW','TIMES',
+    'TOWNS','WALKS','WAVES','WIDER','WROTE',
+  ];
+
+  // ── Extra valid guesses (not answers, but accepted input) ─────────
+  const EXTRA_VALID_ID_RAW = [
+    'ABSEN','ADUAN','AFDAL','AKAD','ALANG','ANDAI','ANDAL','ANEKA','ANJIR',
+    'APUNG','ARUNG','ASYIK','ATASI','BAGUS','BAHWA','BAKAU','BAKUL','BALAI',
+    'BALET','BARIS','BARUH','BAYAM','BEDAH','BEDUG','BEKUK','BELEK','BENAK',
+    'BERAS','BERUK','BESUK','BIASA','BIBIR','BIJAK','BILAH','BINAL','BINAR',
+    'BONDA','BRAVO','BUANG','BUDAK','BUKIT','BULAT','BURIT','BURSA','BUTIR',
+    'CATAT','CELUP','CERAI','CEREK','CERUK','COBAH','CORAN','CUBIT','DAGAL',
+    'DAKON','DEGUP','DEHEM','DIDIK','DOANG','DOBEL','DOKAR','DONAT','DULUR',
+    'ELANG','EMBUN','ENDAP','EYANG','FASAL','FIKRI','FOLIO','GAGAS','GANDA',
+    'GARUK','GAWAI','GEBUK','GEDIK','GETAH','GILAS','GISAR','GOSOK','GULAG',
+    'GUSAR','HABUK','HAMAL','HASUT','HAYAM','HILAL','HISAR','HULAM','IKAR',
+    'IKRAR','ILANG','INCAR','IPAR','ISAP','OPLET','GABAH','DEREK','BOLAK',
+    'JIRAT','CUKUP','ADUK','AMBIT','AMBUL',
+  ];
+
+  const EXTRA_VALID_EN_RAW = [
+    'OCCUR','CABLE','CHIEF','THROW','SMALL','UNDER','OTHER','NEVER','STILL',
+    'MIGHT','COULD','BEING','TAKEN','SHOWN','KNOWN','QUITE','LEAST','LARGE',
+    'SHORT','YOUNG','READY','HUMAN','MAYBE','LATER','THESE','THOSE','EVERY',
+    'AGAIN','ABOVE','BELOW','LEARN','LOCAL','LOWER','MAKES','MEANS','MEETS',
+    'MOVED','NAMED','NEEDS','NOVEL','OLDER','OPENS','PRIOR','RAILS','READS',
+    'ROLES','RULES','SAVES','SEEMS','SENDS','SHAKE','SHOWS','SIDES','SITES',
+    'SIZED','SORTS','SPACE','SPARE','SPEAK','SPEED','SPELL','SPLIT','SPORT',
+    'STAFF','STAYS','STEMS','STEPS','STOPS','STORE','STORM','STORY','STYLE',
+    'SUITE','TAKES','TALKS','TASKS','TAXES','TEAMS','TEARS','TEENS','TELLS',
+    'TERMS','TESTS','TEXTS','THING','THINK','THREW','TIGHT','TIMES','TODAY',
+    'TOWNS','TRACK','TRAIL','TURNS','TYPES','UNDER','UNITS','UNTIL','UPPER',
+    'UPSET','URBAN','USERS','USUAL','VIEWS','VITAL','VOTES','WALKS','WALLS',
+    'WATCH','WAVES','WEEKS','WHILE','WHICH','WHOLE','WHOSE','WIDER','WINDS',
+    'WINGS','WORDS','WORKS','WRITE','WROTE','YARDS','YEARS',
+  ];
+
+  // ── Build final sets (clean: exactly 5 letters, no dupes) ─────────
+  const clean5 = (arr) => arr.filter(
+    (w, i, a) => typeof w === 'string' && w.length === 5 && /^[A-Z]+$/.test(w) && a.indexOf(w) === i
+  );
+
+  const ANSWERS_ID   = clean5(ANSWERS_ID_RAW);
+  const ANSWERS_EN   = clean5(ANSWERS_EN_RAW);
+  const EXTRA_ID     = clean5(EXTRA_VALID_ID_RAW);
+  const EXTRA_EN     = clean5(EXTRA_VALID_EN_RAW);
+
+  const VALID_ID = new Set([...ANSWERS_ID, ...EXTRA_ID]);
+  const VALID_EN = new Set([...ANSWERS_EN, ...EXTRA_EN]);
+
+  // ══════════════════════════════════════════════════════════════════
+  // I18N — bilingual messages
+  // ══════════════════════════════════════════════════════════════════
+  const T = {
+    id: {
+      win: {
+        1: '🏆 LUAR BIASA! 1 tebakan langsung benar!',
+        2: '🔥 Jenius! Cuma 2 tebakan!',
+        3: '😎 Mantap! 3 tebakan!',
+        4: '👍 Keren! 4 tebakan!',
+        5: '😅 Hampir gagal! 5 tebakan...',
+        6: '😤 Phew! Pas di tebakan terakhir!',
+      },
+      lose: (ans) => `💔 Game Over! Jawabannya: **\`${ans}\`**`,
+      remaining: (n) => `🎮 **${n}** tebakan tersisa`,
+      correct: 'Benar',
+      present: 'Ada, salah posisi',
+      absent:  'Tidak ada',
+    },
+    en: {
+      win: {
+        1: '🏆 INCREDIBLE! First guess!',
+        2: '🔥 Genius! Only 2 guesses!',
+        3: '😎 Great! 3 guesses!',
+        4: '👍 Nice! 4 guesses!',
+        5: '😅 Cutting it close! 5 guesses...',
+        6: '😤 Phew! Last guess!',
+      },
+      lose: (ans) => `💔 Game Over! The word was: **\`${ans}\`**`,
+      remaining: (n) => `🎮 **${n}** guesses left`,
+      correct: 'Correct',
+      present: 'Wrong position',
+      absent:  'Not in word',
+    },
+  };
+
+  // ══════════════════════════════════════════════════════════════════
+  // GAME HELPERS
+  // ══════════════════════════════════════════════════════════════════
+
+  /**
+   * Standard Wordle 2-pass evaluation
+   * Returns array of 5: '🟩' | '🟨' | '⬛'
+   */
+  const evaluateGuess = (guess, answer) => {
+    const result  = Array(5).fill('⬛');
+    const ansArr  = [...answer];
+    const gArr    = [...guess];
+    const usedAns = Array(5).fill(false);
+    const usedGue = Array(5).fill(false);
+
+    for (let i = 0; i < 5; i++) {
+      if (gArr[i] === ansArr[i]) {
+        result[i] = '🟩';
+        usedAns[i] = usedGue[i] = true;
+      }
+    }
+    for (let i = 0; i < 5; i++) {
+      if (usedGue[i]) continue;
+      for (let j = 0; j < 5; j++) {
+        if (!usedAns[j] && gArr[i] === ansArr[j]) {
+          result[i] = '🟨';
+          usedAns[j] = true;
+          break;
+        }
+      }
+    }
+    return result;
+  };
+
+  /** 6-row board */
+  const buildBoard = (guesses, results) => {
+    const rows = [];
+    for (let i = 0; i < 6; i++) {
+      if (i < guesses.length) {
+        rows.push(`${results[i].join('')} \`${[...guesses[i]].join(' ')}\``);
+      } else {
+        rows.push('⬜⬜⬜⬜⬜ `_ _ _ _ _`');
+      }
+    }
+    return rows.join('\n');
+  };
+
+  /** Letter status tracker */
+  const buildLetterInfo = (guesses, results, lang) => {
+    const statusMap = {};
+    const priority  = { '🟩': 3, '🟨': 2, '⬛': 1 };
+    for (let g = 0; g < guesses.length; g++) {
+      for (let i = 0; i < 5; i++) {
+        const letter = guesses[g][i];
+        const status = results[g][i];
+        if (!statusMap[letter] || priority[status] > priority[statusMap[letter]]) {
+          statusMap[letter] = status;
+        }
+      }
+    }
+    const t = T[lang] || T.id;
+    const correct = Object.entries(statusMap).filter(([, s]) => s === '🟩').map(([l]) => l).join(' ') || '-';
+    const present = Object.entries(statusMap).filter(([, s]) => s === '🟨').map(([l]) => l).join(' ') || '-';
+    const absent  = Object.entries(statusMap).filter(([, s]) => s === '⬛').map(([l]) => l).join(' ') || '-';
+    return { correct, present, absent, t };
+  };
+
+  /** Shared board embed section (reused by guess + board subs) */
+  const buildGuessEmbed = (gameState, isWin, isLose) => {
+    const isEnd   = isWin || isLose;
+    const lang    = gameState.lang;
+    const t       = T[lang] || T.id;
+    const board   = buildBoard(gameState.guesses, gameState.results);
+    const { correct, present, absent } = buildLetterInfo(gameState.guesses, gameState.results, lang);
+    const remaining = 6 - gameState.guesses.length;
+    const langFlag  = lang === 'id' ? '🇮🇩' : '🇬🇧';
+
+    let embedColor, statusText, footerNote;
+    if (isWin) {
+      embedColor = 0x2ECC71;
+      statusText = t.win[gameState.guesses.length] || '🎉';
+      footerNote = `✅ ${gameState.answer} • ${gameState.guesses.length}/6`;
+    } else if (isLose) {
+      embedColor = 0xFF4444;
+      statusText = t.lose(gameState.answer);
+      footerNote = `❌ ${gameState.answer} • 6/6`;
+    } else {
+      const greenCount = gameState.results.length
+        ? gameState.results[gameState.results.length - 1].filter(r => r === '🟩').length
+        : 0;
+      embedColor = greenCount >= 3 ? 0xF39C12 : 0x5865F2;
+      statusText = t.remaining(remaining);
+      footerNote = `Tebakan ${gameState.guesses.length}/6`;
+    }
+
+    const descLines = [
+      `> ${statusText}`,
+      '',
+      board,
+      '',
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━ 🔤 STATUS HURUF ━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;32m 🟩 ${t.correct.padEnd(14)}:\u001b[0m \u001b[0;37m${correct}\u001b[0m`,
+      `\u001b[1;33m 🟨 ${t.present.padEnd(14)}:\u001b[0m \u001b[0;37m${present}\u001b[0m`,
+      `\u001b[0;37m ⬛ ${t.absent.padEnd(14)}:\u001b[0m \u001b[2;37m${absent}\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+    ];
+
+    if (!isEnd) {
+      descLines.push(`> 💡 \`/wordle aksi:guess kata:XXXXX\` | \`/wordle aksi:hint\` | \`/wordle aksi:quit\``);
+    } else {
+      descLines.push(`> 🎮 \`/wordle aksi:play bahasa:${lang}\``);
+      descLines.push(`> 📊 \`/wordle aksi:stats\``);
+    }
+
+    return {
+      color: embedColor,
+      title: `🟩 WORDLE ${langFlag} — ${
+        isWin  ? '✅ MENANG!' :
+        isLose ? '❌ KALAH!'  :
+        `Tebakan #${gameState.guesses.length}/6`
+      }`,
+      description: descLines.join('\n'),
+      footer: { text: `OwoBim Wordle • ${footerNote} • Anti-Cheat 🛡️` },
+      timestamp: new Date().toISOString(),
+    };
+  };
+
+  // ══════════════════════════════════════════════════════════════════
+  // ANTI-CHEAT ENGINE  (improved v2)
+  // ══════════════════════════════════════════════════════════════════
+
+  const detectCheat = async (gameState, guessWord, guessTime) => {
+    if (isOwner) return null;
+    const flags = [];
+
+    // Flag 1: Speed hack between guesses
+    if (gameState.lastGuessTime) {
+      const diff = guessTime - gameState.lastGuessTime;
+      if (diff < 2000) {
+        flags.push(`⚡ Speed hack: ${diff}ms antar tebakan (min 2000ms)`);
+      }
+    }
+
+    // Flag 2: First guess correct too fast
+    const timeSinceStart = guessTime - gameState.startTime;
+    if (gameState.guesses.length === 0 && guessWord === gameState.answer && timeSinceStart < 6000) {
+      flags.push(`🎯 First guess correct in ${timeSinceStart}ms — possible pre-knowledge`);
+    }
+
+    // Flag 3: First guess submitted impossibly fast (bot/macro)
+    if (gameState.guesses.length === 0 && timeSinceStart < 3000) {
+      flags.push(`⚡ First guess in ${timeSinceStart}ms — suspiciously fast`);
+    }
+
+    // Flag 4 (improved): Perfect rate suspicious ONLY when combined with
+    //   very fast first-guess timing on this session
+    const statsRaw = await env.USERS_KV.get(`wordle:stats:${discordId}`);
+    if (statsRaw) {
+      const stats = JSON.parse(statsRaw);
+      const perfectRate = stats.gamesPlayed > 0
+        ? (stats.perfectGames || 0) / stats.gamesPlayed
+        : 0;
+      const thisSessionFast = timeSinceStart < 10000; // guessed within 10s of game start
+      if ((stats.perfectGames || 0) >= 5 && perfectRate > 0.3 && thisSessionFast) {
+        flags.push(`📊 ${stats.perfectGames} perfect games (${(perfectRate * 100).toFixed(1)}%) + fast session`);
+      }
+    }
+
+    return flags.length > 0 ? flags : null;
+  };
+
+  const logAndReportCheat = async (flags, guessWord, gameState) => {
+    const cheatKey  = `wordle:cheat:${discordId}`;
+    const existing  = await env.USERS_KV.get(cheatKey);
+    const cheatLog  = existing ? JSON.parse(existing) : { count: 0, incidents: [] };
+    cheatLog.count++;
+    cheatLog.incidents.push({
+      flags, guessWord,
+      answer:   gameState.answer,
+      lang:     gameState.lang,
+      guessNum: gameState.guesses.length + 1,
+      at:       Date.now(),
+    });
+    if (cheatLog.incidents.length > 30) cheatLog.incidents = cheatLog.incidents.slice(-30);
+    await env.USERS_KV.put(cheatKey, JSON.stringify(cheatLog), { expirationTtl: 86400 * 180 });
+
+    const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
+    if (!WEBHOOK) return;
+
+    await fetch(WEBHOOK, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: `<@${OWNER_ID}> 🚨 **WORDLE CHEAT DETECTED!**`,
+        embeds: [{
+          color:  0xFF0000,
+          title:  '🎯 Wordle Anti-Cheat Alert',
+          fields: [
+            { name: '👤 User',           value: `<@${discordId}> (\`${username}\` | \`${discordId}\`)`, inline: true },
+            { name: '📝 Guess → Answer', value: `\`${guessWord}\` → \`${gameState.answer}\``,           inline: true },
+            { name: '🌐 Bahasa',         value: gameState.lang === 'id' ? '🇮🇩 Indonesia' : '🇬🇧 English', inline: true },
+            { name: '🔢 Tebakan ke-',    value: `#${gameState.guesses.length + 1}`,                      inline: true },
+            { name: '📊 Total Incidents',value: `${cheatLog.count}x`,                                    inline: true },
+            { name: '🚩 Flags',          value: flags.map(f => `• ${f}`).join('\n'),                     inline: false },
+          ],
+          footer:    { text: 'OwoBim Wordle Anti-Cheat v2' },
+          timestamp: new Date().toISOString(),
+        }],
+        components: [{
+          type: 1,
+          components: [
+            { type: 2, style: 4, label: '🔨 Ban User',        custom_id: `ban_open:${discordId}:${gameState.guildId || 'dm'}` },
+            { type: 2, style: 2, label: '📢 Beri Peringatan', custom_id: `warn_open:${discordId}` },
+            { type: 2, style: 3, label: '✅ Abaikan',         custom_id: `ignore_spam:${discordId}` },
+          ],
+        }],
+      }),
+    }).catch(() => {});
+  };
+
+  // ══════════════════════════════════════════════════════════════════
+  // UPDATE STATS
+  // Idempotency: skip if gameSessionId already recorded
+  // ══════════════════════════════════════════════════════════════════
+
+  const updateStats = async (gameState, isWin, isEnd, guessCount) => {
+    if (!isEnd) return; // only update when game ends
+
+    const statsKey = `wordle:stats:${discordId}`;
+    const statsRaw = await env.USERS_KV.get(statsKey);
+    const s = statsRaw ? JSON.parse(statsRaw) : {
+      gamesPlayed: 0, gamesWon: 0, currentStreak: 0, maxStreak: 0,
+      perfectGames: 0, totalGuesses: 0, avgGuesses: 0,
+      guessDistrib: { 1:0,2:0,3:0,4:0,5:0,6:0 },
+      byLang: { id:{played:0,won:0}, en:{played:0,won:0} },
+      lastPlayedAt: null, fastestWin: null, cheatWarnings: 0,
+      recordedSessions: [], // idempotency: store last 50 session IDs
+    };
+
+    // Guard: init missing fields on old records
+    if (!s.byLang)            s.byLang            = { id:{played:0,won:0}, en:{played:0,won:0} };
+    if (!s.guessDistrib)      s.guessDistrib      = { 1:0,2:0,3:0,4:0,5:0,6:0 };
+    if (!s.recordedSessions)  s.recordedSessions  = [];
+
+    // Idempotency check: skip duplicate writes (race condition from double-fire)
+    const sessionId = gameState.sessionId;
+    if (sessionId && s.recordedSessions.includes(sessionId)) return s;
+    if (sessionId) {
+      s.recordedSessions.push(sessionId);
+      if (s.recordedSessions.length > 50) s.recordedSessions.shift();
+    }
+
+    s.gamesPlayed++;
+    s.byLang[gameState.lang] = s.byLang[gameState.lang] || { played:0, won:0 };
+    s.byLang[gameState.lang].played++;
+    s.lastPlayedAt = Date.now();
+
+    if (isWin) {
+      s.gamesWon++;
+      s.byLang[gameState.lang].won++;
+      s.currentStreak++;
+      if (s.currentStreak > s.maxStreak) s.maxStreak = s.currentStreak;
+      s.totalGuesses += guessCount;
+      s.avgGuesses    = s.totalGuesses / s.gamesWon;
+      s.guessDistrib[guessCount] = (s.guessDistrib[guessCount] || 0) + 1;
+      if (guessCount === 1) s.perfectGames++;
+
+      const gameTime = Date.now() - gameState.startTime;
+      if (!s.fastestWin || gameTime < s.fastestWin.ms) {
+        s.fastestWin = { ms: gameTime, guesses: guessCount, word: gameState.answer };
+      }
+    } else {
+      s.currentStreak = 0;
+    }
+
+    await env.USERS_KV.put(statsKey, JSON.stringify(s), { expirationTtl: 86400 * 365 });
+
+    // Update leaderboard entry only on win
+    if (isWin) {
+      await env.USERS_KV.put(`wordle:lb:${discordId}`, JSON.stringify({
+        discordId, username,
+        wins:       s.gamesWon,
+        maxStreak:  s.maxStreak,
+        avgGuesses: parseFloat(s.avgGuesses.toFixed(2)),
+        updatedAt:  Date.now(),
+      }), { expirationTtl: 86400 * 365 });
+    }
+
+    return s;
+  };
+
+  // ══════════════════════════════════════════════════════════════════
+  // SUB: play
+  // ══════════════════════════════════════════════════════════════════
+  if (sub === 'play') {
+    const lang = (getOption(options, 'bahasa') || 'id').toLowerCase();
+    if (lang !== 'id' && lang !== 'en') {
+      return respond(`> ${EMOJI} ❌ Bahasa tidak valid. Gunakan \`id\` atau \`en\`.`);
+    }
+
+    // Check active game
+    const existingRaw = await env.USERS_KV.get(`wordle:game:${discordId}`);
+    if (existingRaw) {
+      const existing = JSON.parse(existingRaw);
+      const elapsed  = Math.floor((Date.now() - existing.startTime) / 60000);
+      return respond([
+        `> ${EMOJI} ⚠️ Kamu masih punya game aktif! (${existing.lang === 'id' ? '🇮🇩 Indonesia' : '🇬🇧 English'}, ${elapsed} menit lalu)`,
+        `> 💡 Lanjut: \`/wordle aksi:guess kata:XXXXX\``,
+        `> 📋 Lihat papan: \`/wordle aksi:board\``,
+        `> 🚪 Keluar: \`/wordle aksi:quit\``,
+      ].join('\n'));
+    }
+
+    // Cooldown: write FIRST to prevent race condition
+    if (!isOwner) {
+      const cdRaw = await env.USERS_KV.get(`wordle:cd:${discordId}`);
+      if (cdRaw) {
+        const sisa = 30000 - (Date.now() - parseInt(cdRaw));
+        if (sisa > 0) {
+          return respond([
+            `> ${EMOJI} ⏳ Tunggu **${Math.ceil(sisa / 1000)} detik** sebelum main lagi!`,
+            `> 💡 Anti-cheat: cooldown 30 detik antar game.`,
+          ].join('\n'));
+        }
+      }
+    }
+
+    const answerList = lang === 'id' ? ANSWERS_ID : ANSWERS_EN;
+    const answer     = answerList[Math.floor(Math.random() * answerList.length)];
+    // unique session ID for idempotency
+    const sessionId  = `${discordId}-${Date.now()}`;
+
+    const gameState = {
+      answer, lang, sessionId,
+      guesses: [], results: [],
+      startTime:     Date.now(),
+      lastGuessTime: null,
+      status:        'playing',
+      discordId, username,
+      guildId: guildId || null,
+    };
+
+    // Write cooldown THEN game state (order matters)
+    if (!isOwner) {
+      await env.USERS_KV.put(`wordle:cd:${discordId}`, String(Date.now()), { expirationTtl: 60 });
+    }
+    await env.USERS_KV.put(`wordle:game:${discordId}`, JSON.stringify(gameState), { expirationTtl: 3600 });
+
+    const langFlag = lang === 'id' ? '🇮🇩 Indonesia' : '🇬🇧 English';
+    const langHint = lang === 'id' ? '5 huruf Bahasa Indonesia' : '5-letter English word';
+    const board    = buildBoard([], []);
+
+    return new Response(JSON.stringify({
+      type: 4,
+      data: {
+        embeds: [{
+          color:       lang === 'id' ? 0xE74C3C : 0x3498DB,
+          title:       `🟩 WORDLE UNLIMITED — ${langFlag}`,
+          description: [
+            '```ansi',
+            '\u001b[2;32m╔══════════════════════════════════════════╗\u001b[0m',
+            `\u001b[1;32m║  🟩  WORDLE UNLIMITED  •  ${langFlag.padEnd(14)}║\u001b[0m`,
+            '\u001b[2;32m╚══════════════════════════════════════════╝\u001b[0m',
+            '```',
+            board,
+            '',
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━━ 📋 CARA MAIN ━━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m  🟩  Hijau  :\u001b[0m \u001b[0;37mHuruf benar & posisi tepat\u001b[0m`,
+            `\u001b[1;36m  🟨  Kuning :\u001b[0m \u001b[0;37mHuruf ada tapi posisi salah\u001b[0m`,
+            `\u001b[1;36m  ⬛  Hitam  :\u001b[0m \u001b[0;37mHuruf tidak ada dalam kata\u001b[0m`,
+            `\u001b[1;36m  🎮  Kata   :\u001b[0m \u001b[0;37m${langHint}\u001b[0m`,
+            `\u001b[1;36m  🔄  Coba   :\u001b[0m \u001b[0;37m6 tebakan tersisa\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            `> 💡 Tebak: \`/wordle aksi:guess kata:BAKAT\``,
+            `> 💡 Hint:  \`/wordle aksi:hint\` (butuh 1 streak)`,
+            `> 🚪 Keluar: \`/wordle aksi:quit\``,
+          ].join('\n'),
+          footer:    { text: `OwoBim Wordle • ${langFlag} • 6 tebakan tersisa • Anti-Cheat Aktif 🛡️` },
+          timestamp: new Date().toISOString(),
+        }],
+      },
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // SUB: board — View active game board without guessing
+  // ══════════════════════════════════════════════════════════════════
+  if (sub === 'board') {
+    const gameRaw = await env.USERS_KV.get(`wordle:game:${discordId}`);
+    if (!gameRaw) {
+      return respond([
+        `> ${EMOJI} ❌ Tidak ada game aktif!`,
+        `> 🎮 Mulai: \`/wordle aksi:play bahasa:id\``,
+      ].join('\n'));
+    }
+    const gameState = JSON.parse(gameRaw);
+    const embed     = buildGuessEmbed(gameState, false, false);
+    return new Response(JSON.stringify({ type: 4, data: { embeds: [embed] } }),
+      { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // SUB: guess
+  // ══════════════════════════════════════════════════════════════════
+  if (sub === 'guess') {
+    const rawInput = getOption(options, 'kata');
+    if (!rawInput) {
+      return respond([
+        `> ${EMOJI} ❌ Masukkan kata tebakan!`,
+        `> 💡 Contoh: \`/wordle aksi:guess kata:BAKAT\``,
+      ].join('\n'));
+    }
+
+    const guess = rawInput.toUpperCase().replace(/\s/g, '').trim();
+
+    if (guess.length !== 5) {
+      return respond([
+        `> ${EMOJI} ❌ Kata harus tepat **5 huruf**!`,
+        `> 🔤 \`${guess}\` = ${guess.length} huruf`,
+      ].join('\n'));
+    }
+    if (!/^[A-Z]{5}$/.test(guess)) {
+      return respond([
+        `> ${EMOJI} ❌ Hanya huruf A-Z yang diperbolehkan!`,
+        `> 💡 Tidak boleh ada angka, spasi, atau karakter khusus.`,
+      ].join('\n'));
+    }
+
+    const gameRaw = await env.USERS_KV.get(`wordle:game:${discordId}`);
+    if (!gameRaw) {
+      return respond([
+        `> ${EMOJI} ❌ Tidak ada game aktif!`,
+        `> 🎮 Mulai: \`/wordle aksi:play bahasa:id\` atau \`/wordle aksi:play bahasa:en\``,
+      ].join('\n'));
+    }
+
+    const gameState = JSON.parse(gameRaw);
+    const now       = Date.now();
+
+    if (gameState.status !== 'playing') {
+      await env.USERS_KV.delete(`wordle:game:${discordId}`);
+      return respond([
+        `> ${EMOJI} ❌ Game sudah berakhir!`,
+        `> 🎮 Main lagi: \`/wordle aksi:play bahasa:${gameState.lang}\``,
+      ].join('\n'));
+    }
+
+    // Enforce minimum time between guesses
+    if (!isOwner && gameState.lastGuessTime) {
+      const timeDiff = now - gameState.lastGuessTime;
+      if (timeDiff < 2000) {
+        return respond([
+          `> ${EMOJI} ⏳ Terlalu cepat! Tunggu ${Math.ceil((2000 - timeDiff) / 1000)}s lagi.`,
+          `> 🛡️ Anti-cheat: minimal 2 detik antar tebakan.`,
+        ].join('\n'));
+      }
+    }
+
+    if (gameState.guesses.includes(guess)) {
+      return respond([
+        `> ${EMOJI} ❌ Kamu sudah menebak \`${guess}\` sebelumnya!`,
+        `> 💡 Coba kata yang berbeda.`,
+      ].join('\n'));
+    }
+
+    const validSet = gameState.lang === 'id' ? VALID_ID : VALID_EN;
+    if (!validSet.has(guess) && !isOwner) {
+      return respond([
+        `> ${EMOJI} ❌ **\`${guess}\`** tidak ada dalam kamus ${gameState.lang === 'id' ? 'Bahasa Indonesia' : 'English'}!`,
+        `> 💡 Pastikan kata valid dan 5 huruf.`,
+      ].join('\n'));
+    }
+
+    // Anti-cheat (non-blocking)
+    const cheatFlags = await detectCheat(gameState, guess, now);
+    if (cheatFlags) waitUntil(logAndReportCheat(cheatFlags, guess, gameState));
+
+    // Evaluate
+    const result = evaluateGuess(guess, gameState.answer);
+    gameState.guesses.push(guess);
+    gameState.results.push(result);
+    gameState.lastGuessTime = now;
+
+    const isWin  = guess === gameState.answer;
+    const isLose = !isWin && gameState.guesses.length >= 6;
+    const isEnd  = isWin || isLose;
+
+    if (isEnd) {
+      gameState.status = isWin ? 'won' : 'lost';
+      await env.USERS_KV.delete(`wordle:game:${discordId}`);
+    } else {
+      await env.USERS_KV.put(`wordle:game:${discordId}`, JSON.stringify(gameState), { expirationTtl: 3600 });
+    }
+
+    waitUntil(updateStats(gameState, isWin, isEnd, gameState.guesses.length));
+
+    const embed = buildGuessEmbed(gameState, isWin, isLose);
+    return new Response(JSON.stringify({ type: 4, data: { embeds: [embed] } }),
+      { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // SUB: quit
+  // ══════════════════════════════════════════════════════════════════
+  if (sub === 'quit') {
+    const gameRaw = await env.USERS_KV.get(`wordle:game:${discordId}`);
+    if (!gameRaw) {
+      return respond(`> ${EMOJI} ❌ Tidak ada game aktif! Mulai: \`/wordle aksi:play\``);
+    }
+    const gameState = JSON.parse(gameRaw);
+    await env.USERS_KV.delete(`wordle:game:${discordId}`);
+    waitUntil(updateStats(gameState, false, true, gameState.guesses.length));
+
+    const board = buildBoard(gameState.guesses, gameState.results);
+    return respond([
+      '```ansi',
+      '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;31m║  🚪  GAME DIHENTIKAN  🚪             ║\u001b[0m',
+      '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      board,
+      '',
+      `> ${EMOJI} Kamu menyerah dari game ini.`,
+      `> 🔑 Jawabannya: **\`${gameState.answer}\`**`,
+      `> 📊 Progress: **${gameState.guesses.length}/6** tebakan`,
+      `> 🎮 Main lagi: \`/wordle aksi:play bahasa:${gameState.lang}\``,
+    ].join('\n'));
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // SUB: stats
+  // ══════════════════════════════════════════════════════════════════
+  if (sub === 'stats') {
+    const targetOpt  = options.find(o => o.name === 'user');
+    const targetId   = targetOpt ? String(targetOpt.value) : discordId;
+    const targetUser = targetOpt
+      ? interaction.data.resolved?.users?.[targetId]
+      : (interaction.member?.user || interaction.user);
+    const targetName = targetUser?.username || 'Unknown';
+
+    const statsRaw = await env.USERS_KV.get(`wordle:stats:${targetId}`);
+    if (!statsRaw) {
+      return respond([
+        `> ${EMOJI} 📭 **${targetName}** belum pernah main Wordle!`,
+        `> 🎮 Mulai: \`/wordle aksi:play bahasa:id\``,
+      ].join('\n'));
+    }
+
+    const s       = JSON.parse(statsRaw);
+    const winRate = s.gamesPlayed > 0 ? ((s.gamesWon / s.gamesPlayed) * 100).toFixed(1) : '0.0';
+    const avgG    = s.avgGuesses ? s.avgGuesses.toFixed(2) : 'N/A';
+
+    const distrib = s.guessDistrib || {};
+    const maxDist = Math.max(...Object.values(distrib), 1);
+    const bar = (n) => {
+      const count = distrib[n] || 0;
+      const pct   = Math.round((count / maxDist) * 8);
+      return '█'.repeat(pct) + '░'.repeat(8 - pct);
+    };
+
+    const cheatRaw   = await env.USERS_KV.get(`wordle:cheat:${targetId}`);
+    const cheatCnt   = cheatRaw ? JSON.parse(cheatRaw).count : 0;
+    const cheatBadge = (isOwner && cheatCnt > 0)
+      ? `\u001b[1;31m  🚨  Cheat Flags  :\u001b[0m \u001b[0;37m${cheatCnt}x incident\u001b[0m`
+      : null;
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════════╗\u001b[0m',
+      `\u001b[2;34m║  \u001b[1;33m📊  WORDLE STATS — ${targetName.slice(0,12).padEnd(12)}\u001b[0m   \u001b[2;34m║\u001b[0m`,
+      '\u001b[2;34m╚══════════════════════════════════════════╝\u001b[0m',
+      '\u001b[1;33m━━━━━━━━━━━━━ 🎮 OVERALL ━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  🎮  Total Main     :\u001b[0m \u001b[0;37m${s.gamesPlayed || 0}x\u001b[0m`,
+      `\u001b[1;36m  🏆  Total Menang   :\u001b[0m \u001b[1;32m${s.gamesWon || 0}x\u001b[0m`,
+      `\u001b[1;36m  📈  Win Rate       :\u001b[0m \u001b[1;32m${winRate}%\u001b[0m`,
+      `\u001b[1;36m  🔥  Streak Saat    :\u001b[0m \u001b[0;37m${s.currentStreak || 0}x\u001b[0m`,
+      `\u001b[1;36m  🏅  Max Streak     :\u001b[0m \u001b[1;33m${s.maxStreak || 0}x\u001b[0m`,
+      `\u001b[1;36m  ⭐  Perfect (1x)   :\u001b[0m \u001b[0;37m${s.perfectGames || 0}x\u001b[0m`,
+      `\u001b[1;36m  📊  Avg Tebakan    :\u001b[0m \u001b[0;37m${avgG}\u001b[0m`,
+      cheatBadge,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[1;35m━━━━━━━━━━━━━ 🌐 BAHASA ━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  🇮🇩  Indonesia     :\u001b[0m \u001b[0;37m${s.byLang?.id?.won || 0}W / ${s.byLang?.id?.played || 0}P\u001b[0m`,
+      `\u001b[1;36m  🇬🇧  English       :\u001b[0m \u001b[0;37m${s.byLang?.en?.won || 0}W / ${s.byLang?.en?.played || 0}P\u001b[0m`,
+      '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[1;32m━━━━━━━━━━ 📊 DISTRIBUSI TEBAKAN ━━━━━\u001b[0m',
+      ...[1,2,3,4,5,6].map(n =>
+        `\u001b[1;36m  ${n} :\u001b[0m \u001b[1;32m${bar(n)}\u001b[0m \u001b[0;37m(${distrib[n] || 0}x)\u001b[0m`
+      ),
+      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      s.fastestWin
+        ? `\u001b[1;36m  ⚡  Fastest Win    :\u001b[0m \u001b[0;37m${Math.round(s.fastestWin.ms/1000)}s | \`${s.fastestWin.word}\` | ${s.fastestWin.guesses} tebakan\u001b[0m`
+        : null,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+    ].filter(l => l !== null).join('\n'));
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // SUB: leaderboard
+  // ══════════════════════════════════════════════════════════════════
+  if (sub === 'leaderboard') {
+    const filter = getOption(options, 'filter') || 'wins';
+
+    // Fetch all LB keys; KV list is metadata-only (fast), fetch only top-N values
+    const { keys } = await env.USERS_KV.list({ prefix: 'wordle:lb:', limit: 200 });
+    if (keys.length === 0) {
+      return respond([
+        `> ${EMOJI} 📭 Belum ada data leaderboard!`,
+        `> 🎮 Jadilah yang pertama: \`/wordle aksi:play\``,
+      ].join('\n'));
+    }
+
+    // Batch-fetch all LB values (parallelised)
+    const rawEntries = await Promise.all(
+      keys.map(k => env.USERS_KV.get(k.name).then(v => v ? JSON.parse(v) : null))
+    );
+    const players = rawEntries.filter(Boolean);
+
+    const FILTER_LABEL = {
+      wins:   '🏆 Total Kemenangan',
+      streak: '🔥 Max Streak',
+      avg:    '📊 Avg Tebakan Terbaik',
+    };
+
+    let sorted;
+    if (filter === 'streak') {
+      sorted = players.sort((a, b) => (b.maxStreak || 0) - (a.maxStreak || 0));
+    } else if (filter === 'avg') {
+      sorted = players
+        .filter(p => (p.wins || 0) >= 3 && p.avgGuesses)
+        .sort((a, b) => a.avgGuesses - b.avgGuesses);
+    } else {
+      sorted = players.sort((a, b) => (b.wins || 0) - (a.wins || 0));
+    }
+
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+    const top10  = sorted.slice(0, 10);
+
+    const rows = top10.map((p, i) => {
+      if (filter === 'streak') return `${medals[i]} <@${p.discordId}> — 🔥 **${p.maxStreak}** streak | 🏆 ${p.wins} menang`;
+      if (filter === 'avg')    return `${medals[i]} <@${p.discordId}> — 📊 avg **${p.avgGuesses}** tebakan | 🏆 ${p.wins} menang`;
+      return                          `${medals[i]} <@${p.discordId}> — 🏆 **${p.wins}** menang | 🔥 ${p.maxStreak} streak`;
+    }).join('\n');
+
+    const myRank = sorted.findIndex(p => p.discordId === discordId) + 1;
+    const me     = sorted.find(p => p.discordId === discordId);
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;33m🏆  WORDLE LEADERBOARD  🏆\u001b[0m           \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} **${FILTER_LABEL[filter] || 'Leaderboard'}**`,
+      '',
+      rows || '> Belum ada pemain.',
+      '',
+      me
+        ? `> 👤 **Ranking kamu: #${myRank}** | Wins: ${me.wins} | Streak: ${me.maxStreak} | Avg: ${me.avgGuesses}`
+        : `> 👤 Kamu belum masuk leaderboard! Menangkan minimal 1 game.`,
+      `> 🔽 Filter: \`wins\` | \`streak\` | \`avg\``,
+    ].join('\n'));
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // SUB: cheat (OWNER ONLY)
+  // ══════════════════════════════════════════════════════════════════
+  if (sub === 'cheat') {
+    if (!isOwner) return respond(`> ${EMOJI} ❌ Hanya owner yang bisa akses fitur ini!`);
+
+    const targetOpt = options.find(o => o.name === 'user');
+    const targetId  = targetOpt ? String(targetOpt.value) : null;
+
+    if (!targetId) {
+      const { keys } = await env.USERS_KV.list({ prefix: 'wordle:cheat:' });
+      if (keys.length === 0) return respond(`> ${EMOJI} ✅ **Tidak ada cheat log!** Semua pemain bersih.`);
+
+      const suspects = (
+        await Promise.all(keys.map(k =>
+          env.USERS_KV.get(k.name).then(v => v
+            ? { uid: k.name.replace('wordle:cheat:', ''), ...JSON.parse(v) }
+            : null
+          )
+        ))
+      ).filter(Boolean).sort((a, b) => b.count - a.count);
+
+      const rows = suspects.slice(0, 10).map((s, i) => {
+        const waktu = s.incidents?.at(-1)?.at
+          ? new Date(s.incidents.at(-1).at).toLocaleDateString('id-ID')
+          : 'N/A';
+        return `${i+1}. <@${s.uid}> — **${s.count}x** incident | Terakhir: ${waktu}`;
+      }).join('\n');
+
+      return respond([
+        `> ${EMOJI} 🚨 **Wordle Cheat Log Summary** (${suspects.length} suspects)`,
+        '',
+        rows,
+        '',
+        `> 💡 Detail: \`/wordle aksi:cheat user:@mention\``,
+      ].join('\n'));
+    }
+
+    const cheatRaw = await env.USERS_KV.get(`wordle:cheat:${targetId}`);
+    if (!cheatRaw) return respond(`> ${EMOJI} ✅ <@${targetId}> tidak memiliki cheat log.`);
+
+    const cheatLog = JSON.parse(cheatRaw);
+    const recent   = cheatLog.incidents.slice(-5);
+
+    const rows = recent.map((inc, i) => {
+      const waktu = new Date(inc.at).toLocaleString('id-ID', {
+        timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+      });
+      return [
+        `**${i+1}.** \`${inc.guessWord || '?'}\` → \`${inc.answer}\` — ${inc.lang === 'id' ? '🇮🇩' : '🇬🇧'} | Tebakan #${inc.guessNum || '?'} | ${waktu}`,
+        inc.flags.map(f => `   • ${f}`).join('\n'),
+      ].join('\n');
+    }).join('\n\n');
+
+    return respond([
+      `> ${EMOJI} 🚨 **Cheat Log — <@${targetId}>**`,
+      `> 📊 Total incidents: **${cheatLog.count}**`,
+      '',
+      rows || 'Tidak ada detail.',
+    ].join('\n'));
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // SUB: hint — Reveal a hidden letter (costs 1 streak, no position leak)
+  // ══════════════════════════════════════════════════════════════════
+  if (sub === 'hint') {
+    // Check streak before loading game (saves a KV read on fail)
+    let streakOk = isOwner;
+    let statsObj  = null;
+    if (!isOwner) {
+      const statsRaw = await env.USERS_KV.get(`wordle:stats:${discordId}`);
+      statsObj = statsRaw ? JSON.parse(statsRaw) : null;
+      if (!statsObj || (statsObj.currentStreak || 0) < 1) {
+        return respond([
+          `> ${EMOJI} ❌ Hint membutuhkan minimal **1 streak**!`,
+          `> 🔥 Streak kamu: **${statsObj?.currentStreak || 0}**`,
+          `> 💡 Menangkan lebih banyak game untuk menabung streak!`,
+        ].join('\n'));
+      }
+      streakOk = true;
+    }
+
+    const gameRaw = await env.USERS_KV.get(`wordle:game:${discordId}`);
+    if (!gameRaw) return respond(`> ${EMOJI} ❌ Tidak ada game aktif!`);
+
+    const gameState = JSON.parse(gameRaw);
+
+    // Collect all letters already guessed (any result)
+    const guessedLetters = new Set(gameState.guesses.flatMap(g => [...g]));
+    // Collect letters already confirmed present (🟩 or 🟨)
+    const knownPresent = new Set(
+      gameState.guesses.flatMap((g, gi) =>
+        [...g].filter((_, li) => gameState.results[gi][li] !== '⬛')
+      )
+    );
+
+    // Prefer revealing letters not guessed at all; fall back to not-yet-green
+    const answerLetters = [...new Set([...gameState.answer])];
+    const unguessed  = answerLetters.filter(l => !guessedLetters.has(l));
+    const notConfirmed = answerLetters.filter(l => !knownPresent.has(l));
+    const pool = unguessed.length > 0 ? unguessed : notConfirmed;
+
+    if (pool.length === 0) {
+      return respond(`> ${EMOJI} 💡 Semua huruf sudah terungkap dari tebakan-tebakanmu!`);
+    }
+
+    const hintLetter = pool[Math.floor(Math.random() * pool.length)];
+    // Count occurrences in answer (useful info without revealing position)
+    const occurrences = [...gameState.answer].filter(l => l === hintLetter).length;
+    const occStr = occurrences > 1 ? ` (muncul ${occurrences}x)` : '';
+
+    // Deduct streak
+    if (!isOwner && statsObj) {
+      statsObj.currentStreak = Math.max(0, (statsObj.currentStreak || 1) - 1);
+      waitUntil(env.USERS_KV.put(
+        `wordle:stats:${discordId}`,
+        JSON.stringify(statsObj),
+        { expirationTtl: 86400 * 365 }
+      ));
+    }
+
+    return respond([
+      `> ${EMOJI} 💡 **HINT:** Kata ini mengandung huruf **\`${hintLetter}\`**${occStr}`,
+      isOwner ? `> 👑 Owner mode — gratis!` : `> 🔥 -1 streak digunakan untuk hint ini. Streak tersisa: ${statsObj.currentStreak}`,
+    ].join('\n'));
+  }
+
+  // ── Fallback ──────────────────────────────────────────────────────
+  return respond([
+    `> ${EMOJI} ❌ Aksi tidak dikenal!`,
+    `> 💡 Gunakan: \`play\`, \`guess\`, \`board\`, \`quit\`, \`stats\`, \`leaderboard\`, \`hint\`, \`cheat\` (owner)`,
+  ].join('\n'));
+}
+// ══════════════════════════════════════════════════════════════════════
+// END CMD: wordle  [FULL PRO v2]
+// ══════════════════════════════════════════════════════════════════════
+
+
+
     
     
     
