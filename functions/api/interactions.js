@@ -1392,9 +1392,10 @@ if (isSpamming) {
   const mention = target ? `<@${target}>` : '';
 
   const THEMES = {
-    bucin1: { pesan: '💌 Hei, ada yang mau gw sampaikan ke lo... buka ini ya', link: 'https://buatkamu-dihatiku.pages.dev/' },
-    bucin2: { pesan: '💕 Gw udah lama mau bilang sesuatu... coba buka ini dulu', link: 'https://crushku.pages.dev/' },
-    bucin3: { pesan: '🥺 Lo pernah kepikiran kita cocok ga? Coba buka ini',     link: 'https://quizcinta.pages.dev/' },
+    bucin1: { pesan: '💌 Hei, ada yang mau gw sampaikan ke lo... buka ini ya',        link: 'https://buatkamu-dihatiku.pages.dev/' },
+    bucin2: { pesan: '💕 Gw udah lama mau bilang sesuatu... coba buka ini dulu',      link: 'https://crushku.pages.dev/' },
+    bucin3: { pesan: '🥺 Lo pernah kepikiran kita cocok ga? Coba buka ini',           link: 'https://quizcinta.pages.dev/' },
+    bucin4: { pesan: '💖 Sebelum kamu baca ini, tarik napas dulu... buka ini ya',     link: 'https://sebuah-persembahan.pages.dev/' },
   };
 
   const t = THEMES[tema];
