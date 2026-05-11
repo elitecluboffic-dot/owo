@@ -36,31 +36,24 @@ export const onRequestGet = async ({ params, env }) => {
 
 // ─────────────────────────────────────────────────────────────
 // jsonForHtml(obj)
-//
-// JSON.stringify biasa bisa menghasilkan karakter </script> di dalam
-// output-nya, yang akan dideteksi HTML parser dan menutup <script> tag
-// lebih awal dari yang diinginkan.
-//
-// Fix: escape karakter <, >, & menjadi unicode escape sequence.
-// Ini adalah teknik standar yang dipakai framework seperti Next.js, Django, dll.
-//
-//   <  →  \u003c
+// Escape semua karakter yang bisa merusak konteks HTML/JS:
+//   <  →  \u003c   (cegah </script> dideteksi HTML parser)
 //   >  →  \u003e
 //   &  →  \u0026
-//
-// JSON tetap valid karena \uXXXX adalah escape sequence yang sah di JSON.
-// JSON.parse() di browser akan mengembalikan string asli dengan benar.
-// HTML parser tidak akan menemukan </script> di dalam tag <script>.
+//   '  →  \u0027   (cegah putusnya single-quoted JS string)  ← FIX UTAMA
+//   `  →  \u0060   (cegah putusnya template literal)
 // ─────────────────────────────────────────────────────────────
 function jsonForHtml(obj) {
   return JSON.stringify(obj)
-    .replace(/</g,  '\\u003c')
-    .replace(/>/g,  '\\u003e')
-    .replace(/&/g,  '\\u0026');
+    .replace(/\\/g,  '\\\\')   // harus PERTAMA sebelum escape lain
+    .replace(/</g,   '\\u003c')
+    .replace(/>/g,   '\\u003e')
+    .replace(/&/g,   '\\u0026')
+    .replace(/'/g,   '\\u0027')
+    .replace(/`/g,   '\\u0060');
 }
 
 function generatePreviewPage(data, createdDate) {
-  // Payload aman untuk ditaruh di dalam <script> tag
   const safeJson = jsonForHtml({
     html: data.html || '',
     css:  data.css  || '',
@@ -361,17 +354,10 @@ function generatePreviewPage(data, createdDate) {
 </div>
 
 <script>
-// ─────────────────────────────────────────────────────────────
-// DATA INJECTION YANG BENAR:
-//
-// safeJson menggunakan unicode escape (\u003c, \u003e, \u0026)
-// sehingga HTML parser tidak akan menemukan karakter < > &
-// di dalam script tag ini, termasuk tidak akan menemukan </script>.
-//
-// JSON.parse() di browser tetap bekerja dengan benar karena
-// \u003c adalah JSON escape yang sah dan akan dikembalikan sebagai '<'.
-// ─────────────────────────────────────────────────────────────
-var _d = JSON.parse('${safeJson}');
+// ─── INJECT DATA — assign langsung sebagai JS object, bukan JSON.parse(string) ───
+// safeJson sudah escape semua karakter berbahaya termasuk ' ` < > &
+// sehingga aman ditaruh di dalam <script> tag tanpa pembungkus string apapun.
+var _d = ${safeJson};
 var INITIAL_HTML = _d.html;
 var INITIAL_CSS  = _d.css;
 var INITIAL_JS   = _d.js;
@@ -452,8 +438,6 @@ function runPreview() {
   statusEl.className = 'preview-status ok';
   statusEl.innerHTML = '<span class="status-dot"></span> RUNNING...';
 
-  // Console intercept dibangun via array — tidak ada template literal
-  // yang bisa konflik dengan </script>
   var ic = [
     '<script>',
     '(function(){',
