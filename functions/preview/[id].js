@@ -1,5 +1,4 @@
 // functions/preview/[id].js — Cloudflare Pages Function
-// VERSI FINAL — fix root cause: unicode escape di JSON payload
 
 export const onRequestGet = async ({ params, env }) => {
   const id = params.id;
@@ -34,22 +33,12 @@ export const onRequestGet = async ({ params, env }) => {
   });
 };
 
-// ─────────────────────────────────────────────────────────────
-// jsonForHtml(obj)
-// Escape semua karakter yang bisa merusak konteks HTML/JS:
-//   lt   ->  \u003c   (cegah tag script ditutup HTML parser)
-//   gt   ->  \u003e
-//   amp  ->  \u0026
-//   sq   ->  \u0027   (cegah putusnya single-quoted JS string)  <- FIX UTAMA
-//   bt   ->  \u0060   (cegah putusnya template literal)
-// ─────────────────────────────────────────────────────────────
+// Hanya perlu escape lt untuk cegah tag script ditutup HTML parser.
+// Tidak perlu escape lain karena data ditaruh di script type=application/json
+// yang tidak dieksekusi browser sebagai JS sama sekali.
 function jsonForHtml(obj) {
   return JSON.stringify(obj)
-    .replace(/</g,   '\\u003c')
-    .replace(/>/g,   '\\u003e')
-    .replace(/&/g,   '\\u0026')
-    .replace(/'/g,   '\\u0027')
-    .replace(/`/g,   '\\u0060');
+    .replace(/</g, '\\u003c');
 }
 
 function generatePreviewPage(data, createdDate) {
@@ -275,6 +264,8 @@ function generatePreviewPage(data, createdDate) {
 </head>
 <body>
 
+<script type="application/json" id="__data__">${safeJson}</script>
+
 <div id="topbar">
   <div class="topbar-left">
     <span class="logo">[ OWOBIM ]</span>
@@ -353,9 +344,6 @@ function generatePreviewPage(data, createdDate) {
 </div>
 
 <script>
-// ─── INJECT DATA — assign langsung sebagai JS object, bukan JSON.parse(string) ───
-// safeJson sudah escape semua karakter berbahaya termasuk single-quote, backtick, lt, gt, amp
-// sehingga aman ditaruh di dalam <script> tag tanpa pembungkus string apapun.
 var _d = JSON.parse(document.getElementById('__data__').textContent);
 var INITIAL_HTML = _d.html;
 var INITIAL_CSS  = _d.css;
