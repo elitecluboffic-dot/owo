@@ -1237,6 +1237,91 @@ if (customId.startsWith('confess_reply_modal:')) {
 
 
 
+
+
+  // ── Modal: Code Preview Submit ──
+if (customId.startsWith('codepreview_submit:')) {
+  const parts   = customId.split(':');
+  const ownerId = parts[1];
+  const title   = decodeURIComponent(parts[2] || 'Untitled');
+
+  if (clickerId !== ownerId) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Bukan modal milikmu!', flags: 64 }
+    }), { headers });
+  }
+
+  const htmlCode = interaction.data.components[0]?.components[0]?.value || '';
+  const cssCode  = interaction.data.components[1]?.components[0]?.value || '';
+  const jsCode   = interaction.data.components[2]?.components[0]?.value || '';
+
+  if (!htmlCode && !cssCode && !jsCode) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Minimal isi satu bagian kode!', flags: 64 }
+    }), { headers });
+  }
+
+  // Generate unique ID
+  const previewId = `PV-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
+  const previewData = {
+    id:        previewId,
+    title:     title,
+    ownerId:   ownerId,
+    ownerName: interaction.member?.user?.username || interaction.user?.username || 'Unknown',
+    html:      htmlCode,
+    css:       cssCode,
+    js:        jsCode,
+    createdAt: Date.now(),
+    views:     0
+  };
+
+  // Simpan ke KV (expire 30 hari)
+  await env.USERS_KV.put(`codepreview:${previewId}`, JSON.stringify(previewData), {
+    expirationTtl: 86400 * 30
+  });
+
+  // Update list user
+  const listKey = `codepreview_list:${ownerId}`;
+  const listRaw = await env.USERS_KV.get(listKey);
+  const list    = listRaw ? JSON.parse(listRaw) : [];
+  list.push({ id: previewId, title, createdAt: Date.now() });
+  if (list.length > 20) list.splice(0, list.length - 20); // keep last 20
+  await env.USERS_KV.put(listKey, JSON.stringify(list), { expirationTtl: 86400 * 90 });
+
+  const previewUrl = `${env.PREVIEW_BASE_URL}/preview/${previewId}`;
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: [
+        '```ansi',
+        '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[1;32m║  ✅  PREVIEW BERHASIL DIBUAT!  ✅   ║\u001b[0m',
+        '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> 💻 **${title}**`,
+        `> 🔗 **Link Preview:** ${previewUrl}`,
+        `> 🆔 ID: \`${previewId}\``,
+        `> ⏳ Berlaku **30 hari**`,
+        `> 📋 HTML: ${htmlCode.length} karakter | CSS: ${cssCode.length} karakter | JS: ${jsCode.length} karakter`,
+        `> 💡 Klik link di atas untuk buka preview! Bisa dibagikan ke siapa aja.`
+      ].join('\n'),
+      flags: 64
+    }
+  }), { headers });
+}
+
+
+  
+
+
+
+
+
+
   
 
   
@@ -12291,6 +12376,126 @@ if (cmd === 'font') {
 // ══════════════════════════════════════════════════════════════════════
 // END CMD: font
 // ══════════════════════════════════════════════════════════════════════
+
+
+
+
+
+
+
+
+    // ══════════════════════════════════════════════════════════════════════
+// CMD: codepreview — Live Code Preview (HTML/CSS/JS) like CodePen
+// ══════════════════════════════════════════════════════════════════════
+if (cmd === 'codepreview') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const sub   = getOption(options, 'aksi') || 'new';
+
+  // ── LIST: tampilkan preview milik user ──
+  if (sub === 'list') {
+    const listRaw = await env.USERS_KV.get(`codepreview_list:${discordId}`);
+    const list    = listRaw ? JSON.parse(listRaw) : [];
+
+    if (list.length === 0) {
+      return respond(`> ${EMOJI} 📭 Kamu belum punya preview!\n> 💡 Buat baru: \`/codepreview aksi:new\``);
+    }
+
+    const rows = list.slice(-10).reverse().map((item, i) => {
+      const tgl = new Date(item.createdAt).toLocaleDateString('id-ID', {
+        day: '2-digit', month: 'short', year: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      });
+      return `\`${i+1}.\` **${item.title}** — \`${item.id}\`\n> 🔗 ${env.PREVIEW_BASE_URL}/preview/${item.id} | 🕐 ${tgl}`;
+    }).join('\n\n');
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;32m💻  CODE PREVIEWS KAMU  💻\u001b[0m         \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      rows,
+      `\n> 📦 Total: **${list.length}** preview | Max: 20`
+    ].join('\n'));
+  }
+
+  // ── DELETE: hapus preview ──
+  if (sub === 'delete') {
+    const previewId = getOption(options, 'id');
+    if (!previewId) return respond(`> ${EMOJI} ❌ Masukkan ID preview!\n> 💡 Cek list: \`/codepreview aksi:list\``);
+
+    const previewRaw = await env.USERS_KV.get(`codepreview:${previewId}`);
+    if (!previewRaw) return respond(`> ${EMOJI} ❌ Preview tidak ditemukan!`);
+
+    const preview = JSON.parse(previewRaw);
+    if (preview.ownerId !== discordId && discordId !== '1442230317455900823') {
+      return respond(`> ${EMOJI} ❌ Ini bukan preview milikmu!`);
+    }
+
+    await env.USERS_KV.delete(`codepreview:${previewId}`);
+
+    // Hapus dari list
+    const listRaw = await env.USERS_KV.get(`codepreview_list:${discordId}`);
+    if (listRaw) {
+      const list    = JSON.parse(listRaw).filter(i => i.id !== previewId);
+      await env.USERS_KV.put(`codepreview_list:${discordId}`, JSON.stringify(list), { expirationTtl: 86400 * 90 });
+    }
+
+    return respond(`> ${EMOJI} 🗑️ Preview \`${previewId}\` berhasil dihapus!`);
+  }
+
+  // ── NEW: buka modal input code ──
+  if (sub === 'new') {
+    const title = getOption(options, 'title') || 'Untitled';
+    return new Response(JSON.stringify({
+      type: 9, // MODAL
+      data: {
+        custom_id: `codepreview_submit:${discordId}:${encodeURIComponent(title.slice(0, 30))}`,
+        title: '💻 Code Preview — Input Code',
+        components: [
+          {
+            type: 1,
+            components: [{
+              type: 4,
+              custom_id: 'html_code',
+              label: '🌐 HTML Code',
+              style: 2,
+              placeholder: '<h1>Hello World!</h1>\n<p>Type your HTML here...</p>',
+              required: false,
+              max_length: 4000
+            }]
+          },
+          {
+            type: 1,
+            components: [{
+              type: 4,
+              custom_id: 'css_code',
+              label: '🎨 CSS Code',
+              style: 2,
+              placeholder: 'body { background: #1a1a2e; color: #00ff41; }',
+              required: false,
+              max_length: 4000
+            }]
+          },
+          {
+            type: 1,
+            components: [{
+              type: 4,
+              custom_id: 'js_code',
+              label: '⚡ JavaScript Code',
+              style: 2,
+              placeholder: 'console.log("Hello from OwoBim Preview!");',
+              required: false,
+              max_length: 4000
+            }]
+          }
+        ]
+      }
+    }), { headers });
+  }
+
+  return respond(`> ${EMOJI} ❌ Aksi tidak dikenal! Gunakan: \`new\`, \`list\`, \`delete\``);
+}
 
 
 
