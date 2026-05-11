@@ -356,7 +356,7 @@ function generatePreviewPage(data, createdDate) {
 // ─── INJECT DATA — assign langsung sebagai JS object, bukan JSON.parse(string) ───
 // safeJson sudah escape semua karakter berbahaya termasuk single-quote, backtick, lt, gt, amp
 // sehingga aman ditaruh di dalam <script> tag tanpa pembungkus string apapun.
-var _d = ${safeJson};
+var _d = JSON.parse(document.getElementById('__data__').textContent);
 var INITIAL_HTML = _d.html;
 var INITIAL_CSS  = _d.css;
 var INITIAL_JS   = _d.js;
