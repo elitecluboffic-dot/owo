@@ -45,7 +45,6 @@ export const onRequestGet = async ({ params, env }) => {
 // ─────────────────────────────────────────────────────────────
 function jsonForHtml(obj) {
   return JSON.stringify(obj)
-    .replace(/\\/g,  '\\\\')   // harus PERTAMA sebelum escape lain
     .replace(/</g,   '\\u003c')
     .replace(/>/g,   '\\u003e')
     .replace(/&/g,   '\\u0026')
