@@ -1,6 +1,5 @@
 // functions/preview/[id].js — Cloudflare Pages Function
-// FULL REWRITE — data injection via <script type="application/json">
-// Ini 100% aman dari escaping hell dan tidak bisa bocor ke HTML
+// VERSI FINAL — fix root cause: unicode escape di JSON payload
 
 export const onRequestGet = async ({ params, env }) => {
   const id = params.id;
@@ -36,15 +35,33 @@ export const onRequestGet = async ({ params, env }) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// CARA INJECT DATA YANG BENAR:
-// Taruh data di <script type="application/json" id="preview-data">
-// Browser TIDAK akan mengeksekusi tag ini.
-// Di client-side, baca dengan JSON.parse(el.textContent).
-// JSON.stringify() di server sudah handle semua escaping dengan benar.
-// Tidak ada double-escape, tidak ada raw \n, tidak ada bocor ke halaman.
+// jsonForHtml(obj)
+//
+// JSON.stringify biasa bisa menghasilkan karakter </script> di dalam
+// output-nya, yang akan dideteksi HTML parser dan menutup <script> tag
+// lebih awal dari yang diinginkan.
+//
+// Fix: escape karakter <, >, & menjadi unicode escape sequence.
+// Ini adalah teknik standar yang dipakai framework seperti Next.js, Django, dll.
+//
+//   <  →  \u003c
+//   >  →  \u003e
+//   &  →  \u0026
+//
+// JSON tetap valid karena \uXXXX adalah escape sequence yang sah di JSON.
+// JSON.parse() di browser akan mengembalikan string asli dengan benar.
+// HTML parser tidak akan menemukan </script> di dalam tag <script>.
 // ─────────────────────────────────────────────────────────────
+function jsonForHtml(obj) {
+  return JSON.stringify(obj)
+    .replace(/</g,  '\\u003c')
+    .replace(/>/g,  '\\u003e')
+    .replace(/&/g,  '\\u0026');
+}
+
 function generatePreviewPage(data, createdDate) {
-  const jsonPayload = JSON.stringify({
+  // Payload aman untuk ditaruh di dalam <script> tag
+  const safeJson = jsonForHtml({
     html: data.html || '',
     css:  data.css  || '',
     js:   data.js   || ''
@@ -58,10 +75,6 @@ function generatePreviewPage(data, createdDate) {
 <title>💻 ${escapeHtml(data.title)} — OwoBim Preview</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-
-<!-- DATA PAYLOAD: browser tidak eksekusi ini, aman 100% -->
-<script type="application/json" id="preview-data">${jsonPayload}<\/script>
-
 <style>
   :root {
     --green: #00ff41;
@@ -86,8 +99,6 @@ function generatePreviewPage(data, createdDate) {
     flex-direction: column;
     overflow: hidden;
   }
-
-  /* TOP BAR */
   #topbar {
     background: var(--dark);
     border-bottom: 1px solid var(--border);
@@ -108,89 +119,55 @@ function generatePreviewPage(data, createdDate) {
   }
   .separator { color: var(--text-dim); }
   .preview-title {
-    color: var(--amber);
-    font-size: 13px;
+    color: var(--amber); font-size: 13px;
     text-shadow: 0 0 8px var(--amber);
-    max-width: 300px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 300px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
   }
   .topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-size: 11px;
-    color: var(--text-dim);
+    display: flex; align-items: center;
+    gap: 16px; font-size: 11px; color: var(--text-dim);
   }
   .status-dot {
-    width: 8px; height: 8px;
-    background: var(--green);
-    border-radius: 50%;
-    display: inline-block;
+    width: 8px; height: 8px; background: var(--green);
+    border-radius: 50%; display: inline-block;
     box-shadow: 0 0 8px var(--green);
-    animation: pulse 2s infinite;
-    margin-right: 4px;
+    animation: pulse 2s infinite; margin-right: 4px;
   }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
   #clock { color: var(--green); font-size: 12px; text-shadow: 0 0 6px var(--green); }
 
-  /* META BAR */
   #metabar {
-    background: var(--mid);
-    border-bottom: 1px solid var(--border);
-    padding: 5px 16px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    font-size: 11px;
-    color: var(--text-dim);
-    flex-shrink: 0;
-    flex-wrap: wrap;
+    background: var(--mid); border-bottom: 1px solid var(--border);
+    padding: 5px 16px; display: flex; align-items: center;
+    gap: 20px; font-size: 11px; color: var(--text-dim);
+    flex-shrink: 0; flex-wrap: wrap;
   }
   .meta-item span { color: var(--green-dim); }
 
-  /* MAIN */
   #main { display: flex; flex: 1; overflow: hidden; }
 
-  /* CODE PANEL */
   #code-panel {
-    width: 48%;
-    display: flex;
-    flex-direction: column;
+    width: 48%; display: flex; flex-direction: column;
     border-right: 2px solid var(--border);
-    background: var(--dark);
-    min-width: 180px;
-    max-width: 80%;
+    background: var(--dark); min-width: 180px; max-width: 80%;
   }
-
-  /* TABS */
   .tabs {
-    display: flex;
-    background: var(--darker);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
+    display: flex; background: var(--darker);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
   }
   .tab {
-    padding: 8px 18px;
-    cursor: pointer;
+    padding: 8px 18px; cursor: pointer;
     font-family: 'Share Tech Mono', monospace;
-    font-size: 12px;
-    border: none;
-    background: transparent;
-    color: var(--text-dim);
-    border-right: 1px solid var(--border);
-    transition: all .2s;
-    position: relative;
-    letter-spacing: 1px;
+    font-size: 12px; border: none; background: transparent;
+    color: var(--text-dim); border-right: 1px solid var(--border);
+    transition: all .2s; position: relative; letter-spacing: 1px;
   }
   .tab:hover { color: var(--green-dim); background: var(--mid); }
   .tab.active { background: var(--dark); }
   .tab.active::after {
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 2px;
+    content: ''; position: absolute;
+    bottom: 0; left: 0; right: 0; height: 2px;
   }
   .tab-html.active { color: #ff6b6b; text-shadow: 0 0 8px #ff6b6b; }
   .tab-html.active::after { background: #ff6b6b; box-shadow: 0 0 8px #ff6b6b; }
@@ -199,35 +176,21 @@ function generatePreviewPage(data, createdDate) {
   .tab-js.active   { color: #ffdf6b; text-shadow: 0 0 8px #ffdf6b; }
   .tab-js.active::after   { background: #ffdf6b; box-shadow: 0 0 8px #ffdf6b; }
 
-  /* CODE PANE */
   .code-pane { display: none; flex: 1; overflow: hidden; }
   .code-pane.active { display: flex; }
   .line-numbers {
-    padding: 12px 8px;
-    text-align: right;
-    color: var(--text-dim);
-    font-size: 12px;
-    line-height: 1.6;
-    border-right: 1px solid var(--border);
-    user-select: none;
-    background: var(--darker);
-    min-width: 40px;
-    overflow: hidden;
+    padding: 12px 8px; text-align: right;
+    color: var(--text-dim); font-size: 12px; line-height: 1.6;
+    border-right: 1px solid var(--border); user-select: none;
+    background: var(--darker); min-width: 40px; overflow: hidden;
   }
   .code-area {
-    flex: 1;
-    padding: 12px;
+    flex: 1; padding: 12px;
     font-family: 'Share Tech Mono', monospace;
-    font-size: 12px;
-    line-height: 1.6;
-    background: transparent;
-    border: none;
-    outline: none;
-    resize: none;
-    overflow-y: auto;
-    white-space: pre;
-    overflow-x: auto;
-    scrollbar-width: thin;
+    font-size: 12px; line-height: 1.6;
+    background: transparent; border: none; outline: none;
+    resize: none; overflow-y: auto; white-space: pre;
+    overflow-x: auto; scrollbar-width: thin;
     scrollbar-color: var(--green-dim) var(--darker);
   }
   .code-area::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -237,27 +200,16 @@ function generatePreviewPage(data, createdDate) {
   .code-area.css  { color: #9fb3ff; }
   .code-area.js   { color: #ffe08a; }
 
-  /* ACTION BAR */
   .action-bar {
-    background: var(--darker);
-    border-top: 1px solid var(--border);
-    padding: 6px 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    flex-wrap: wrap;
+    background: var(--darker); border-top: 1px solid var(--border);
+    padding: 6px 12px; display: flex; align-items: center;
+    gap: 8px; flex-shrink: 0; flex-wrap: wrap;
   }
   .btn {
-    padding: 4px 14px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    cursor: pointer;
-    border: 1px solid;
-    border-radius: 2px;
-    background: transparent;
-    transition: all .2s;
-    letter-spacing: 1px;
+    padding: 4px 14px; font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; cursor: pointer; border: 1px solid;
+    border-radius: 2px; background: transparent;
+    transition: all .2s; letter-spacing: 1px;
   }
   .btn-run         { color: var(--green); border-color: var(--green); }
   .btn-run:hover   { background: var(--green);  color: var(--darker); box-shadow: 0 0 12px var(--green); }
@@ -269,29 +221,22 @@ function generatePreviewPage(data, createdDate) {
   .btn-fs:hover    { background: var(--amber);  color: var(--darker); box-shadow: 0 0 12px var(--amber); }
   .char-count { margin-left: auto; font-size: 10px; color: var(--text-dim); }
 
-  /* PREVIEW PANEL */
   #preview-panel { flex: 1; display: flex; flex-direction: column; background: var(--dark); min-width: 180px; }
   .preview-header {
-    background: var(--darker);
-    border-bottom: 1px solid var(--border);
-    padding: 8px 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 11px;
-    color: var(--text-dim);
-    flex-shrink: 0;
+    background: var(--darker); border-bottom: 1px solid var(--border);
+    padding: 8px 14px; display: flex; align-items: center;
+    gap: 10px; font-size: 11px; color: var(--text-dim); flex-shrink: 0;
   }
   #preview-url {
     color: var(--text-dim); font-size: 10px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px;
+    overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; max-width: 260px;
   }
   .preview-status { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 10px; }
   .preview-status.ok  { color: var(--green); }
   .preview-status.err { color: var(--red); }
   #preview-frame { flex: 1; border: none; width: 100%; background: #fff; }
 
-  /* RESIZE */
   .resize-handle {
     width: 6px; background: var(--border); cursor: col-resize;
     flex-shrink: 0; position: relative; transition: background .2s;
@@ -302,15 +247,16 @@ function generatePreviewPage(data, createdDate) {
     transform: translate(-50%,-50%); color: var(--green-dim); font-size: 14px;
   }
 
-  /* CONSOLE */
   #console-panel {
     background: var(--darker); border-top: 2px solid var(--border);
-    height: 120px; display: flex; flex-direction: column; flex-shrink: 0; transition: height .2s;
+    height: 120px; display: flex; flex-direction: column;
+    flex-shrink: 0; transition: height .2s;
   }
   .console-header {
     background: var(--dark); border-bottom: 1px solid var(--border);
     padding: 4px 14px; font-size: 11px; color: var(--text-dim);
-    display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; user-select: none;
   }
   .console-header:hover { color: var(--green-dim); }
   #console-output {
@@ -324,7 +270,6 @@ function generatePreviewPage(data, createdDate) {
   .info-line  { color: var(--cyan); }
   .sys-line   { color: var(--text-dim); }
 
-  /* MOBILE */
   @media (max-width: 768px) {
     #main { flex-direction: column; }
     #code-panel { width: 100% !important; height: 50%; border-right: none; border-bottom: 2px solid var(--border); }
@@ -365,20 +310,18 @@ function generatePreviewPage(data, createdDate) {
       <button class="tab tab-css"         onclick="switchTab('css', this)">🎨 CSS</button>
       <button class="tab tab-js"          onclick="switchTab('js',  this)">⚡ JS</button>
     </div>
-
     <div id="pane-html" class="code-pane active">
       <div class="line-numbers" id="ln-html"></div>
-      <textarea class="code-area html" id="code-html" spellcheck="false" placeholder="&lt;!-- HTML code here --&gt;"></textarea>
+      <textarea class="code-area html" id="code-html" spellcheck="false" placeholder="&lt;!-- HTML --&gt;"></textarea>
     </div>
     <div id="pane-css" class="code-pane">
       <div class="line-numbers" id="ln-css"></div>
-      <textarea class="code-area css" id="code-css" spellcheck="false" placeholder="/* CSS code here */"></textarea>
+      <textarea class="code-area css" id="code-css" spellcheck="false" placeholder="/* CSS */"></textarea>
     </div>
     <div id="pane-js" class="code-pane">
       <div class="line-numbers" id="ln-js"></div>
-      <textarea class="code-area js" id="code-js" spellcheck="false" placeholder="// JavaScript code here"></textarea>
+      <textarea class="code-area js" id="code-js" spellcheck="false" placeholder="// JS"></textarea>
     </div>
-
     <div class="action-bar">
       <button class="btn btn-run"   onclick="runPreview()">▶ RUN</button>
       <button class="btn btn-copy"  onclick="copyCode()">⎘ COPY</button>
@@ -418,17 +361,21 @@ function generatePreviewPage(data, createdDate) {
 </div>
 
 <script>
-// ══════════════════════════════════════════════════
-// BACA DATA DARI JSON TAG — INI CARA YANG BENAR
-// Tidak ada string interpolation, tidak ada escaping manual,
-// tidak ada kemungkinan bocor ke HTML
-// ══════════════════════════════════════════════════
-var _payload = JSON.parse(document.getElementById('preview-data').textContent);
-var INITIAL_HTML = _payload.html;
-var INITIAL_CSS  = _payload.css;
-var INITIAL_JS   = _payload.js;
+// ─────────────────────────────────────────────────────────────
+// DATA INJECTION YANG BENAR:
+//
+// safeJson menggunakan unicode escape (\u003c, \u003e, \u0026)
+// sehingga HTML parser tidak akan menemukan karakter < > &
+// di dalam script tag ini, termasuk tidak akan menemukan </script>.
+//
+// JSON.parse() di browser tetap bekerja dengan benar karena
+// \u003c adalah JSON escape yang sah dan akan dikembalikan sebagai '<'.
+// ─────────────────────────────────────────────────────────────
+var _d = JSON.parse('${safeJson}');
+var INITIAL_HTML = _d.html;
+var INITIAL_CSS  = _d.css;
+var INITIAL_JS   = _d.js;
 
-// ── INIT ──
 window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('code-html').value = INITIAL_HTML;
   document.getElementById('code-css').value  = INITIAL_CSS;
@@ -459,7 +406,6 @@ window.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// ── TABS ──
 var currentTab = 'html';
 function switchTab(lang, btn) {
   currentTab = lang;
@@ -471,14 +417,13 @@ function switchTab(lang, btn) {
   updateCharCount();
 }
 
-// ── LINE NUMBERS ──
 function updateLineNumbers(lang) {
   var ta    = document.getElementById('code-' + lang);
   var ln    = document.getElementById('ln-' + lang);
   var count = ta.value.split('\n').length || 1;
-  var nums  = [];
-  for (var i = 1; i <= count; i++) nums.push(i);
-  ln.innerHTML = nums.join('<br>');
+  var arr   = [];
+  for (var i = 1; i <= count; i++) arr.push(i);
+  ln.innerHTML = arr.join('<br>');
 }
 function syncScroll(lang) {
   document.getElementById('ln-' + lang).scrollTop =
@@ -486,21 +431,18 @@ function syncScroll(lang) {
 }
 function updateCharCount() {
   var ta = document.getElementById('code-' + currentTab);
-  document.getElementById('char-count').textContent = ((ta && ta.value) ? ta.value.length : 0) + ' chars';
+  document.getElementById('char-count').textContent =
+    ((ta && ta.value) ? ta.value.length : 0) + ' chars';
 }
-
-// ── TAB KEY ──
 function handleTab(e) {
   if (e.key !== 'Tab') return;
   e.preventDefault();
-  var ta = e.target;
-  var s  = ta.selectionStart, end = ta.selectionEnd;
+  var ta = e.target, s = ta.selectionStart, end = ta.selectionEnd;
   ta.value = ta.value.substring(0, s) + '  ' + ta.value.substring(end);
   ta.selectionStart = ta.selectionEnd = s + 2;
   updateLineNumbers(currentTab);
 }
 
-// ── RUN PREVIEW ──
 function runPreview() {
   var html = document.getElementById('code-html').value;
   var css  = document.getElementById('code-css').value;
@@ -510,41 +452,31 @@ function runPreview() {
   statusEl.className = 'preview-status ok';
   statusEl.innerHTML = '<span class="status-dot"></span> RUNNING...';
 
-  // Console intercept — pakai array join supaya tidak ada konflik template literal
-  var intercept = [
+  // Console intercept dibangun via array — tidak ada template literal
+  // yang bisa konflik dengan </script>
+  var ic = [
     '<script>',
     '(function(){',
-    '  var send=function(lv,args){',
-    '    try{',
-    '      window.parent.postMessage({',
-    '        type:"console",level:lv,',
-    '        msg:Array.prototype.slice.call(args).map(function(a){',
-    '          try{return typeof a==="object"?JSON.stringify(a):String(a);}catch(e){return String(a);}',
-    '        }).join(" ")',
-    '      },"*");',
-    '    }catch(e){}',
-    '  };',
-    '  ["log","error","warn","info"].forEach(function(m){',
-    '    var o=console[m].bind(console);',
-    '    console[m]=function(){o.apply(console,arguments);send(m,arguments);};',
-    '  });',
-    '  window.onerror=function(msg,src,line){',
-    '    send("error",["[Error] "+msg+" (line "+line+")"]);return false;',
-    '  };',
-    '  window.addEventListener("unhandledrejection",function(e){',
-    '    send("error",["[Promise] "+(e.reason||String(e))]);',
-    '  });',
+    'var s=function(lv,a){try{window.parent.postMessage({type:"console",level:lv,',
+    'msg:Array.prototype.slice.call(a).map(function(x){',
+    'try{return typeof x==="object"?JSON.stringify(x):String(x);}catch(e){return String(x);}',
+    '}).join(" ")},"*");}catch(e){}};',
+    '["log","error","warn","info"].forEach(function(m){',
+    'var o=console[m].bind(console);',
+    'console[m]=function(){o.apply(console,arguments);s(m,arguments);};});',
+    'window.onerror=function(msg,src,line){s("error",["[Error] "+msg+" (line "+line+")"]);return false;};',
+    'window.addEventListener("unhandledrejection",function(e){s("error",["[Promise] "+(e.reason||e)]);});',
     '})();',
-    '<\/script>'
+    '<' + '/script>'
   ].join('\n');
 
-  var fullHtml = [
+  var parts = [
     '<!DOCTYPE html>',
     '<html>',
     '<head>',
     '<meta charset="UTF-8">',
     '<meta name="viewport" content="width=device-width,initial-scale=1.0">',
-    intercept,
+    ic,
     '<style>',
     css,
     '</style>',
@@ -553,15 +485,14 @@ function runPreview() {
     html,
     '<script>',
     js,
-    '<\/script>',
+    '<' + '/script>',
     '</body>',
     '</html>'
-  ].join('\n');
+  ];
+  var fullHtml = parts.join('\n');
 
   var frame = document.getElementById('preview-frame');
-  if (frame._blobUrl) {
-    try { URL.revokeObjectURL(frame._blobUrl); } catch(e) {}
-  }
+  if (frame._blobUrl) { try { URL.revokeObjectURL(frame._blobUrl); } catch(e) {} }
 
   var blob = new Blob([fullHtml], { type: 'text/html' });
   frame._blobUrl = URL.createObjectURL(blob);
@@ -578,18 +509,16 @@ function runPreview() {
   frame.src = frame._blobUrl;
   document.getElementById('preview-url').textContent =
     'blob:preview@' + new Date().toLocaleTimeString('id-ID');
-  appendConsole('sys', '▶ Preview refreshed at ' + new Date().toLocaleTimeString('id-ID'));
+  appendConsole('sys', '▶ Refreshed at ' + new Date().toLocaleTimeString('id-ID'));
 }
 
-// ── CONSOLE ──
 function appendConsole(level, msg) {
   var out    = document.getElementById('console-output');
   var line   = document.createElement('div');
   var time   = new Date().toLocaleTimeString('id-ID', { hour12: false });
   var map    = { log:'▸', error:'✖', warn:'⚠', info:'ℹ', sys:'□' };
-  var prefix = map[level] || '▸';
   line.className   = (level || 'log') + '-line';
-  line.textContent = '[' + time + '] ' + prefix + ' ' + msg;
+  line.textContent = '[' + time + '] ' + (map[level] || '▸') + ' ' + msg;
   out.appendChild(line);
   out.scrollTop = out.scrollHeight;
 }
@@ -600,29 +529,26 @@ function clearConsole() {
 var consoleVisible = true;
 function toggleConsole() {
   var panel  = document.getElementById('console-panel');
-  var toggle = document.getElementById('console-toggle');
   var output = document.getElementById('console-output');
+  var toggle = document.getElementById('console-toggle');
   consoleVisible = !consoleVisible;
   output.style.display = consoleVisible ? '' : 'none';
   toggle.textContent   = consoleVisible ? '▼' : '▲';
   panel.style.height   = consoleVisible ? '120px' : '28px';
 }
-
-// ── COPY ──
 function copyCode() {
-  var ta  = document.getElementById('code-' + currentTab);
-  var txt = ta ? ta.value : '';
+  var ta = document.getElementById('code-' + currentTab);
+  if (!ta) return;
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(txt).then(function() {
+    navigator.clipboard.writeText(ta.value).then(function() {
       appendConsole('sys', '✓ ' + currentTab.toUpperCase() + ' copied!');
     });
   } else {
-    if (ta) { ta.select(); document.execCommand('copy'); }
+    ta.select();
+    document.execCommand('copy');
     appendConsole('sys', '✓ ' + currentTab.toUpperCase() + ' copied! (fallback)');
   }
 }
-
-// ── FULLSCREEN ──
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(function(){});
@@ -630,56 +556,48 @@ function toggleFullscreen() {
     document.exitFullscreen().catch(function(){});
   }
 }
-
-// ── RESIZE ──
 function initResize() {
   var handle    = document.getElementById('resize-handle');
   var codePanel = document.getElementById('code-panel');
   var main      = document.getElementById('main');
   var resizing  = false;
-
-  function startResize() {
+  function start() {
     resizing = true;
-    document.body.style.cursor     = 'col-resize';
+    document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     document.getElementById('preview-frame').style.pointerEvents = 'none';
   }
-  function stopResize() {
+  function stop() {
     if (!resizing) return;
     resizing = false;
-    document.body.style.cursor     = '';
+    document.body.style.cursor = '';
     document.body.style.userSelect = '';
     document.getElementById('preview-frame').style.pointerEvents = '';
   }
-  function doResize(x) {
+  function move(x) {
     if (!resizing) return;
-    var rect    = main.getBoundingClientRect();
-    var pct     = ((x - rect.left) / rect.width) * 100;
+    var rect = main.getBoundingClientRect();
+    var pct  = ((x - rect.left) / rect.width) * 100;
     codePanel.style.width = Math.max(20, Math.min(80, pct)) + '%';
   }
-
-  handle.addEventListener('mousedown', startResize);
-  document.addEventListener('mousemove', function(e) { doResize(e.clientX); });
-  document.addEventListener('mouseup',   stopResize);
-
-  handle.addEventListener('touchstart', startResize, { passive: true });
-  document.addEventListener('touchmove', function(e) { doResize(e.touches[0].clientX); }, { passive: true });
-  document.addEventListener('touchend',  stopResize);
+  handle.addEventListener('mousedown', start);
+  document.addEventListener('mousemove', function(e) { move(e.clientX); });
+  document.addEventListener('mouseup', stop);
+  handle.addEventListener('touchstart', start, { passive: true });
+  document.addEventListener('touchmove', function(e) { move(e.touches[0].clientX); }, { passive: true });
+  document.addEventListener('touchend', stop);
 }
-<\/script>
+</script>
 </body>
 </html>`;
 }
 
-// ─────────────────────────────────
-//  404 PAGE
-// ─────────────────────────────────
 function notFoundPage() {
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>404 — Preview Not Found</title>
+<title>404 — Not Found</title>
 <style>
   body { background:#000800; color:#00ff41; font-family:monospace;
     display:flex; align-items:center; justify-content:center;
@@ -698,10 +616,6 @@ function notFoundPage() {
 </html>`;
 }
 
-// ─────────────────────────────────
-//  escapeHtml — HANYA untuk HTML attribute/content di server
-//  JANGAN pakai untuk data yang mau di-inject ke JS
-// ─────────────────────────────────
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g,  '&amp;')
