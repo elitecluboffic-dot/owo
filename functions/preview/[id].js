@@ -37,11 +37,11 @@ export const onRequestGet = async ({ params, env }) => {
 // ─────────────────────────────────────────────────────────────
 // jsonForHtml(obj)
 // Escape semua karakter yang bisa merusak konteks HTML/JS:
-//   <  →  \u003c   (cegah </script> dideteksi HTML parser)
-//   >  →  \u003e
-//   &  →  \u0026
-//   '  →  \u0027   (cegah putusnya single-quoted JS string)  ← FIX UTAMA
-//   `  →  \u0060   (cegah putusnya template literal)
+//   lt   ->  \u003c   (cegah tag script ditutup HTML parser)
+//   gt   ->  \u003e
+//   amp  ->  \u0026
+//   sq   ->  \u0027   (cegah putusnya single-quoted JS string)  <- FIX UTAMA
+//   bt   ->  \u0060   (cegah putusnya template literal)
 // ─────────────────────────────────────────────────────────────
 function jsonForHtml(obj) {
   return JSON.stringify(obj)
@@ -355,7 +355,7 @@ function generatePreviewPage(data, createdDate) {
 
 <script>
 // ─── INJECT DATA — assign langsung sebagai JS object, bukan JSON.parse(string) ───
-// safeJson sudah escape semua karakter berbahaya termasuk ' ` < > &
+// safeJson sudah escape semua karakter berbahaya termasuk single-quote, backtick, lt, gt, amp
 // sehingga aman ditaruh di dalam <script> tag tanpa pembungkus string apapun.
 var _d = ${safeJson};
 var INITIAL_HTML = _d.html;
