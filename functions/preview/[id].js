@@ -1,3 +1,5 @@
+// functions/preview/[id].js — Cloudflare Pages Function
+
 export const onRequestGet = async ({ params, env }) => {
   const id = params.id;
 
@@ -34,15 +36,29 @@ export const onRequestGet = async ({ params, env }) => {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       'X-Frame-Options': 'SAMEORIGIN',
-      'Cache-Control': 'no-cache'
+      'Cache-Control': 'no-cache',
+      // CSP: iframe sandbox handles isolation, parent page tetap aman
+      'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; frame-src blob:;"
     }
   });
 };
 
+// ─────────────────────────────────────────────────────────────
+//  GENERATE PREVIEW PAGE
+//  FIX UTAMA:
+//  1. Tidak pakai escapeForJson — cukup JSON.stringify() langsung
+//     karena JSON.stringify sudah handle semua special chars dengan benar
+//  2. Iframe sandbox TANPA allow-same-origin supaya script
+//     di dalam iframe tidak bisa akses parent/cookies
+//  3. postMessage console intercept tetap jalan tanpa allow-same-origin
+// ─────────────────────────────────────────────────────────────
 function generatePreviewPage(data, createdDate) {
-  const escapedHtml = escapeForJson(data.html || '');
-  const escapedCss  = escapeForJson(data.css  || '');
-  const escapedJs   = escapeForJson(data.js   || '');
+
+  // FIX: JSON.stringify langsung, tanpa escapeForJson
+  // Ini yang bikin double-escape sebelumnya → raw \n muncul di textarea
+  const safeHtml = JSON.stringify(data.html || '');
+  const safeCss  = JSON.stringify(data.css  || '');
+  const safeJs   = JSON.stringify(data.js   || '');
 
   return `<!DOCTYPE html>
 <html lang="id">
@@ -94,13 +110,7 @@ function generatePreviewPage(data, createdDate) {
     flex-shrink: 0;
     box-shadow: 0 0 20px var(--green-glow);
   }
-
-  .topbar-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
   .logo {
     font-family: 'Orbitron', monospace;
     font-size: 13px;
@@ -108,9 +118,7 @@ function generatePreviewPage(data, createdDate) {
     text-shadow: 0 0 10px var(--green);
     letter-spacing: 2px;
   }
-
   .separator { color: var(--text-dim); }
-
   .preview-title {
     color: var(--amber);
     font-size: 13px;
@@ -120,7 +128,6 @@ function generatePreviewPage(data, createdDate) {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-
   .topbar-right {
     display: flex;
     align-items: center;
@@ -128,7 +135,6 @@ function generatePreviewPage(data, createdDate) {
     font-size: 11px;
     color: var(--text-dim);
   }
-
   .status-dot {
     width: 8px; height: 8px;
     background: var(--green);
@@ -138,17 +144,11 @@ function generatePreviewPage(data, createdDate) {
     animation: pulse 2s infinite;
     margin-right: 4px;
   }
-
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.3; }
   }
-
-  #clock {
-    color: var(--green);
-    font-size: 12px;
-    text-shadow: 0 0 6px var(--green);
-  }
+  #clock { color: var(--green); font-size: 12px; text-shadow: 0 0 6px var(--green); }
 
   /* META BAR */
   #metabar {
@@ -162,7 +162,6 @@ function generatePreviewPage(data, createdDate) {
     color: var(--text-dim);
     flex-shrink: 0;
   }
-
   .meta-item span { color: var(--green-dim); }
 
   /* MAIN LAYOUT */
@@ -170,7 +169,6 @@ function generatePreviewPage(data, createdDate) {
     display: flex;
     flex: 1;
     overflow: hidden;
-    gap: 0;
   }
 
   /* CODE PANEL */
@@ -181,8 +179,7 @@ function generatePreviewPage(data, createdDate) {
     border-right: 2px solid var(--border);
     background: var(--dark);
     min-width: 200px;
-    resize: horizontal;
-    overflow: hidden;
+    max-width: 80%;
   }
 
   /* TABS */
@@ -192,7 +189,6 @@ function generatePreviewPage(data, createdDate) {
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
-
   .tab {
     padding: 8px 18px;
     cursor: pointer;
@@ -206,15 +202,8 @@ function generatePreviewPage(data, createdDate) {
     position: relative;
     letter-spacing: 1px;
   }
-
   .tab:hover { color: var(--green-dim); background: var(--mid); }
-
-  .tab.active {
-    color: var(--tab-active);
-    background: var(--dark);
-    text-shadow: 0 0 8px var(--green);
-  }
-
+  .tab.active { color: var(--tab-active); background: var(--dark); text-shadow: 0 0 8px var(--green); }
   .tab.active::after {
     content: '';
     position: absolute;
@@ -223,7 +212,6 @@ function generatePreviewPage(data, createdDate) {
     background: var(--green);
     box-shadow: 0 0 8px var(--green);
   }
-
   .tab-html.active { color: #ff6b6b; text-shadow: 0 0 8px #ff6b6b; }
   .tab-html.active::after { background: #ff6b6b; box-shadow: 0 0 8px #ff6b6b; }
   .tab-css.active  { color: #6b9fff; text-shadow: 0 0 8px #6b9fff; }
@@ -231,14 +219,13 @@ function generatePreviewPage(data, createdDate) {
   .tab-js.active   { color: #ffdf6b; text-shadow: 0 0 8px #ffdf6b; }
   .tab-js.active::after   { background: #ffdf6b; box-shadow: 0 0 8px #ffdf6b; }
 
-  /* CODE EDITOR */
+  /* CODE PANE */
   .code-pane {
     display: none;
     flex: 1;
     overflow: hidden;
     position: relative;
   }
-
   .code-pane.active { display: flex; }
 
   .line-numbers {
@@ -260,7 +247,6 @@ function generatePreviewPage(data, createdDate) {
     font-family: 'Share Tech Mono', monospace;
     font-size: 12px;
     line-height: 1.6;
-    color: var(--green);
     background: transparent;
     border: none;
     outline: none;
@@ -270,13 +256,12 @@ function generatePreviewPage(data, createdDate) {
     overflow-x: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--green-dim) var(--darker);
+    /* READ-ONLY STYLE supaya user tau ini view-mode */
+    cursor: text;
   }
-
   .code-area::-webkit-scrollbar { width: 6px; height: 6px; }
   .code-area::-webkit-scrollbar-track { background: var(--darker); }
   .code-area::-webkit-scrollbar-thumb { background: var(--green-dim); border-radius: 3px; }
-
-  /* syntax highlight colors */
   .code-area.html { color: #ff9999; }
   .code-area.css  { color: #9fb3ff; }
   .code-area.js   { color: #ffe08a; }
@@ -291,7 +276,6 @@ function generatePreviewPage(data, createdDate) {
     gap: 8px;
     flex-shrink: 0;
   }
-
   .btn {
     padding: 4px 14px;
     font-family: 'Share Tech Mono', monospace;
@@ -303,42 +287,15 @@ function generatePreviewPage(data, createdDate) {
     transition: all 0.2s;
     letter-spacing: 1px;
   }
-
-  .btn-run {
-    color: var(--green);
-    border-color: var(--green);
-  }
-  .btn-run:hover {
-    background: var(--green);
-    color: var(--darker);
-    box-shadow: 0 0 12px var(--green);
-  }
-
-  .btn-copy {
-    color: var(--cyan);
-    border-color: var(--cyan);
-  }
-  .btn-copy:hover {
-    background: var(--cyan);
-    color: var(--darker);
-    box-shadow: 0 0 12px var(--cyan);
-  }
-
-  .btn-clear {
-    color: var(--red);
-    border-color: var(--red);
-  }
-  .btn-clear:hover {
-    background: var(--red);
-    color: #fff;
-    box-shadow: 0 0 12px var(--red);
-  }
-
-  .char-count {
-    margin-left: auto;
-    font-size: 10px;
-    color: var(--text-dim);
-  }
+  .btn-run    { color: var(--green); border-color: var(--green); }
+  .btn-run:hover { background: var(--green); color: var(--darker); box-shadow: 0 0 12px var(--green); }
+  .btn-copy   { color: var(--cyan);  border-color: var(--cyan); }
+  .btn-copy:hover { background: var(--cyan); color: var(--darker); box-shadow: 0 0 12px var(--cyan); }
+  .btn-clear  { color: var(--red);   border-color: var(--red); }
+  .btn-clear:hover { background: var(--red); color: #fff; box-shadow: 0 0 12px var(--red); }
+  .btn-fullscreen { color: var(--amber); border-color: var(--amber); }
+  .btn-fullscreen:hover { background: var(--amber); color: var(--darker); box-shadow: 0 0 12px var(--amber); }
+  .char-count { margin-left: auto; font-size: 10px; color: var(--text-dim); }
 
   /* PREVIEW PANEL */
   #preview-panel {
@@ -348,7 +305,6 @@ function generatePreviewPage(data, createdDate) {
     background: var(--dark);
     min-width: 200px;
   }
-
   .preview-header {
     background: var(--darker);
     border-bottom: 1px solid var(--border);
@@ -360,17 +316,17 @@ function generatePreviewPage(data, createdDate) {
     color: var(--text-dim);
     flex-shrink: 0;
   }
-
-  .preview-status {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  .preview-url-text {
+    color: var(--text-dim);
     font-size: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 300px;
   }
-
+  .preview-status { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 10px; }
   .preview-status.ok  { color: var(--green); }
-  .preview-status.err { color: var(--red);   }
+  .preview-status.err { color: var(--red); }
 
   #preview-frame {
     flex: 1;
@@ -392,8 +348,7 @@ function generatePreviewPage(data, createdDate) {
   .resize-handle::after {
     content: '⠿';
     position: absolute;
-    top: 50%;
-    left: 50%;
+    top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     color: var(--green-dim);
     font-size: 14px;
@@ -408,7 +363,6 @@ function generatePreviewPage(data, createdDate) {
     flex-direction: column;
     flex-shrink: 0;
   }
-
   .console-header {
     background: var(--dark);
     border-bottom: 1px solid var(--border);
@@ -419,10 +373,9 @@ function generatePreviewPage(data, createdDate) {
     align-items: center;
     gap: 8px;
     cursor: pointer;
+    user-select: none;
   }
-
   .console-header:hover { color: var(--green-dim); }
-
   #console-output {
     flex: 1;
     overflow-y: auto;
@@ -432,40 +385,26 @@ function generatePreviewPage(data, createdDate) {
     scrollbar-width: thin;
     scrollbar-color: var(--green-dim) var(--darker);
   }
-
-  .log-line   { color: var(--green);   }
-  .error-line { color: var(--red);     }
-  .warn-line  { color: var(--amber);   }
-  .info-line  { color: var(--cyan);    }
-  .sys-line   { color: var(--text-dim);}
-
-  /* FULLSCREEN */
-  .btn-fullscreen {
-    color: var(--amber);
-    border-color: var(--amber);
-  }
-  .btn-fullscreen:hover {
-    background: var(--amber);
-    color: var(--darker);
-    box-shadow: 0 0 12px var(--amber);
-  }
-
-  /* SCROLLBAR GLOBAL */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: var(--darker); }
-  ::-webkit-scrollbar-thumb { background: var(--green-dim); }
+  .log-line   { color: var(--green); }
+  .error-line { color: var(--red); }
+  .warn-line  { color: var(--amber); }
+  .info-line  { color: var(--cyan); }
+  .sys-line   { color: var(--text-dim); }
 
   /* MOBILE */
   @media (max-width: 768px) {
     #main { flex-direction: column; }
-    #code-panel { width: 100%; height: 50%; border-right: none; border-bottom: 2px solid var(--border); }
+    #code-panel { width: 100% !important; height: 50%; border-right: none; border-bottom: 2px solid var(--border); }
     .resize-handle { display: none; }
   }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--darker); }
+  ::-webkit-scrollbar-thumb { background: var(--green-dim); }
 </style>
 </head>
 <body>
 
-<!-- TOP BAR -->
 <div id="topbar">
   <div class="topbar-left">
     <span class="logo">[ OWOBIM ]</span>
@@ -479,91 +418,93 @@ function generatePreviewPage(data, createdDate) {
   </div>
 </div>
 
-<!-- META BAR -->
 <div id="metabar">
-  <span class="meta-item">🆔 <span>${data.id}</span></span>
+  <span class="meta-item">🆔 <span>${escapeHtml(data.id)}</span></span>
   <span class="meta-item">📅 <span>${createdDate} WIB</span></span>
   <span class="meta-item">👁️ <span id="view-count">${data.views}</span> views</span>
   <span class="meta-item">📏 HTML:<span>${(data.html || '').length}</span> CSS:<span>${(data.css || '').length}</span> JS:<span>${(data.js || '').length}</span> chars</span>
 </div>
 
-<!-- MAIN AREA -->
 <div id="main">
 
-  <!-- CODE PANEL -->
   <div id="code-panel">
-    <!-- TABS -->
     <div class="tabs">
       <button class="tab tab-html active" onclick="switchTab('html', this)">🌐 HTML</button>
-      <button class="tab tab-css"         onclick="switchTab('css', this)">🎨 CSS</button>
-      <button class="tab tab-js"          onclick="switchTab('js', this)">⚡ JS</button>
+      <button class="tab tab-css"         onclick="switchTab('css',  this)">🎨 CSS</button>
+      <button class="tab tab-js"          onclick="switchTab('js',   this)">⚡ JS</button>
     </div>
 
-    <!-- HTML PANE -->
     <div id="pane-html" class="code-pane active">
       <div class="line-numbers" id="ln-html"></div>
-      <textarea class="code-area html" id="code-html" spellcheck="false" placeholder="<!-- HTML code here -->">${escapeHtml(data.html || '')}</textarea>
+      <textarea class="code-area html" id="code-html" spellcheck="false" placeholder="<!-- HTML code here -->"></textarea>
     </div>
-
-    <!-- CSS PANE -->
     <div id="pane-css" class="code-pane">
       <div class="line-numbers" id="ln-css"></div>
-      <textarea class="code-area css" id="code-css" spellcheck="false" placeholder="/* CSS code here */">${escapeHtml(data.css || '')}</textarea>
+      <textarea class="code-area css" id="code-css" spellcheck="false" placeholder="/* CSS code here */"></textarea>
     </div>
-
-    <!-- JS PANE -->
     <div id="pane-js" class="code-pane">
       <div class="line-numbers" id="ln-js"></div>
-      <textarea class="code-area js" id="code-js" spellcheck="false" placeholder="// JavaScript code here">${escapeHtml(data.js || '')}</textarea>
+      <textarea class="code-area js" id="code-js" spellcheck="false" placeholder="// JavaScript code here"></textarea>
     </div>
 
-    <!-- ACTION BAR -->
     <div class="action-bar">
-      <button class="btn btn-run"       onclick="runPreview()">▶ RUN</button>
-      <button class="btn btn-copy"      onclick="copyCode()">⎘ COPY</button>
-      <button class="btn btn-clear"     onclick="clearConsole()">✕ CLEAR LOG</button>
+      <button class="btn btn-run"        onclick="runPreview()">▶ RUN</button>
+      <button class="btn btn-copy"       onclick="copyCode()">⎘ COPY</button>
+      <button class="btn btn-clear"      onclick="clearConsole()">✕ CLEAR LOG</button>
       <button class="btn btn-fullscreen" onclick="toggleFullscreen()">⛶ FULLSCREEN</button>
       <span class="char-count" id="char-count">0 chars</span>
     </div>
   </div>
 
-  <!-- RESIZE HANDLE -->
   <div class="resize-handle" id="resize-handle"></div>
 
-  <!-- PREVIEW PANEL -->
   <div id="preview-panel">
     <div class="preview-header">
       <span>▶ PREVIEW</span>
-      <span id="preview-url" style="color: var(--text-dim); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px;">localhost/preview</span>
+      <span class="preview-url-text" id="preview-url">blob:preview</span>
       <div class="preview-status ok" id="preview-status">
         <span class="status-dot"></span> READY
       </div>
     </div>
-    <iframe id="preview-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-modals" title="Preview"></iframe>
+    <!--
+      FIX KEAMANAN:
+      - HAPUS allow-same-origin dari sandbox
+      - Dengan begitu script di dalam iframe TIDAK BISA akses:
+        window.parent, document.cookie, localStorage domain utama
+      - postMessage dari iframe ke parent TETAP BISA karena itu
+        mekanisme cross-origin, bukan same-origin
+    -->
+    <iframe
+      id="preview-frame"
+      sandbox="allow-scripts allow-forms allow-modals allow-popups"
+      title="Preview"
+    ></iframe>
   </div>
 
 </div>
 
-<!-- CONSOLE PANEL -->
 <div id="console-panel">
   <div class="console-header" onclick="toggleConsole()">
     <span>⌨ CONSOLE</span>
     <span id="console-toggle" style="margin-left: auto;">▼</span>
   </div>
   <div id="console-output">
-    <div class="sys-line">[ OwoBim Preview Console — ${data.id} ]</div>
+    <div class="sys-line">[ OwoBim Preview Console — ${escapeHtml(data.id)} ]</div>
     <div class="sys-line">[ By: ${escapeHtml(data.ownerName)} | ${createdDate} WIB ]</div>
   </div>
 </div>
 
 <script>
 // ── DATA ──
-const INITIAL_HTML = ${JSON.stringify(escapedHtml)};
-const INITIAL_CSS  = ${JSON.stringify(escapedCss)};
-const INITIAL_JS   = ${JSON.stringify(escapedJs)};
+// FIX: JSON.stringify langsung di server-side (lihat safeHtml/safeCss/safeJs)
+// Nilai ini sudah berupa JSON string yang valid, tinggal assign
+const INITIAL_HTML = ${safeHtml};
+const INITIAL_CSS  = ${safeCss};
+const INITIAL_JS   = ${safeJs};
 
 // ── INIT ──
 window.addEventListener('DOMContentLoaded', () => {
+  // Set nilai textarea dari data asli (sudah di-parse dengan benar)
   document.getElementById('code-html').value = INITIAL_HTML;
   document.getElementById('code-css').value  = INITIAL_CSS;
   document.getElementById('code-js').value   = INITIAL_JS;
@@ -573,12 +514,14 @@ window.addEventListener('DOMContentLoaded', () => {
   updateLineNumbers('js');
   updateCharCount();
 
+  // Auto-run saat halaman dibuka
   runPreview();
 
   // Clock
   setInterval(() => {
     const now = new Date();
-    document.getElementById('clock').textContent = now.toLocaleTimeString('id-ID', { hour12: false });
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('id-ID', { hour12: false });
   }, 1000);
 
   // Textarea events
@@ -592,8 +535,15 @@ window.addEventListener('DOMContentLoaded', () => {
     ta.addEventListener('keydown', handleTab);
   });
 
-  // Resize
   initResize();
+
+  // Terima pesan console dari iframe
+  window.addEventListener('message', (e) => {
+    // Hanya terima pesan dengan format yang kita kenal
+    if (e.data && e.data.type === 'console') {
+      appendConsole(e.data.level, e.data.msg);
+    }
+  });
 });
 
 // ── TABS ──
@@ -610,9 +560,9 @@ function switchTab(lang, btn) {
 
 // ── LINE NUMBERS ──
 function updateLineNumbers(lang) {
-  const ta = document.getElementById('code-' + lang);
-  const ln = document.getElementById('ln-' + lang);
-  const lines = (ta.value.split('\\n').length || 1);
+  const ta    = document.getElementById('code-' + lang);
+  const ln    = document.getElementById('ln-' + lang);
+  const lines = ta.value.split('\\n').length || 1;
   ln.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br>');
 }
 
@@ -642,6 +592,8 @@ function handleTab(e) {
 }
 
 // ── RUN PREVIEW ──
+// Cara yang benar: build full HTML → buat Blob URL → set ke iframe src
+// Ini aman karena Blob punya origin null, tidak bisa akses domain utama
 function runPreview() {
   const html = document.getElementById('code-html').value;
   const css  = document.getElementById('code-css').value;
@@ -651,78 +603,88 @@ function runPreview() {
   statusEl.className = 'preview-status ok';
   statusEl.innerHTML = '<span class="status-dot"></span> RUNNING...';
 
-  const fullHtml = buildHtml(html, css, js);
-  const frame    = document.getElementById('preview-frame');
+  // Inject console intercept ke dalam iframe
+  // postMessage ke parent tetap jalan meski tanpa allow-same-origin
+  const consoleIntercept = \`
+<script>
+(function() {
+  var _send = function(level, args) {
+    try {
+      window.parent.postMessage({
+        type: 'console',
+        level: level,
+        msg: Array.prototype.slice.call(args).map(function(a) {
+          try { return (typeof a === 'object') ? JSON.stringify(a) : String(a); }
+          catch(e) { return String(a); }
+        }).join(' ')
+      }, '*');
+    } catch(e) {}
+  };
+  var _log   = console.log.bind(console);
+  var _error = console.error.bind(console);
+  var _warn  = console.warn.bind(console);
+  var _info  = console.info.bind(console);
+  console.log   = function() { _log.apply(console, arguments);   _send('log',   arguments); };
+  console.error = function() { _error.apply(console, arguments); _send('error', arguments); };
+  console.warn  = function() { _warn.apply(console, arguments);  _send('warn',  arguments); };
+  console.info  = function() { _info.apply(console, arguments);  _send('info',  arguments); };
+  window.onerror = function(msg, src, line, col) {
+    _send('error', ['[Runtime Error] ' + msg + ' (line ' + line + ')']);
+    return false;
+  };
+  window.addEventListener('unhandledrejection', function(e) {
+    _send('error', ['[Unhandled Promise] ' + (e.reason || e)]);
+  });
+})();
+<\\/script>\`;
 
-  // Intercept console from iframe
-  const consoleScript = \`
-    <script>
-      const origLog   = console.log.bind(console);
-      const origError = console.error.bind(console);
-      const origWarn  = console.warn.bind(console);
-      const origInfo  = console.info.bind(console);
-      const send = (type, args) => {
-        window.parent.postMessage({ type: 'console', level: type, msg: args.map(a => {
-          try { return typeof a === 'object' ? JSON.stringify(a) : String(a); } catch(e) { return String(a); }
-        }).join(' ') }, '*');
-      };
-      console.log   = (...a) => { origLog(...a);   send('log',   a); };
-      console.error = (...a) => { origError(...a); send('error', a); };
-      console.warn  = (...a) => { origWarn(...a);  send('warn',  a); };
-      console.info  = (...a) => { origInfo(...a);  send('info',  a); };
-      window.onerror = (msg, src, line, col) => {
-        window.parent.postMessage({ type: 'console', level: 'error', msg: '[Runtime Error] ' + msg + ' (line ' + line + ')' }, '*');
-      };
-    <\\/script>
-  \`;
+  const fullHtml = buildHtml(html, css, js, consoleIntercept);
 
-  const blobContent = fullHtml.replace('</head>', consoleScript + '</head>');
-  const blob = new Blob([blobContent], { type: 'text/html' });
-  const url  = URL.createObjectURL(blob);
+  // Revoke URL lama kalau ada
+  const frame = document.getElementById('preview-frame');
+  if (frame._blobUrl) {
+    URL.revokeObjectURL(frame._blobUrl);
+  }
+
+  const blob   = new Blob([fullHtml], { type: 'text/html' });
+  const blobUrl = URL.createObjectURL(blob);
+  frame._blobUrl = blobUrl;
 
   frame.onload = () => {
     statusEl.className = 'preview-status ok';
     statusEl.innerHTML = '<span class="status-dot"></span> READY';
-    URL.revokeObjectURL(url);
   };
-
   frame.onerror = () => {
     statusEl.className = 'preview-status err';
     statusEl.innerHTML = '<span class="status-dot"></span> ERROR';
   };
 
-  frame.src = url;
-  document.getElementById('preview-url').textContent = 'data:preview/' + new Date().toISOString().slice(11,19);
+  frame.src = blobUrl;
+  document.getElementById('preview-url').textContent =
+    'blob:preview@' + new Date().toLocaleTimeString('id-ID');
   appendConsole('sys', '▶ Preview refreshed at ' + new Date().toLocaleTimeString('id-ID'));
 }
 
-function buildHtml(html, css, js) {
-  return \`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<style>\${css}</style>
-</head>
-<body>
-\${html}
-<script>\${js}<\\/script>
-</body>
-</html>\`;
+function buildHtml(html, css, js, consoleIntercept) {
+  return '<!DOCTYPE html>\\n' +
+    '<html>\\n<head>\\n' +
+    '<meta charset="UTF-8">\\n' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">\\n' +
+    consoleIntercept + '\\n' +
+    '<style>' + css + '</style>\\n' +
+    '</head>\\n<body>\\n' +
+    html + '\\n' +
+    '<script>' + js + '<\\/script>\\n' +
+    '</body>\\n</html>';
 }
 
 // ── CONSOLE ──
-window.addEventListener('message', (e) => {
-  if (e.data?.type === 'console') {
-    appendConsole(e.data.level, e.data.msg);
-  }
-});
-
 function appendConsole(level, msg) {
-  const out  = document.getElementById('console-output');
-  const line = document.createElement('div');
-  const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
+  const out    = document.getElementById('console-output');
+  const line   = document.createElement('div');
+  const time   = new Date().toLocaleTimeString('id-ID', { hour12: false });
   const prefix = { log: '▸', error: '✖', warn: '⚠', info: 'ℹ', sys: '□' }[level] || '▸';
-  line.className = level + '-line';
+  line.className   = (level || 'log') + '-line';
   line.textContent = '[' + time + '] ' + prefix + ' ' + msg;
   out.appendChild(line);
   out.scrollTop = out.scrollHeight;
@@ -735,57 +697,86 @@ function clearConsole() {
 
 let consoleVisible = true;
 function toggleConsole() {
-  const panel   = document.getElementById('console-panel');
-  const toggle  = document.getElementById('console-toggle');
-  const output  = document.getElementById('console-output');
+  const panel  = document.getElementById('console-panel');
+  const toggle = document.getElementById('console-toggle');
+  const output = document.getElementById('console-output');
   consoleVisible = !consoleVisible;
-  output.style.display  = consoleVisible ? '' : 'none';
-  toggle.textContent    = consoleVisible ? '▼' : '▲';
-  panel.style.height    = consoleVisible ? '120px' : '28px';
+  output.style.display = consoleVisible ? '' : 'none';
+  toggle.textContent   = consoleVisible ? '▼' : '▲';
+  panel.style.height   = consoleVisible ? '120px' : '28px';
 }
 
 // ── COPY ──
 function copyCode() {
   const ta = document.getElementById('code-' + currentTab);
   navigator.clipboard.writeText(ta.value).then(() => {
-    appendConsole('sys', '✓ ' + currentTab.toUpperCase() + ' code copied to clipboard!');
+    appendConsole('sys', '✓ ' + currentTab.toUpperCase() + ' code copied!');
+  }).catch(() => {
+    // Fallback untuk browser yang tidak support clipboard API
+    ta.select();
+    document.execCommand('copy');
+    appendConsole('sys', '✓ ' + currentTab.toUpperCase() + ' code copied! (fallback)');
   });
 }
 
 // ── FULLSCREEN ──
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen();
+    document.documentElement.requestFullscreen().catch(() => {});
   } else {
-    document.exitFullscreen();
+    document.exitFullscreen().catch(() => {});
   }
 }
 
-// ── RESIZE ──
+// ── RESIZE (drag panel) ──
 function initResize() {
-  const handle     = document.getElementById('resize-handle');
-  const codePanel  = document.getElementById('code-panel');
-  const main       = document.getElementById('main');
-  let isResizing   = false;
+  const handle    = document.getElementById('resize-handle');
+  const codePanel = document.getElementById('code-panel');
+  const main      = document.getElementById('main');
+  let isResizing  = false;
 
   handle.addEventListener('mousedown', (e) => {
     isResizing = true;
-    document.body.style.cursor   = 'col-resize';
+    document.body.style.cursor     = 'col-resize';
     document.body.style.userSelect = 'none';
+    // Overlay iframe supaya drag tidak terblokir oleh iframe
+    document.getElementById('preview-frame').style.pointerEvents = 'none';
   });
 
   document.addEventListener('mousemove', (e) => {
     if (!isResizing) return;
-    const rect  = main.getBoundingClientRect();
-    const pct   = ((e.clientX - rect.left) / rect.width) * 100;
+    const rect    = main.getBoundingClientRect();
+    const pct     = ((e.clientX - rect.left) / rect.width) * 100;
     const clamped = Math.max(20, Math.min(80, pct));
     codePanel.style.width = clamped + '%';
   });
 
   document.addEventListener('mouseup', () => {
+    if (!isResizing) return;
     isResizing = false;
-    document.body.style.cursor    = '';
+    document.body.style.cursor     = '';
     document.body.style.userSelect = '';
+    document.getElementById('preview-frame').style.pointerEvents = '';
+  });
+
+  // Touch support
+  handle.addEventListener('touchstart', (e) => {
+    isResizing = true;
+    document.getElementById('preview-frame').style.pointerEvents = 'none';
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!isResizing) return;
+    const touch   = e.touches[0];
+    const rect    = main.getBoundingClientRect();
+    const pct     = ((touch.clientX - rect.left) / rect.width) * 100;
+    const clamped = Math.max(20, Math.min(80, pct));
+    codePanel.style.width = clamped + '%';
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    isResizing = false;
+    document.getElementById('preview-frame').style.pointerEvents = '';
   });
 }
 </script>
@@ -793,6 +784,9 @@ function initResize() {
 </html>`;
 }
 
+// ─────────────────────────────────────────────────────────────
+//  404 PAGE
+// ─────────────────────────────────────────────────────────────
 function notFoundPage() {
   return `<!DOCTYPE html>
 <html>
@@ -800,24 +794,41 @@ function notFoundPage() {
 <meta charset="UTF-8">
 <title>404 — Preview Not Found</title>
 <style>
-  body { background: #000800; color: #00ff41; font-family: monospace; display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; gap: 16px; }
+  body {
+    background: #000800;
+    color: #00ff41;
+    font-family: monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    flex-direction: column;
+    gap: 16px;
+  }
   h1 { font-size: 48px; text-shadow: 0 0 20px #00ff41; }
   p  { color: #005500; }
-  a  { color: #00ff41; }
+  a  { color: #00ff41; text-decoration: none; }
+  a:hover { text-shadow: 0 0 8px #00ff41; }
 </style>
 </head>
 <body>
   <h1>[ 404 ]</h1>
-  <p>Preview not found or has expired (30 days).</p>
-  <a href="/">← Back</a>
+  <p>Preview tidak ditemukan atau sudah expired (30 hari).</p>
+  <a href="/">← Kembali</a>
 </body>
 </html>`;
 }
 
+// ─────────────────────────────────────────────────────────────
+//  HELPERS
+//  escapeHtml: untuk output ke HTML attribute/content (XSS prevention)
+//  TIDAK dipakai untuk kode JS — gunakan JSON.stringify() untuk itu
+// ─────────────────────────────────────────────────────────────
 function escapeHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function escapeForJson(str) {
-  return String(str).replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'\\r').replace(/\t/g,'\\t');
+  return String(str)
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g,  '&quot;')
+    .replace(/'/g,  '&#39;');
 }
