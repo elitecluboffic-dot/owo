@@ -1380,26 +1380,6 @@ const commands = [
       "required": false
     }
   ]
-},
-
-
-
-
-
-  {
-  "name": "codepreview",
-  "description": "Live code preview seperti CodePen",
-  "options": [
-    { "name": "aksi", "description": "Aksi", "type": 3, "required": true,
-      "choices": [
-        { "name": "new - Buat preview baru", "value": "new" },
-        { "name": "list - Lihat preview kamu", "value": "list" },
-        { "name": "delete - Hapus preview", "value": "delete" }
-      ]
-    },
-    { "name": "title", "description": "Judul preview (untuk aksi new)", "type": 3 },
-    { "name": "id", "description": "ID preview (untuk aksi delete)", "type": 3 }
-  ]
 }
 
 
