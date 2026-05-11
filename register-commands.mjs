@@ -1380,7 +1380,67 @@ const commands = [
       "required": false
     }
   ]
-}
+},
+
+
+
+
+
+
+    {
+    name: 'wordle',
+    description: '🎮 Main Wordle Unlimited (Indonesia & English)',
+    options: [
+      {
+        name: 'aksi',
+        description: 'Pilih aksi yang ingin dilakukan',
+        type: 3,
+        required: true,
+        choices: [
+          { name: '▶️ Play — Mulai game baru', value: 'play' },
+          { name: '🔍 Guess — Tebak kata', value: 'guess' },
+          { name: '📋 Board — Lihat papan saat ini', value: 'board' },
+          { name: '🚪 Quit — Keluar dari game', value: 'quit' },
+          { name: '📊 Stats — Lihat statistik pribadi', value: 'stats' },
+          { name: '🏆 Leaderboard — Ranking pemain', value: 'leaderboard' },
+          { name: '💡 Hint — Dapatkan petunjuk huruf', value: 'hint' }
+        ]
+      },
+      {
+        name: 'kata',
+        description: 'Kata tebakan (5 huruf) — hanya untuk aksi:guess',
+        type: 3,
+        required: false
+      },
+      {
+        name: 'bahasa',
+        description: 'Pilih bahasa (default: id)',
+        type: 3,
+        required: false,
+        choices: [
+          { name: '🇮🇩 Bahasa Indonesia', value: 'id' },
+          { name: '🇬🇧 English', value: 'en' }
+        ]
+      },
+      {
+        name: 'filter',
+        description: 'Filter leaderboard (hanya untuk aksi:leaderboard)',
+        type: 3,
+        required: false,
+        choices: [
+          { name: '🏆 Total Menang', value: 'wins' },
+          { name: '🔥 Max Streak', value: 'streak' },
+          { name: '📊 Rata-rata Tebakan', value: 'avg' }
+        ]
+      },
+      {
+        name: 'user',
+        description: 'Lihat stats user lain (opsional)',
+        type: 6,
+        required: false
+      }
+    ]
+  }
 
 
   
