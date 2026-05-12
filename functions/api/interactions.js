@@ -13359,9 +13359,17 @@ if (cmd === 'wordle') {
 // ══════════════════════════════════════════════════════════════════════
 if (cmd === 'stat-developer') {
   const EMOJI    = '<a:GifOwoBim:1492599199038967878>';
-  const ghUser   = getOption(options, 'username') || 'elitecluboffic-dot';
-  const theme    = getOption(options, 'tema')     || 'gruvbox';
-  const cardType = getOption(options, 'tipe')     || 'stats';
+  const ghUser   = getOption(options, 'username');
+  const theme    = getOption(options, 'tema')  || 'gruvbox';
+  const cardType = getOption(options, 'tipe')  || 'stats';
+
+  // ── Wajib isi username ──
+  if (!ghUser || !ghUser.trim()) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: `> ${EMOJI} ❌ Harap masukkan **username** GitHub yang valid!`, flags: 64 }
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
 
   const THEMES = [
     'gruvbox','dark','radical','merko','tokyonight','dracula','nightowl',
@@ -13375,7 +13383,6 @@ if (cmd === 'stat-developer') {
     streak:    `https://ghstats.dev/api/streak?username=${ghUser}&theme=${safTheme}&border_radius=49.5`,
     mini:      `https://ghstats.dev/api/card?username=${ghUser}&theme=${safTheme}&border_radius=49.5&compact=true`,
   };
-
   const cardUrl = CARD_URLS[cardType] || CARD_URLS.stats;
 
   // ── Defer response ──
@@ -13389,66 +13396,59 @@ if (cmd === 'stat-developer') {
     };
 
     try {
-      // ── Tanggal 1 tahun lalu untuk GitHub Search API ──
+      const GH      = { 'User-Agent': 'OwoBimBot/1.0', 'Accept': 'application/vnd.github.v3+json' };
+      const GH_SRCH = { 'User-Agent': 'OwoBimBot/1.0', 'Accept': 'application/vnd.github.cloak-preview+json' };
+
       const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
-        .toISOString().split('T')[0]; // format: YYYY-MM-DD
+        .toISOString().split('T')[0];
 
-      const GH_HEADERS = {
-        'User-Agent': 'OwoBimBot/1.0',
-        'Accept': 'application/vnd.github.v3+json',
-      };
-      const GH_HEADERS_COMMIT = {
-        'User-Agent': 'OwoBimBot/1.0',
-        'Accept': 'application/vnd.github.cloak-preview+json', // wajib untuk search/commits
-      };
-
-      // ── Fetch semua data paralel ──
-      // Events: 10 halaman = 300 event (batas max GitHub Events API)
-      // Commits 1 tahun: pakai Search API → total_count akurat
-      const [
-        userRes, repoRes,
-        ev1, ev2, ev3, ev4, ev5,
-        ev6, ev7, ev8, ev9, ev10,
-        commitSearchRes,
-      ] = await Promise.all([
-        fetch(`https://api.github.com/users/${ghUser}`,                                                          { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/users/${ghUser}/repos?per_page=100&sort=updated`,                         { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=1`,                        { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=2`,                        { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=3`,                        { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=4`,                        { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=5`,                        { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=6`,                        { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=7`,                        { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=8`,                        { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=9`,                        { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=10`,                       { headers: GH_HEADERS }),
-        fetch(`https://api.github.com/search/commits?q=author:${ghUser}+author-date:>=${oneYearAgo}&per_page=1`, { headers: GH_HEADERS_COMMIT }),
+      // ══ BATCH 1: data utama + event page 1-3 (6 request) ══
+      const [userRes, repoRes, commitRes, ev1, ev2, ev3] = await Promise.all([
+        fetch(`https://api.github.com/users/${ghUser}`,                                                           { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/repos?per_page=100&sort=updated`,                          { headers: GH }),
+        fetch(`https://api.github.com/search/commits?q=author:${ghUser}+author-date:>=${oneYearAgo}&per_page=1`, { headers: GH_SRCH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=1`,                         { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=2`,                         { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=3`,                         { headers: GH }),
       ]);
 
       if (!userRes.ok) {
         return await editMsg(`> ${EMOJI} ❌ Username **\`${ghUser}\`** tidak ditemukan di GitHub!`);
       }
 
+      // ══ BATCH 2: event page 4-7 (4 request) ══
+      const [ev4, ev5, ev6, ev7] = await Promise.all([
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=4`,  { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=5`,  { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=6`,  { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=7`,  { headers: GH }),
+      ]);
+
+      // ══ BATCH 3: event page 8-10 (3 request) ══
+      const [ev8, ev9, ev10] = await Promise.all([
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=8`,  { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=9`,  { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=10`, { headers: GH }),
+      ]);
+
+      // ── Parse semua response ──
       const ghData = await userRes.json();
       const repos  = repoRes.ok ? await repoRes.json() : [];
 
-      // Parse semua pages event, flatten + filter entri invalid
+      let yearlyCommits = 0;
+      if (commitRes.ok) {
+        const cd = await commitRes.json();
+        yearlyCommits = cd.total_count || 0;
+      }
+
       const evPages = await Promise.all(
         [ev1,ev2,ev3,ev4,ev5,ev6,ev7,ev8,ev9,ev10].map(r => r.ok ? r.json() : [])
       );
       const events = evPages.flat().filter(e => e && typeof e === 'object');
 
-      // Commit 1 tahun dari Search API (total_count = jumlah commit publik)
-      let yearlyCommits = 0;
-      if (commitSearchRes.ok) {
-        const commitData = await commitSearchRes.json();
-        yearlyCommits = commitData.total_count || 0;
-      }
-
       // ── Calculate stats ──
       const totalStars = Array.isArray(repos) ? repos.reduce((s, r) => s + (r.stargazers_count || 0), 0) : 0;
-      const totalForks = Array.isArray(repos) ? repos.reduce((s, r) => s + (r.forks_count || 0), 0) : 0;
+      const totalForks = Array.isArray(repos) ? repos.reduce((s, r) => s + (r.forks_count     || 0), 0) : 0;
       const langMap    = {};
       if (Array.isArray(repos)) {
         repos.forEach(r => { if (r.language) langMap[r.language] = (langMap[r.language] || 0) + 1; });
@@ -13459,9 +13459,9 @@ if (cmd === 'stat-developer') {
         .map(([l, c]) => `\`${l}\` ×${c}`)
         .join(' · ') || 'N/A';
 
-      // ── Activity dari 300 event terakhir ──
-      const prEvents    = Array.isArray(events) ? events.filter(e => e.type === 'PullRequestEvent').length : 0;
-      const issueEvents = Array.isArray(events) ? events.filter(e => e.type === 'IssuesEvent').length : 0;
+      // ── Activity dari 300 event ──
+      const prEvents    = events.filter(e => e.type === 'PullRequestEvent').length;
+      const issueEvents = events.filter(e => e.type === 'IssuesEvent').length;
       const lastActivity = events[0]?.created_at
         ? new Date(events[0].created_at).toLocaleDateString('id-ID', {
             timeZone: 'Asia/Jakarta', day: '2-digit', month: 'long', year: 'numeric'
@@ -13472,17 +13472,16 @@ if (cmd === 'stat-developer') {
       const createdAt = new Date(ghData.created_at);
       const ageYears  = ((Date.now() - createdAt) / (1000 * 60 * 60 * 24 * 365)).toFixed(1);
 
-      // ── Activity Grade (weighted scoring) ──
+      // ── Weighted Grade ──
       const repoScore     = Math.min((ghData.public_repos || 0) * 3,           120);
       const followerScore = Math.min((ghData.followers    || 0) * 2,           100);
       const starScore     = Math.min(totalStars * 2,                            150);
       const forkScore     = Math.min(Math.floor(totalForks * 1.5),              60);
-      const commitScore   = Math.min(Math.floor(yearlyCommits * 0.8),           200); // commit 1 tahun penuh
+      const commitScore   = Math.min(Math.floor(yearlyCommits * 0.8),           200);
       const prScore       = Math.min(prEvents * 2,                              40);
       const issueScore    = Math.min(issueEvents,                               20);
       const ageScore      = Math.min(Math.floor(parseFloat(ageYears) * 5),      50);
-
-      const totalScore = repoScore + followerScore + starScore + forkScore + commitScore + prScore + issueScore + ageScore;
+      const totalScore    = repoScore + followerScore + starScore + forkScore + commitScore + prScore + issueScore + ageScore;
 
       const grade =
         totalScore >= 400 ? 'S'  :
@@ -13493,13 +13492,13 @@ if (cmd === 'stat-developer') {
         totalScore >= 15  ? 'C+' : 'C';
 
       const gradeColor =
-        grade === 'S'  ? '\u001b[1;35m' :  // magenta
-        grade === 'A+' ? '\u001b[1;32m' :  // bright green
-        grade === 'A'  ? '\u001b[0;32m' :  // green
-        grade === 'B+' ? '\u001b[1;33m' :  // bright yellow
-        grade === 'B'  ? '\u001b[0;33m' :  // yellow
-        grade === 'C+' ? '\u001b[1;31m' :  // bright red
-                         '\u001b[0;31m';   // dim red
+        grade === 'S'  ? '\u001b[1;35m' :
+        grade === 'A+' ? '\u001b[1;32m' :
+        grade === 'A'  ? '\u001b[0;32m' :
+        grade === 'B+' ? '\u001b[1;33m' :
+        grade === 'B'  ? '\u001b[0;33m' :
+        grade === 'C+' ? '\u001b[1;31m' :
+                         '\u001b[0;31m';
 
       const waktu = new Date().toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
