@@ -1440,7 +1440,52 @@ const commands = [
         required: false
       }
     ]
-  }
+  },
+
+
+
+
+
+  {
+  "name": "stat-developer",
+  "description": "Real-time GitHub Developer Stats Card",
+  "options": [
+    {
+      "name": "username",
+      "description": "GitHub username (default: elitecluboffic-dot)",
+      "type": 3,
+      "required": false
+    },
+    {
+      "name": "tema",
+      "description": "Tema kartu stats",
+      "type": 3,
+      "required": false,
+      "choices": [
+        {"name": "🟤 Gruvbox", "value": "gruvbox"},
+        {"name": "⬛ Dark", "value": "dark"},
+        {"name": "🔴 Radical", "value": "radical"},
+        {"name": "🟢 Merko", "value": "merko"},
+        {"name": "🌙 Tokyo Night", "value": "tokyonight"},
+        {"name": "🟣 Dracula", "value": "dracula"},
+        {"name": "🌊 Ocean Dark", "value": "ocean_dark"},
+        {"name": "🌈 Synthwave", "value": "synthwave"}
+      ]
+    },
+    {
+      "name": "tipe",
+      "description": "Tipe kartu",
+      "type": 3,
+      "required": false,
+      "choices": [
+        {"name": "📊 Stats Card", "value": "stats"},
+        {"name": "🌐 Languages", "value": "languages"},
+        {"name": "🔥 Streak", "value": "streak"},
+        {"name": "🃏 Mini Card", "value": "mini"}
+      ]
+    }
+  ]
+}
 
 
   
