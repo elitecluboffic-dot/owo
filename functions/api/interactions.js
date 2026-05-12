@@ -13354,7 +13354,7 @@ if (cmd === 'wordle') {
 
 
 
-    // ══════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 // CMD: stat-developer — Real-Time GitHub Stats Card
 // ══════════════════════════════════════════════════════════════════════
 if (cmd === 'stat-developer') {
@@ -13389,31 +13389,67 @@ if (cmd === 'stat-developer') {
     };
 
     try {
-      // ── Fetch live GitHub data ──
-      const [userRes, repoRes, eventRes] = await Promise.all([
-        fetch(`https://api.github.com/users/${ghUser}`, {
-          headers: { 'User-Agent': 'OwoBimBot/1.0', 'Accept': 'application/vnd.github.v3+json' }
-        }),
-        fetch(`https://api.github.com/users/${ghUser}/repos?per_page=100&sort=updated`, {
-          headers: { 'User-Agent': 'OwoBimBot/1.0', 'Accept': 'application/vnd.github.v3+json' }
-        }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30`, {
-          headers: { 'User-Agent': 'OwoBimBot/1.0', 'Accept': 'application/vnd.github.v3+json' }
-        }),
+      // ── Tanggal 1 tahun lalu untuk GitHub Search API ──
+      const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
+        .toISOString().split('T')[0]; // format: YYYY-MM-DD
+
+      const GH_HEADERS = {
+        'User-Agent': 'OwoBimBot/1.0',
+        'Accept': 'application/vnd.github.v3+json',
+      };
+      const GH_HEADERS_COMMIT = {
+        'User-Agent': 'OwoBimBot/1.0',
+        'Accept': 'application/vnd.github.cloak-preview+json', // wajib untuk search/commits
+      };
+
+      // ── Fetch semua data paralel ──
+      // Events: 10 halaman = 300 event (batas max GitHub Events API)
+      // Commits 1 tahun: pakai Search API → total_count akurat
+      const [
+        userRes, repoRes,
+        ev1, ev2, ev3, ev4, ev5,
+        ev6, ev7, ev8, ev9, ev10,
+        commitSearchRes,
+      ] = await Promise.all([
+        fetch(`https://api.github.com/users/${ghUser}`,                                                          { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/users/${ghUser}/repos?per_page=100&sort=updated`,                         { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=1`,                        { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=2`,                        { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=3`,                        { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=4`,                        { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=5`,                        { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=6`,                        { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=7`,                        { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=8`,                        { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=9`,                        { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=10`,                       { headers: GH_HEADERS }),
+        fetch(`https://api.github.com/search/commits?q=author:${ghUser}+author-date:>=${oneYearAgo}&per_page=1`, { headers: GH_HEADERS_COMMIT }),
       ]);
 
       if (!userRes.ok) {
         return await editMsg(`> ${EMOJI} ❌ Username **\`${ghUser}\`** tidak ditemukan di GitHub!`);
       }
 
-      const ghData  = await userRes.json();
-      const repos   = repoRes.ok   ? await repoRes.json()  : [];
-      const events  = eventRes.ok  ? await eventRes.json() : [];
+      const ghData = await userRes.json();
+      const repos  = repoRes.ok ? await repoRes.json() : [];
+
+      // Parse semua pages event, flatten + filter entri invalid
+      const evPages = await Promise.all(
+        [ev1,ev2,ev3,ev4,ev5,ev6,ev7,ev8,ev9,ev10].map(r => r.ok ? r.json() : [])
+      );
+      const events = evPages.flat().filter(e => e && typeof e === 'object');
+
+      // Commit 1 tahun dari Search API (total_count = jumlah commit publik)
+      let yearlyCommits = 0;
+      if (commitSearchRes.ok) {
+        const commitData = await commitSearchRes.json();
+        yearlyCommits = commitData.total_count || 0;
+      }
 
       // ── Calculate stats ──
-      const totalStars   = Array.isArray(repos) ? repos.reduce((s, r) => s + (r.stargazers_count || 0), 0) : 0;
-      const totalForks   = Array.isArray(repos) ? repos.reduce((s, r) => s + (r.forks_count || 0), 0) : 0;
-      const langMap      = {};
+      const totalStars = Array.isArray(repos) ? repos.reduce((s, r) => s + (r.stargazers_count || 0), 0) : 0;
+      const totalForks = Array.isArray(repos) ? repos.reduce((s, r) => s + (r.forks_count || 0), 0) : 0;
+      const langMap    = {};
       if (Array.isArray(repos)) {
         repos.forEach(r => { if (r.language) langMap[r.language] = (langMap[r.language] || 0) + 1; });
       }
@@ -13423,9 +13459,9 @@ if (cmd === 'stat-developer') {
         .map(([l, c]) => `\`${l}\` ×${c}`)
         .join(' · ') || 'N/A';
 
-      // ── Recent activity ──
-      const pushEvents   = Array.isArray(events) ? events.filter(e => e.type === 'PushEvent') : [];
-      const commitCount  = pushEvents.reduce((s, e) => s + (e.payload?.commits?.length || 0), 0);
+      // ── Activity dari 300 event terakhir ──
+      const prEvents    = Array.isArray(events) ? events.filter(e => e.type === 'PullRequestEvent').length : 0;
+      const issueEvents = Array.isArray(events) ? events.filter(e => e.type === 'IssuesEvent').length : 0;
       const lastActivity = events[0]?.created_at
         ? new Date(events[0].created_at).toLocaleDateString('id-ID', {
             timeZone: 'Asia/Jakarta', day: '2-digit', month: 'long', year: 'numeric'
@@ -13436,9 +13472,34 @@ if (cmd === 'stat-developer') {
       const createdAt = new Date(ghData.created_at);
       const ageYears  = ((Date.now() - createdAt) / (1000 * 60 * 60 * 24 * 365)).toFixed(1);
 
-      // ── Activity Grade ──
-      const totalActivity = (ghData.public_repos || 0) + totalStars + commitCount;
-      const grade = totalActivity >= 500 ? 'A+' : totalActivity >= 200 ? 'A' : totalActivity >= 100 ? 'B+' : totalActivity >= 50 ? 'B' : 'C';
+      // ── Activity Grade (weighted scoring) ──
+      const repoScore     = Math.min((ghData.public_repos || 0) * 3,           120);
+      const followerScore = Math.min((ghData.followers    || 0) * 2,           100);
+      const starScore     = Math.min(totalStars * 2,                            150);
+      const forkScore     = Math.min(Math.floor(totalForks * 1.5),              60);
+      const commitScore   = Math.min(Math.floor(yearlyCommits * 0.8),           200); // commit 1 tahun penuh
+      const prScore       = Math.min(prEvents * 2,                              40);
+      const issueScore    = Math.min(issueEvents,                               20);
+      const ageScore      = Math.min(Math.floor(parseFloat(ageYears) * 5),      50);
+
+      const totalScore = repoScore + followerScore + starScore + forkScore + commitScore + prScore + issueScore + ageScore;
+
+      const grade =
+        totalScore >= 400 ? 'S'  :
+        totalScore >= 250 ? 'A+' :
+        totalScore >= 150 ? 'A'  :
+        totalScore >= 80  ? 'B+' :
+        totalScore >= 40  ? 'B'  :
+        totalScore >= 15  ? 'C+' : 'C';
+
+      const gradeColor =
+        grade === 'S'  ? '\u001b[1;35m' :  // magenta
+        grade === 'A+' ? '\u001b[1;32m' :  // bright green
+        grade === 'A'  ? '\u001b[0;32m' :  // green
+        grade === 'B+' ? '\u001b[1;33m' :  // bright yellow
+        grade === 'B'  ? '\u001b[0;33m' :  // yellow
+        grade === 'C+' ? '\u001b[1;31m' :  // bright red
+                         '\u001b[0;31m';   // dim red
 
       const waktu = new Date().toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
@@ -13467,27 +13528,31 @@ if (cmd === 'stat-developer') {
           '```',
           '```ansi',
           '\u001b[1;33m━━━━━━━━━━━ 👤 PROFILE ━━━━━━━━━━━━━━\u001b[0m',
-          `\u001b[1;36m  🧑  Name        :\u001b[0m \u001b[1;37m${ghData.name || ghData.login}\u001b[0m`,
-          `\u001b[1;36m  📍  Location    :\u001b[0m \u001b[0;37m${ghData.location || 'N/A'}\u001b[0m`,
-          `\u001b[1;36m  🏢  Company     :\u001b[0m \u001b[0;37m${ghData.company || 'N/A'}\u001b[0m`,
-          `\u001b[1;36m  📅  Joined      :\u001b[0m \u001b[0;37m${createdAt.toLocaleDateString('id-ID')} (${ageYears} tahun)\u001b[0m`,
+          `\u001b[1;36m  🧑  Name          :\u001b[0m \u001b[1;37m${ghData.name || ghData.login}\u001b[0m`,
+          `\u001b[1;36m  📍  Location      :\u001b[0m \u001b[0;37m${ghData.location || 'N/A'}\u001b[0m`,
+          `\u001b[1;36m  🏢  Company       :\u001b[0m \u001b[0;37m${ghData.company || 'N/A'}\u001b[0m`,
+          `\u001b[1;36m  📅  Joined        :\u001b[0m \u001b[0;37m${createdAt.toLocaleDateString('id-ID')} (${ageYears} tahun)\u001b[0m`,
           '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
           '\u001b[1;32m━━━━━━━━━━━ 📊 LIVE STATS ━━━━━━━━━━━\u001b[0m',
-          `\u001b[1;36m  📦  Public Repos:\u001b[0m \u001b[1;37m${ghData.public_repos || 0}\u001b[0m`,
-          `\u001b[1;36m  👥  Followers   :\u001b[0m \u001b[0;37m${ghData.followers || 0}\u001b[0m`,
-          `\u001b[1;36m  ➡️   Following   :\u001b[0m \u001b[0;37m${ghData.following || 0}\u001b[0m`,
-          `\u001b[1;36m  ⭐  Total Stars  :\u001b[0m \u001b[1;33m${totalStars.toLocaleString()}\u001b[0m`,
-          `\u001b[1;36m  🍴  Total Forks  :\u001b[0m \u001b[0;37m${totalForks.toLocaleString()}\u001b[0m`,
-          `\u001b[1;36m  💬  Recent Commits:\u001b[0m \u001b[0;37m${commitCount} (30 hari)\u001b[0m`,
+          `\u001b[1;36m  📦  Public Repos  :\u001b[0m \u001b[1;37m${ghData.public_repos || 0}\u001b[0m`,
+          `\u001b[1;36m  👥  Followers     :\u001b[0m \u001b[0;37m${ghData.followers || 0}\u001b[0m`,
+          `\u001b[1;36m  ➡️   Following     :\u001b[0m \u001b[0;37m${ghData.following || 0}\u001b[0m`,
+          `\u001b[1;36m  ⭐  Total Stars    :\u001b[0m \u001b[1;33m${totalStars.toLocaleString()}\u001b[0m`,
+          `\u001b[1;36m  🍴  Total Forks    :\u001b[0m \u001b[0;37m${totalForks.toLocaleString()}\u001b[0m`,
+          `\u001b[1;36m  💬  Commits (1thn) :\u001b[0m \u001b[1;37m${yearlyCommits.toLocaleString()}\u001b[0m`,
+          `\u001b[1;36m  🔀  PR / Issues    :\u001b[0m \u001b[0;37m${prEvents} PR · ${issueEvents} Issues\u001b[0m`,
           '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
           '\u001b[1;35m━━━━━━━━━━━ 🌐 LANGUAGES ━━━━━━━━━━━━\u001b[0m',
           `\u001b[0;37m  ${topLangs}\u001b[0m`,
           '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
           '\u001b[1;31m━━━━━━━━━━━ ⚡ ACTIVITY ━━━━━━━━━━━━━\u001b[0m',
-          `\u001b[1;36m  🏅  Grade       :\u001b[0m \u001b[1;32m${grade}\u001b[0m`,
-          `\u001b[1;36m  📅  Last Active :\u001b[0m \u001b[0;37m${lastActivity}\u001b[0m`,
-          `\u001b[1;36m  🃏  Card Type   :\u001b[0m \u001b[0;37m${TYPE_LABEL[cardType] || cardType}\u001b[0m`,
-          `\u001b[1;36m  🎨  Theme       :\u001b[0m \u001b[0;37m${THEME_EMOJI[safTheme] || '🎨'} ${safTheme}\u001b[0m`,
+          `\u001b[1;36m  🏅  Grade          :\u001b[0m ${gradeColor}${grade}\u001b[0m \u001b[0;37m(score: ${totalScore})\u001b[0m`,
+          `\u001b[1;36m  📊  Score Breakdown:\u001b[0m`,
+          `\u001b[0;37m      Repo:${repoScore}  Star:${starScore}  Commit:${commitScore}\u001b[0m`,
+          `\u001b[0;37m      Follow:${followerScore}  Fork:${forkScore}  PR:${prScore}  Age:${ageScore}\u001b[0m`,
+          `\u001b[1;36m  📅  Last Active    :\u001b[0m \u001b[0;37m${lastActivity}\u001b[0m`,
+          `\u001b[1;36m  🃏  Card Type      :\u001b[0m \u001b[0;37m${TYPE_LABEL[cardType] || cardType}\u001b[0m`,
+          `\u001b[1;36m  🎨  Theme          :\u001b[0m \u001b[0;37m${THEME_EMOJI[safTheme] || '🎨'} ${safTheme}\u001b[0m`,
           '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
           '```',
           `> 🔗 [GitHub Profile](https://github.com/${ghUser}) · [ghstats.dev](https://ghstats.dev)`,
@@ -13509,7 +13574,6 @@ if (cmd === 'stat-developer') {
     headers: { 'Content-Type': 'application/json' }
   });
 }
-
 
 
     
