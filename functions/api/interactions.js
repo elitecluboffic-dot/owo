@@ -13385,7 +13385,6 @@ if (cmd === 'stat-developer') {
   };
   const cardUrl = CARD_URLS[cardType] || CARD_URLS.stats;
 
-  // ── Defer response ──
   waitUntil((async () => {
     const editMsg = async (content, embeds) => {
       await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
@@ -13402,7 +13401,7 @@ if (cmd === 'stat-developer') {
       const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
         .toISOString().split('T')[0];
 
-      // ══ BATCH 1: data utama + event page 1-3 (6 request) ══
+      // ══ BATCH 1 (6 request) ══
       const [userRes, repoRes, commitRes, ev1, ev2, ev3] = await Promise.all([
         fetch(`https://api.github.com/users/${ghUser}`,                                                           { headers: GH }),
         fetch(`https://api.github.com/users/${ghUser}/repos?per_page=100&sort=updated`,                          { headers: GH }),
@@ -13416,7 +13415,7 @@ if (cmd === 'stat-developer') {
         return await editMsg(`> ${EMOJI} ❌ Username **\`${ghUser}\`** tidak ditemukan di GitHub!`);
       }
 
-      // ══ BATCH 2: event page 4-7 (4 request) ══
+      // ══ BATCH 2 (4 request) ══
       const [ev4, ev5, ev6, ev7] = await Promise.all([
         fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=4`,  { headers: GH }),
         fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=5`,  { headers: GH }),
@@ -13424,14 +13423,14 @@ if (cmd === 'stat-developer') {
         fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=7`,  { headers: GH }),
       ]);
 
-      // ══ BATCH 3: event page 8-10 (3 request) ══
+      // ══ BATCH 3 (3 request) ══
       const [ev8, ev9, ev10] = await Promise.all([
         fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=8`,  { headers: GH }),
         fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=9`,  { headers: GH }),
         fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=10`, { headers: GH }),
       ]);
 
-      // ── Parse semua response ──
+      // ── Parse ──
       const ghData = await userRes.json();
       const repos  = repoRes.ok ? await repoRes.json() : [];
 
@@ -13446,7 +13445,7 @@ if (cmd === 'stat-developer') {
       );
       const events = evPages.flat().filter(e => e && typeof e === 'object');
 
-      // ── Calculate stats ──
+      // ── Stats ──
       const totalStars = Array.isArray(repos) ? repos.reduce((s, r) => s + (r.stargazers_count || 0), 0) : 0;
       const totalForks = Array.isArray(repos) ? repos.reduce((s, r) => s + (r.forks_count     || 0), 0) : 0;
       const langMap    = {};
@@ -13459,7 +13458,6 @@ if (cmd === 'stat-developer') {
         .map(([l, c]) => `\`${l}\` ×${c}`)
         .join(' · ') || 'N/A';
 
-      // ── Activity dari 300 event ──
       const prEvents    = events.filter(e => e.type === 'PullRequestEvent').length;
       const issueEvents = events.filter(e => e.type === 'IssuesEvent').length;
       const lastActivity = events[0]?.created_at
@@ -13468,9 +13466,16 @@ if (cmd === 'stat-developer') {
           })
         : 'N/A';
 
-      // ── Account age ──
-      const createdAt = new Date(ghData.created_at);
-      const ageYears  = ((Date.now() - createdAt) / (1000 * 60 * 60 * 24 * 365)).toFixed(1);
+      // ── Umur akun: tampil bulan jika < 1 tahun ──
+      const createdAt  = new Date(ghData.created_at);
+      const ageMs      = Date.now() - createdAt;
+      const ageYearsRaw = ageMs / (1000 * 60 * 60 * 24 * 365);
+      const ageDisplay = ageYearsRaw < 1
+        ? `${Math.round(ageYearsRaw * 12)} bulan`
+        : `${ageYearsRaw.toFixed(1)} tahun`;
+
+      // ── Helper: tampil — kalau 0 ──
+      const fmt = (n) => n > 0 ? n.toLocaleString('id-ID') : '—';
 
       // ── Weighted Grade ──
       const repoScore     = Math.min((ghData.public_repos || 0) * 3,           120);
@@ -13480,7 +13485,7 @@ if (cmd === 'stat-developer') {
       const commitScore   = Math.min(Math.floor(yearlyCommits * 0.8),           200);
       const prScore       = Math.min(prEvents * 2,                              40);
       const issueScore    = Math.min(issueEvents,                               20);
-      const ageScore      = Math.min(Math.floor(parseFloat(ageYears) * 5),      50);
+      const ageScore      = Math.min(Math.floor(ageYearsRaw * 5),               50);
       const totalScore    = repoScore + followerScore + starScore + forkScore + commitScore + prScore + issueScore + ageScore;
 
       const grade =
@@ -13515,10 +13520,14 @@ if (cmd === 'stat-developer') {
         ocean_dark: '🌊', gradient: '🎨'
       };
 
+      // Skor ringkas 1 baris
+      const scoreBreakdown = `Repo:${repoScore} Commit:${commitScore} Star:${starScore} Follow:${followerScore} Fork:${forkScore} PR:${prScore} Age:${ageScore}`;
+
       await editMsg('', [{
         color: 0xF97316,
+        // Title pakai login asli dari GitHub, bukan input user (antisipasi case sensitivity)
         title: `👨‍💻 Developer Stats — ${ghData.login}`,
-        url: `https://github.com/${ghUser}`,
+        url: `https://github.com/${ghData.login}`,
         description: [
           '```ansi',
           '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
@@ -13526,41 +13535,40 @@ if (cmd === 'stat-developer') {
           '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
           '```',
           '```ansi',
+          // ── PROFILE ──
           '\u001b[1;33m━━━━━━━━━━━ 👤 PROFILE ━━━━━━━━━━━━━━\u001b[0m',
           `\u001b[1;36m  🧑  Name          :\u001b[0m \u001b[1;37m${ghData.name || ghData.login}\u001b[0m`,
-          `\u001b[1;36m  📍  Location      :\u001b[0m \u001b[0;37m${ghData.location || 'N/A'}\u001b[0m`,
-          `\u001b[1;36m  🏢  Company       :\u001b[0m \u001b[0;37m${ghData.company || 'N/A'}\u001b[0m`,
-          `\u001b[1;36m  📅  Joined        :\u001b[0m \u001b[0;37m${createdAt.toLocaleDateString('id-ID')} (${ageYears} tahun)\u001b[0m`,
-          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  📍  Location      :\u001b[0m \u001b[0;37m${ghData.location || '—'}\u001b[0m`,
+          `\u001b[1;36m  🏢  Company       :\u001b[0m \u001b[0;37m${ghData.company  || '—'}\u001b[0m`,
+          `\u001b[1;36m  📅  Joined        :\u001b[0m \u001b[0;37m${createdAt.toLocaleDateString('id-ID')} (${ageDisplay})\u001b[0m`,
+          // ── LIVE STATS ──
           '\u001b[1;32m━━━━━━━━━━━ 📊 LIVE STATS ━━━━━━━━━━━\u001b[0m',
           `\u001b[1;36m  📦  Public Repos  :\u001b[0m \u001b[1;37m${ghData.public_repos || 0}\u001b[0m`,
-          `\u001b[1;36m  👥  Followers     :\u001b[0m \u001b[0;37m${ghData.followers || 0}\u001b[0m`,
-          `\u001b[1;36m  ➡️   Following     :\u001b[0m \u001b[0;37m${ghData.following || 0}\u001b[0m`,
-          `\u001b[1;36m  ⭐  Total Stars    :\u001b[0m \u001b[1;33m${totalStars.toLocaleString()}\u001b[0m`,
-          `\u001b[1;36m  🍴  Total Forks    :\u001b[0m \u001b[0;37m${totalForks.toLocaleString()}\u001b[0m`,
-          `\u001b[1;36m  💬  Commits (1thn) :\u001b[0m \u001b[1;37m${yearlyCommits.toLocaleString()}\u001b[0m`,
+          `\u001b[1;36m  👥  Followers     :\u001b[0m \u001b[0;37m${fmt(ghData.followers)}\u001b[0m`,
+          `\u001b[1;36m  ➡️   Following     :\u001b[0m \u001b[0;37m${fmt(ghData.following)}\u001b[0m`,
+          `\u001b[1;36m  ⭐  Total Stars    :\u001b[0m \u001b[1;33m${fmt(totalStars)}\u001b[0m`,
+          `\u001b[1;36m  🍴  Total Forks    :\u001b[0m \u001b[0;37m${fmt(totalForks)}\u001b[0m`,
+          `\u001b[1;36m  💬  Commits (1thn) :\u001b[0m \u001b[1;37m${yearlyCommits.toLocaleString('id-ID')} \u001b[0;37m(publik)\u001b[0m`,
           `\u001b[1;36m  🔀  PR / Issues    :\u001b[0m \u001b[0;37m${prEvents} PR · ${issueEvents} Issues\u001b[0m`,
-          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          // ── LANGUAGES ──
           '\u001b[1;35m━━━━━━━━━━━ 🌐 LANGUAGES ━━━━━━━━━━━━\u001b[0m',
           `\u001b[0;37m  ${topLangs}\u001b[0m`,
-          '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          // ── ACTIVITY ──
           '\u001b[1;31m━━━━━━━━━━━ ⚡ ACTIVITY ━━━━━━━━━━━━━\u001b[0m',
           `\u001b[1;36m  🏅  Grade          :\u001b[0m ${gradeColor}${grade}\u001b[0m \u001b[0;37m(score: ${totalScore})\u001b[0m`,
-          `\u001b[1;36m  📊  Score Breakdown:\u001b[0m`,
-          `\u001b[0;37m      Repo:${repoScore}  Star:${starScore}  Commit:${commitScore}\u001b[0m`,
-          `\u001b[0;37m      Follow:${followerScore}  Fork:${forkScore}  PR:${prScore}  Age:${ageScore}\u001b[0m`,
+          `\u001b[1;36m  📊  Breakdown      :\u001b[0m \u001b[0;37m${scoreBreakdown}\u001b[0m`,
           `\u001b[1;36m  📅  Last Active    :\u001b[0m \u001b[0;37m${lastActivity}\u001b[0m`,
           `\u001b[1;36m  🃏  Card Type      :\u001b[0m \u001b[0;37m${TYPE_LABEL[cardType] || cardType}\u001b[0m`,
           `\u001b[1;36m  🎨  Theme          :\u001b[0m \u001b[0;37m${THEME_EMOJI[safTheme] || '🎨'} ${safTheme}\u001b[0m`,
           '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
           '```',
-          `> 🔗 [GitHub Profile](https://github.com/${ghUser}) · [ghstats.dev](https://ghstats.dev)`,
+          `> 🔗 [GitHub Profile](https://github.com/${ghData.login}) · [ghstats.dev](https://ghstats.dev)`,
           `> 🕐 Live data diambil: **${waktu} WIB**`,
           `> 🤖 *Powered by OwoBim DevStats × GitHub API × ghstats.dev* ${EMOJI}`,
         ].join('\n'),
         image:     { url: cardUrl },
         thumbnail: { url: ghData.avatar_url },
-        footer:    { text: `OwoBim DevStats • ${ghUser} • Real-time` },
+        footer:    { text: `OwoBim DevStats • ${ghData.login} • Real-time` },
         timestamp: new Date().toISOString(),
       }]);
 
@@ -13573,7 +13581,6 @@ if (cmd === 'stat-developer') {
     headers: { 'Content-Type': 'application/json' }
   });
 }
-
 
     
     
