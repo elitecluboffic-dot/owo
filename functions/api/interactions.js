@@ -13351,6 +13351,167 @@ if (cmd === 'wordle') {
 
 
 
+
+
+
+    // ══════════════════════════════════════════════════════════════════════
+// CMD: stat-developer — Real-Time GitHub Stats Card
+// ══════════════════════════════════════════════════════════════════════
+if (cmd === 'stat-developer') {
+  const EMOJI    = '<a:GifOwoBim:1492599199038967878>';
+  const ghUser   = getOption(options, 'username') || 'elitecluboffic-dot';
+  const theme    = getOption(options, 'tema')     || 'gruvbox';
+  const cardType = getOption(options, 'tipe')     || 'stats';
+
+  const THEMES = [
+    'gruvbox','dark','radical','merko','tokyonight','dracula','nightowl',
+    'cobalt','synthwave','highcontrast','ocean_dark','gradient'
+  ];
+  const safTheme = THEMES.includes(theme) ? theme : 'gruvbox';
+
+  const CARD_URLS = {
+    stats:     `https://ghstats.dev/api/card?username=${ghUser}&theme=${safTheme}&border_radius=49.5`,
+    languages: `https://ghstats.dev/api/languages?username=${ghUser}&theme=${safTheme}&border_radius=49.5`,
+    streak:    `https://ghstats.dev/api/streak?username=${ghUser}&theme=${safTheme}&border_radius=49.5`,
+    mini:      `https://ghstats.dev/api/card?username=${ghUser}&theme=${safTheme}&border_radius=49.5&compact=true`,
+  };
+
+  const cardUrl = CARD_URLS[cardType] || CARD_URLS.stats;
+
+  // ── Defer response ──
+  waitUntil((async () => {
+    const editMsg = async (content, embeds) => {
+      await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(embeds ? { content: content || '', embeds } : { content })
+      });
+    };
+
+    try {
+      // ── Fetch live GitHub data ──
+      const [userRes, repoRes, eventRes] = await Promise.all([
+        fetch(`https://api.github.com/users/${ghUser}`, {
+          headers: { 'User-Agent': 'OwoBimBot/1.0', 'Accept': 'application/vnd.github.v3+json' }
+        }),
+        fetch(`https://api.github.com/users/${ghUser}/repos?per_page=100&sort=updated`, {
+          headers: { 'User-Agent': 'OwoBimBot/1.0', 'Accept': 'application/vnd.github.v3+json' }
+        }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30`, {
+          headers: { 'User-Agent': 'OwoBimBot/1.0', 'Accept': 'application/vnd.github.v3+json' }
+        }),
+      ]);
+
+      if (!userRes.ok) {
+        return await editMsg(`> ${EMOJI} ❌ Username **\`${ghUser}\`** tidak ditemukan di GitHub!`);
+      }
+
+      const ghData  = await userRes.json();
+      const repos   = repoRes.ok   ? await repoRes.json()  : [];
+      const events  = eventRes.ok  ? await eventRes.json() : [];
+
+      // ── Calculate stats ──
+      const totalStars   = Array.isArray(repos) ? repos.reduce((s, r) => s + (r.stargazers_count || 0), 0) : 0;
+      const totalForks   = Array.isArray(repos) ? repos.reduce((s, r) => s + (r.forks_count || 0), 0) : 0;
+      const langMap      = {};
+      if (Array.isArray(repos)) {
+        repos.forEach(r => { if (r.language) langMap[r.language] = (langMap[r.language] || 0) + 1; });
+      }
+      const topLangs = Object.entries(langMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([l, c]) => `\`${l}\` ×${c}`)
+        .join(' · ') || 'N/A';
+
+      // ── Recent activity ──
+      const pushEvents   = Array.isArray(events) ? events.filter(e => e.type === 'PushEvent') : [];
+      const commitCount  = pushEvents.reduce((s, e) => s + (e.payload?.commits?.length || 0), 0);
+      const lastActivity = events[0]?.created_at
+        ? new Date(events[0].created_at).toLocaleDateString('id-ID', {
+            timeZone: 'Asia/Jakarta', day: '2-digit', month: 'long', year: 'numeric'
+          })
+        : 'N/A';
+
+      // ── Account age ──
+      const createdAt = new Date(ghData.created_at);
+      const ageYears  = ((Date.now() - createdAt) / (1000 * 60 * 60 * 24 * 365)).toFixed(1);
+
+      // ── Activity Grade ──
+      const totalActivity = (ghData.public_repos || 0) + totalStars + commitCount;
+      const grade = totalActivity >= 500 ? 'A+' : totalActivity >= 200 ? 'A' : totalActivity >= 100 ? 'B+' : totalActivity >= 50 ? 'B' : 'C';
+
+      const waktu = new Date().toLocaleString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        day: '2-digit', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+
+      const TYPE_LABEL = {
+        stats: '📊 Stats Card', languages: '🌐 Languages', streak: '🔥 Streak', mini: '🃏 Mini Card'
+      };
+      const THEME_EMOJI = {
+        gruvbox: '🟤', dark: '⬛', radical: '🔴', merko: '🟢', tokyonight: '🌙',
+        dracula: '🟣', nightowl: '🦉', cobalt: '🔵', synthwave: '🌈', highcontrast: '⚪',
+        ocean_dark: '🌊', gradient: '🎨'
+      };
+
+      await editMsg('', [{
+        color: 0xF97316,
+        title: `👨‍💻 Developer Stats — ${ghData.login}`,
+        url: `https://github.com/${ghUser}`,
+        description: [
+          '```ansi',
+          '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+          `\u001b[2;34m║  \u001b[1;33m📊  DEVELOPER STATS CARD  📊\u001b[0m          \u001b[2;34m║\u001b[0m`,
+          '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          '```ansi',
+          '\u001b[1;33m━━━━━━━━━━━ 👤 PROFILE ━━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  🧑  Name        :\u001b[0m \u001b[1;37m${ghData.name || ghData.login}\u001b[0m`,
+          `\u001b[1;36m  📍  Location    :\u001b[0m \u001b[0;37m${ghData.location || 'N/A'}\u001b[0m`,
+          `\u001b[1;36m  🏢  Company     :\u001b[0m \u001b[0;37m${ghData.company || 'N/A'}\u001b[0m`,
+          `\u001b[1;36m  📅  Joined      :\u001b[0m \u001b[0;37m${createdAt.toLocaleDateString('id-ID')} (${ageYears} tahun)\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '\u001b[1;32m━━━━━━━━━━━ 📊 LIVE STATS ━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  📦  Public Repos:\u001b[0m \u001b[1;37m${ghData.public_repos || 0}\u001b[0m`,
+          `\u001b[1;36m  👥  Followers   :\u001b[0m \u001b[0;37m${ghData.followers || 0}\u001b[0m`,
+          `\u001b[1;36m  ➡️   Following   :\u001b[0m \u001b[0;37m${ghData.following || 0}\u001b[0m`,
+          `\u001b[1;36m  ⭐  Total Stars  :\u001b[0m \u001b[1;33m${totalStars.toLocaleString()}\u001b[0m`,
+          `\u001b[1;36m  🍴  Total Forks  :\u001b[0m \u001b[0;37m${totalForks.toLocaleString()}\u001b[0m`,
+          `\u001b[1;36m  💬  Recent Commits:\u001b[0m \u001b[0;37m${commitCount} (30 hari)\u001b[0m`,
+          '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '\u001b[1;35m━━━━━━━━━━━ 🌐 LANGUAGES ━━━━━━━━━━━━\u001b[0m',
+          `\u001b[0;37m  ${topLangs}\u001b[0m`,
+          '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '\u001b[1;31m━━━━━━━━━━━ ⚡ ACTIVITY ━━━━━━━━━━━━━\u001b[0m',
+          `\u001b[1;36m  🏅  Grade       :\u001b[0m \u001b[1;32m${grade}\u001b[0m`,
+          `\u001b[1;36m  📅  Last Active :\u001b[0m \u001b[0;37m${lastActivity}\u001b[0m`,
+          `\u001b[1;36m  🃏  Card Type   :\u001b[0m \u001b[0;37m${TYPE_LABEL[cardType] || cardType}\u001b[0m`,
+          `\u001b[1;36m  🎨  Theme       :\u001b[0m \u001b[0;37m${THEME_EMOJI[safTheme] || '🎨'} ${safTheme}\u001b[0m`,
+          '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+          '```',
+          `> 🔗 [GitHub Profile](https://github.com/${ghUser}) · [ghstats.dev](https://ghstats.dev)`,
+          `> 🕐 Live data diambil: **${waktu} WIB**`,
+          `> 🤖 *Powered by OwoBim DevStats × GitHub API × ghstats.dev* ${EMOJI}`,
+        ].join('\n'),
+        image:     { url: cardUrl },
+        thumbnail: { url: ghData.avatar_url },
+        footer:    { text: `OwoBim DevStats • ${ghUser} • Real-time` },
+        timestamp: new Date().toISOString(),
+      }]);
+
+    } catch (err) {
+      await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+    }
+  })());
+
+  return new Response(JSON.stringify({ type: 5 }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
+
+
     
     
     
