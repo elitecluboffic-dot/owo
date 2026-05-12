@@ -13363,7 +13363,6 @@ if (cmd === 'stat-developer') {
   const theme    = getOption(options, 'tema')  || 'gruvbox';
   const cardType = getOption(options, 'tipe')  || 'stats';
 
-  // ── Wajib isi username ──
   if (!ghUser || !ghUser.trim()) {
     return new Response(JSON.stringify({
       type: 4,
@@ -13417,10 +13416,10 @@ if (cmd === 'stat-developer') {
 
       // ══ BATCH 2 (4 request) ══
       const [ev4, ev5, ev6, ev7] = await Promise.all([
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=4`,  { headers: GH }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=5`,  { headers: GH }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=6`,  { headers: GH }),
-        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=7`,  { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=4`, { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=5`, { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=6`, { headers: GH }),
+        fetch(`https://api.github.com/users/${ghUser}/events/public?per_page=30&page=7`, { headers: GH }),
       ]);
 
       // ══ BATCH 3 (3 request) ══
@@ -13466,26 +13465,26 @@ if (cmd === 'stat-developer') {
           })
         : 'N/A';
 
-      // ── Umur akun: tampil bulan jika < 1 tahun ──
-      const createdAt  = new Date(ghData.created_at);
-      const ageMs      = Date.now() - createdAt;
+      // ── Umur akun ──
+      const createdAt   = new Date(ghData.created_at);
+      const ageMs       = Date.now() - createdAt;
       const ageYearsRaw = ageMs / (1000 * 60 * 60 * 24 * 365);
-      const ageDisplay = ageYearsRaw < 1
+      const ageDisplay  = ageYearsRaw < 1
         ? `${Math.round(ageYearsRaw * 12)} bulan`
         : `${ageYearsRaw.toFixed(1)} tahun`;
 
-      // ── Helper: tampil — kalau 0 ──
+      // ── Helper: dash kalau 0 ──
       const fmt = (n) => n > 0 ? n.toLocaleString('id-ID') : '—';
 
       // ── Weighted Grade ──
-      const repoScore     = Math.min((ghData.public_repos || 0) * 3,           120);
-      const followerScore = Math.min((ghData.followers    || 0) * 2,           100);
-      const starScore     = Math.min(totalStars * 2,                            150);
-      const forkScore     = Math.min(Math.floor(totalForks * 1.5),              60);
-      const commitScore   = Math.min(Math.floor(yearlyCommits * 0.8),           200);
-      const prScore       = Math.min(prEvents * 2,                              40);
-      const issueScore    = Math.min(issueEvents,                               20);
-      const ageScore      = Math.min(Math.floor(ageYearsRaw * 5),               50);
+      const repoScore     = Math.min((ghData.public_repos || 0) * 3,       120);
+      const followerScore = Math.min((ghData.followers    || 0) * 2,       100);
+      const starScore     = Math.min(totalStars * 2,                        150);
+      const forkScore     = Math.min(Math.floor(totalForks * 1.5),          60);
+      const commitScore   = Math.min(Math.floor(yearlyCommits * 0.8),       200);
+      const prScore       = Math.min(prEvents * 2,                          40);
+      const issueScore    = Math.min(issueEvents,                           20);
+      const ageScore      = Math.min(Math.floor(ageYearsRaw * 5),           50);
       const totalScore    = repoScore + followerScore + starScore + forkScore + commitScore + prScore + issueScore + ageScore;
 
       const grade =
@@ -13505,6 +13504,18 @@ if (cmd === 'stat-developer') {
         grade === 'C+' ? '\u001b[1;31m' :
                          '\u001b[0;31m';
 
+      // ── Breakdown: hanya tampilkan komponen yang > 0, label singkat ──
+      const bdParts = [
+        repoScore     > 0 ? `Repo:${repoScore}`     : null,
+        commitScore   > 0 ? `Commit:${commitScore}` : null,
+        starScore     > 0 ? `Star:${starScore}`     : null,
+        followerScore > 0 ? `Follow:${followerScore}` : null,
+        forkScore     > 0 ? `Fork:${forkScore}`     : null,
+        prScore       > 0 ? `PR:${prScore}`         : null,
+        ageScore      > 0 ? `Age:${ageScore}`       : null,
+      ].filter(Boolean);
+      const scoreBreakdown = bdParts.length > 0 ? bdParts.join(' · ') : '—';
+
       const waktu = new Date().toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
         day: '2-digit', month: 'long', year: 'numeric',
@@ -13520,12 +13531,8 @@ if (cmd === 'stat-developer') {
         ocean_dark: '🌊', gradient: '🎨'
       };
 
-      // Skor ringkas 1 baris
-      const scoreBreakdown = `Repo:${repoScore} Commit:${commitScore} Star:${starScore} Follow:${followerScore} Fork:${forkScore} PR:${prScore} Age:${ageScore}`;
-
       await editMsg('', [{
         color: 0xF97316,
-        // Title pakai login asli dari GitHub, bukan input user (antisipasi case sensitivity)
         title: `👨‍💻 Developer Stats — ${ghData.login}`,
         url: `https://github.com/${ghData.login}`,
         description: [
@@ -13535,25 +13542,21 @@ if (cmd === 'stat-developer') {
           '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
           '```',
           '```ansi',
-          // ── PROFILE ──
           '\u001b[1;33m━━━━━━━━━━━ 👤 PROFILE ━━━━━━━━━━━━━━\u001b[0m',
           `\u001b[1;36m  🧑  Name          :\u001b[0m \u001b[1;37m${ghData.name || ghData.login}\u001b[0m`,
           `\u001b[1;36m  📍  Location      :\u001b[0m \u001b[0;37m${ghData.location || '—'}\u001b[0m`,
           `\u001b[1;36m  🏢  Company       :\u001b[0m \u001b[0;37m${ghData.company  || '—'}\u001b[0m`,
           `\u001b[1;36m  📅  Joined        :\u001b[0m \u001b[0;37m${createdAt.toLocaleDateString('id-ID')} (${ageDisplay})\u001b[0m`,
-          // ── LIVE STATS ──
           '\u001b[1;32m━━━━━━━━━━━ 📊 LIVE STATS ━━━━━━━━━━━\u001b[0m',
           `\u001b[1;36m  📦  Public Repos  :\u001b[0m \u001b[1;37m${ghData.public_repos || 0}\u001b[0m`,
           `\u001b[1;36m  👥  Followers     :\u001b[0m \u001b[0;37m${fmt(ghData.followers)}\u001b[0m`,
           `\u001b[1;36m  ➡️   Following     :\u001b[0m \u001b[0;37m${fmt(ghData.following)}\u001b[0m`,
           `\u001b[1;36m  ⭐  Total Stars    :\u001b[0m \u001b[1;33m${fmt(totalStars)}\u001b[0m`,
           `\u001b[1;36m  🍴  Total Forks    :\u001b[0m \u001b[0;37m${fmt(totalForks)}\u001b[0m`,
-          `\u001b[1;36m  💬  Commits (1thn) :\u001b[0m \u001b[1;37m${yearlyCommits.toLocaleString('id-ID')} \u001b[0;37m(publik)\u001b[0m`,
-          `\u001b[1;36m  🔀  PR / Issues    :\u001b[0m \u001b[0;37m${prEvents} PR · ${issueEvents} Issues\u001b[0m`,
-          // ── LANGUAGES ──
+          `\u001b[1;36m  💬  Commits (1thn) :\u001b[0m \u001b[1;37m${yearlyCommits.toLocaleString('id-ID')}\u001b[0m \u001b[0;37m(publik)\u001b[0m`,
+          `\u001b[1;36m  🔀  PR / Issues    :\u001b[0m \u001b[0;37m${fmt(prEvents)} PR · ${fmt(issueEvents)} Issues\u001b[0m`,
           '\u001b[1;35m━━━━━━━━━━━ 🌐 LANGUAGES ━━━━━━━━━━━━\u001b[0m',
           `\u001b[0;37m  ${topLangs}\u001b[0m`,
-          // ── ACTIVITY ──
           '\u001b[1;31m━━━━━━━━━━━ ⚡ ACTIVITY ━━━━━━━━━━━━━\u001b[0m',
           `\u001b[1;36m  🏅  Grade          :\u001b[0m ${gradeColor}${grade}\u001b[0m \u001b[0;37m(score: ${totalScore})\u001b[0m`,
           `\u001b[1;36m  📊  Breakdown      :\u001b[0m \u001b[0;37m${scoreBreakdown}\u001b[0m`,
