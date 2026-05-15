@@ -846,6 +846,129 @@ if (customId.startsWith('snake_noop')) {
 
 
 
+
+
+// ==================== TETRIS BUTTON HANDLER ====================
+if (customId.startsWith('tetris:')) {
+  const action = customId.split(':')[1];
+  return handleTetrisAction(interaction, env, action, discordId, username);
+}
+
+// ==================== TETRIS ACTION HANDLER ====================
+async function handleTetrisAction(interaction, env, action, userId, username) {
+  const headers = { 'Content-Type': 'application/json' };
+
+  const gameRaw = await env.USERS_KV.get(`tetris_game:${userId}`);
+  if (!gameRaw) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Sesi Tetris sudah expired atau tidak ditemukan.', flags: 64 }
+    }), { headers });
+  }
+
+  let game = JSON.parse(gameRaw);
+
+  // QUIT
+  if (action === 'quit') {
+    const reward = Math.floor(game.score * 80);
+    await env.USERS_KV.delete(`tetris_game:${userId}`);
+
+    const uRaw = await env.USERS_KV.get(`user:${userId}`);
+    if (uRaw) {
+      const u = JSON.parse(uRaw);
+      u.balance = (u.balance || 0) + reward;
+      u.totalEarned = (u.totalEarned || 0) + reward;
+      await env.USERS_KV.put(`user:${userId}`, JSON.stringify(u));
+    }
+
+    return new Response(JSON.stringify({
+      type: 7,
+      data: {
+        content: `🏁 **TETRIS SELESAI!**\n\nSkor: **${game.score.toLocaleString()}**\n🪙 +${reward.toLocaleString()} cowoncy`,
+        components: []
+      }
+    }), { headers });
+  }
+
+  // HOLD PIECE
+  if (action === 'hold' && game.canHold) {
+    if (!game.holdPiece) {
+      game.holdPiece = game.currentPiece;
+      spawnPiece(game);
+    } else {
+      [game.currentPiece, game.holdPiece] = [game.holdPiece, game.currentPiece];
+      spawnPiece(game); // reset posisi
+    }
+    game.canHold = false;
+  }
+
+  let moved = false;
+
+  if (action === 'left' && isValidMove(game, -1, 0)) {
+    game.currentX--; moved = true;
+  }
+  if (action === 'right' && isValidMove(game, 1, 0)) {
+    game.currentX++; moved = true;
+  }
+  if (action === 'soft' && isValidMove(game, 0, 1)) {
+    game.currentY++; 
+    game.score += 1; 
+    moved = true;
+  }
+  if (action === 'hard') {
+    while (isValidMove(game, 0, 1)) {
+      game.currentY++;
+      game.score += 2;
+    }
+    moved = true;
+  }
+  if (action === 'rotate') {
+    const newRot = (game.rotation + 1) % 4;
+    if (isValidMove(game, 0, 0, newRot)) {
+      game.rotation = newRot;
+      moved = true;
+    }
+  }
+
+  // Auto Drop
+  if (Date.now() - game.lastDrop > game.dropInterval || moved) {
+    if (!isValidMove(game, 0, 1)) {
+      mergePiece(game);
+      clearLines(game);
+      spawnPiece(game);
+
+      // Game Over
+      if (!isValidMove(game, 0, 0)) {
+        const reward = Math.floor(game.score * 80);
+        await env.USERS_KV.delete(`tetris_game:${userId}`);
+
+        return new Response(JSON.stringify({
+          type: 7,
+          data: {
+            content: `💀 **GAME OVER!**\nSkor Akhir: **${game.score.toLocaleString()}**\n🪙 +${reward.toLocaleString()} cowoncy`,
+            components: []
+          }
+        }), { headers });
+      }
+    } else if (!moved) {
+      game.currentY++;
+    }
+    game.lastDrop = Date.now();
+  }
+
+  await env.USERS_KV.put(`tetris_game:${userId}`, JSON.stringify(game), { expirationTtl: 600 });
+
+  return new Response(JSON.stringify({
+    type: 7,
+    data: {
+      content: buildTetrisMessage(game, username),
+      components: buildTetrisButtons(userId)
+    }
+  }), { headers });
+}
+
+
+
   
 
   
