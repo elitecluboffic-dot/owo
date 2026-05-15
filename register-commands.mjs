@@ -1371,6 +1371,7 @@ const commands = [
         { "name": "Bucin 2", "value": "bucin2" },
         { "name": "Bucin 3", "value": "bucin3" },
         { "name": "Bucin 4", "value": "bucin4" },
+        { "name": "Tebak-tebakan 1", "value": "tebaktebakan1" },
         { "name": "Curhatan Developer", "value": "curhatandev" }
       ]
     },
