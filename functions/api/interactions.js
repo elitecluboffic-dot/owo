@@ -843,6 +843,170 @@ if (customId.startsWith('snake_noop')) {
   }), { headers });
 }
 
+
+
+
+
+  // ══════════════════════════════════════════════════════════════════════
+// BUTTON: tetris — Tetris Game Controls
+// ══════════════════════════════════════════════════════════════════════
+if (customId.startsWith('tetris:')) {
+  const parts   = customId.split(':');
+  const action  = parts[1];
+  const ownerId = parts[2];
+
+  if (action.startsWith('noop')) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '⬜', flags: 64 }
+    }), { headers });
+  }
+
+  if (clickerId !== ownerId) {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Ini bukan game kamu!', flags: 64 }
+    }), { headers });
+  }
+
+  const gameRaw = await env.USERS_KV.get(`tetris_game:${ownerId}`);
+  if (!gameRaw) {
+    return new Response(JSON.stringify({
+      type: 7,
+      data: {
+        content: [
+          '> ❌ Sesi game tidak ditemukan atau sudah expired!',
+          '> 💡 Mulai game baru dengan `/tetris`'
+        ].join('\n'),
+        components: []
+      }
+    }), { headers });
+  }
+
+  let gs = JSON.parse(gameRaw);
+
+  if (gs.status !== 'playing') {
+    return new Response(JSON.stringify({
+      type: 4,
+      data: { content: '❌ Game sudah berakhir! Mulai lagi dengan `/tetris`', flags: 64 }
+    }), { headers });
+  }
+
+  // ── QUIT ──
+  if (action === 'quit') {
+    await env.USERS_KV.delete(`tetris_game:${ownerId}`);
+    const reward = gs.score * 50;
+    if (reward > 0) {
+      const uRaw = await env.USERS_KV.get(`user:${ownerId}`);
+      if (uRaw) {
+        const u = JSON.parse(uRaw);
+        u.balance    += reward;
+        u.totalEarned = (u.totalEarned || 0) + reward;
+        await env.USERS_KV.put(`user:${ownerId}`, JSON.stringify(u));
+      }
+    }
+    const rewardLine = reward > 0 ? ` | +🪙 **${reward.toLocaleString()}**` : '';
+    return new Response(JSON.stringify({
+      type: 7,
+      data: {
+        content: buildTetrisMsg(
+          gs, username,
+          `> 🚪 Keluar. Skor: **${gs.score}** | Lines: **${gs.lines}**${rewardLine}`
+        ),
+        components: []
+      }
+    }), { headers });
+  }
+
+  // ── MOVE / ROTATE / DROP ──
+  let newPiece = { ...gs.piece, blocks: gs.piece.blocks.map(([r, c]) => [r, c]) };
+  let placed   = false;
+
+  if (action === 'left') {
+    const moved = newPiece.blocks.map(([r, c]) => [r, c - 1]);
+    if (tetrisIsValid(gs.grid, moved)) newPiece.blocks = moved;
+
+  } else if (action === 'right') {
+    const moved = newPiece.blocks.map(([r, c]) => [r, c + 1]);
+    if (tetrisIsValid(gs.grid, moved)) newPiece.blocks = moved;
+
+  } else if (action === 'rotate') {
+    newPiece = tetrisRotatePiece(newPiece, gs.grid);
+
+  } else if (action === 'down') {
+    const moved = newPiece.blocks.map(([r, c]) => [r + 1, c]);
+    if (tetrisIsValid(gs.grid, moved)) {
+      newPiece.blocks = moved;
+    } else {
+      placed = true;
+    }
+
+  } else if (action === 'drop') {
+    newPiece = tetrisHardDrop(newPiece, gs.grid);
+    placed   = true;
+  }
+
+  if (placed) {
+    gs.grid = tetrisPlacePiece(gs.grid, newPiece.blocks, newPiece.type);
+
+    const { newGrid, cleared } = tetrisClearLines(gs.grid);
+    gs.grid  = newGrid;
+    gs.lines += cleared;
+
+    const lineScores = [0, 100, 300, 500, 800];
+    gs.score += (lineScores[cleared] || cleared * 100) * gs.level;
+    gs.score += 5; // placement bonus
+    gs.level  = Math.floor(gs.lines / 10) + 1;
+
+    const nextType = gs.nextPiece;
+    const spawned  = tetrisNewPiece(nextType);
+
+    // ── GAME OVER check ──
+    if (!tetrisIsValid(gs.grid, spawned.blocks)) {
+      gs.status = 'gameover';
+      await env.USERS_KV.delete(`tetris_game:${ownerId}`);
+
+      const reward = gs.score * 50;
+      if (reward > 0) {
+        const uRaw = await env.USERS_KV.get(`user:${ownerId}`);
+        if (uRaw) {
+          const u = JSON.parse(uRaw);
+          u.balance    += reward;
+          u.totalEarned = (u.totalEarned || 0) + reward;
+          await env.USERS_KV.put(`user:${ownerId}`, JSON.stringify(u));
+        }
+      }
+      const rewardMsg = reward > 0 ? ` | +🪙 **${reward.toLocaleString()}**` : '';
+      return new Response(JSON.stringify({
+        type: 7,
+        data: {
+          content: buildTetrisMsg(
+            { ...gs, piece: null }, username,
+            `> 💀 **GAME OVER!** Skor: **${gs.score}** | Lines: **${gs.lines}**${rewardMsg}\n> 💡 Main lagi: \`/tetris\``
+          ),
+          components: []
+        }
+      }), { headers });
+    }
+
+    gs.piece     = spawned;
+    gs.nextPiece = tetrisRandomPiece();
+
+  } else {
+    gs.piece = newPiece;
+  }
+
+  await env.USERS_KV.put(`tetris_game:${ownerId}`, JSON.stringify(gs), { expirationTtl: 600 });
+
+  return new Response(JSON.stringify({
+    type: 7,
+    data: {
+      content:    buildTetrisMsg(gs, username),
+      components: buildTetrisButtons(ownerId)
+    }
+  }), { headers });
+}
+
   
 
   
@@ -13583,6 +13747,85 @@ if (cmd === 'stat-developer') {
   });
 }
 
+
+
+
+
+
+
+// ══════════════════════════════════════════════════════════════════════
+// CMD: tetris — Tetris Game 10×10 Full Pro
+// ══════════════════════════════════════════════════════════════════════
+if (cmd === 'tetris') {
+  const aksi = getOption(options, 'aksi') || 'play';
+
+  if (aksi === 'reset') {
+    await env.USERS_KV.delete(`tetris_game:${discordId}`);
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  ✅  GAME DIRESET!  ✅               ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '> 🔄 Game tetris berhasil direset!',
+      '> 💡 Ketik `/tetris` untuk mulai game baru.'
+    ].join('\n'));
+  }
+
+  // Cek game aktif
+  const existingRaw = await env.USERS_KV.get(`tetris_game:${discordId}`);
+  if (existingRaw) {
+    const existing = JSON.parse(existingRaw);
+    if (existing.status === 'playing') {
+      const elapsed = Math.floor((Date.now() - existing.createdAt) / 60000);
+      return new Response(JSON.stringify({
+        type: 4,
+        data: {
+          content: [
+            '```ansi',
+            '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;33m║  ⚠️   GAME SEDANG BERJALAN  ⚠️       ║\u001b[0m',
+            '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            '> ⚠️ Kamu masih punya game tetris aktif!',
+            `> 🏆 Skor: **${existing.score}** | Lines: **${existing.lines}** | Sudah **${elapsed}m**`,
+            '> 💡 `/tetris aksi:reset` untuk hapus & mulai baru.',
+            '> ⏳ Game expire otomatis setelah **10 menit** idle.'
+          ].join('\n'),
+          flags: 64
+        }
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+  }
+
+  // ── Init game baru ──
+  const firstType  = tetrisRandomPiece();
+  const nextType   = tetrisRandomPiece();
+  const firstPiece = tetrisNewPiece(firstType);
+
+  const gs = {
+    grid:      Array(TETRIS_W * TETRIS_H).fill(0),
+    piece:     firstPiece,
+    nextPiece: nextType,
+    score:     0,
+    lines:     0,
+    level:     1,
+    status:    'playing',
+    discordId,
+    createdAt: Date.now()
+  };
+
+  await env.USERS_KV.put(`tetris_game:${discordId}`, JSON.stringify(gs), { expirationTtl: 600 });
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content:    buildTetrisMsg(gs, username),
+      components: buildTetrisButtons(discordId)
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+
     
 
     
@@ -13951,4 +14194,253 @@ function buildSnakeMsg(gs, GRID, username, extraLine = '') {
   if (extraLine) lines.push(extraLine);
 
   return lines.join('\n');
+}
+
+
+
+
+
+
+
+// ══════════════════════════════════════════════════════════════════════
+// TETRIS GAME HELPERS
+// ══════════════════════════════════════════════════════════════════════
+
+const TETRIS_W = 10;
+const TETRIS_H = 10;
+const TETRIS_PIECES = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
+const TETRIS_COLORS = { I:'🟦', O:'🟨', T:'🟪', S:'🟩', Z:'🟥', J:'🔵', L:'🟠' };
+
+// 4 rotasi per piece, koordinat [row, col] relative ke anchor (0,0)
+const TETRIS_SHAPES = {
+  I: [
+    [[0,0],[0,1],[0,2],[0,3]],
+    [[0,0],[1,0],[2,0],[3,0]],
+    [[0,0],[0,1],[0,2],[0,3]],
+    [[0,0],[1,0],[2,0],[3,0]],
+  ],
+  O: [
+    [[0,0],[0,1],[1,0],[1,1]],
+    [[0,0],[0,1],[1,0],[1,1]],
+    [[0,0],[0,1],[1,0],[1,1]],
+    [[0,0],[0,1],[1,0],[1,1]],
+  ],
+  T: [
+    [[0,1],[1,0],[1,1],[1,2]],   // ↑
+    [[0,0],[1,0],[1,1],[2,0]],   // →
+    [[0,0],[0,1],[0,2],[1,1]],   // ↓
+    [[0,1],[1,0],[1,1],[2,1]],   // ←
+  ],
+  S: [
+    [[0,1],[0,2],[1,0],[1,1]],
+    [[0,0],[1,0],[1,1],[2,1]],
+    [[0,1],[0,2],[1,0],[1,1]],
+    [[0,0],[1,0],[1,1],[2,1]],
+  ],
+  Z: [
+    [[0,0],[0,1],[1,1],[1,2]],
+    [[0,1],[1,0],[1,1],[2,0]],
+    [[0,0],[0,1],[1,1],[1,2]],
+    [[0,1],[1,0],[1,1],[2,0]],
+  ],
+  J: [
+    [[0,0],[1,0],[1,1],[1,2]],
+    [[0,0],[0,1],[1,0],[2,0]],
+    [[0,0],[0,1],[0,2],[1,2]],
+    [[0,1],[1,1],[2,0],[2,1]],
+  ],
+  L: [
+    [[0,2],[1,0],[1,1],[1,2]],
+    [[0,0],[1,0],[2,0],[2,1]],
+    [[0,0],[0,1],[0,2],[1,0]],
+    [[0,0],[0,1],[1,1],[2,1]],
+  ],
+};
+
+function tetrisRandomPiece() {
+  return TETRIS_PIECES[Math.floor(Math.random() * TETRIS_PIECES.length)];
+}
+
+// Spawn piece di row 0, col tengah (col 3)
+function tetrisNewPiece(type) {
+  const shape    = TETRIS_SHAPES[type][0];
+  const spawnCol = Math.floor((TETRIS_W - 4) / 2); // = 3
+  return {
+    type,
+    rotation: 0,
+    blocks: shape.map(([r, c]) => [r, c + spawnCol])
+  };
+}
+
+// Cek apakah posisi blocks valid (tidak keluar grid / tidak menabrak piece lain)
+function tetrisIsValid(grid, blocks) {
+  return blocks.every(([r, c]) => {
+    if (c < 0 || c >= TETRIS_W || r >= TETRIS_H) return false;
+    if (r < 0) return true; // atas grid = boleh (saat spawn)
+    return grid[r * TETRIS_W + c] === 0;
+  });
+}
+
+// Taruh piece ke grid, return grid baru
+function tetrisPlacePiece(grid, blocks, type) {
+  const newGrid  = [...grid];
+  const colorIdx = TETRIS_PIECES.indexOf(type) + 1; // 1–7
+  blocks.forEach(([r, c]) => {
+    if (r >= 0 && r < TETRIS_H && c >= 0 && c < TETRIS_W) {
+      newGrid[r * TETRIS_W + c] = colorIdx;
+    }
+  });
+  return newGrid;
+}
+
+// Hapus baris penuh, return grid baru + jumlah baris terhapus
+function tetrisClearLines(grid) {
+  let newGrid = [...grid];
+  let cleared = 0;
+  for (let r = TETRIS_H - 1; r >= 0; r--) {
+    const row = newGrid.slice(r * TETRIS_W, (r + 1) * TETRIS_W);
+    if (row.every(c => c !== 0)) {
+      newGrid.splice(r * TETRIS_W, TETRIS_W);
+      newGrid.unshift(...Array(TETRIS_W).fill(0));
+      cleared++;
+      r++; // cek baris yang sama lagi
+    }
+  }
+  return { newGrid, cleared };
+}
+
+// Rotate piece 90° CW, dengan wall kick otomatis
+function tetrisRotatePiece(piece, grid) {
+  const nextRot  = (piece.rotation + 1) % 4;
+  const newShape = TETRIS_SHAPES[piece.type][nextRot];
+
+  const minR = Math.min(...piece.blocks.map(([r]) => r));
+  const minC = Math.min(...piece.blocks.map(([,c]) => c));
+  const shapeMinR = Math.min(...newShape.map(([r]) => r));
+  const shapeMinC = Math.min(...newShape.map(([,c]) => c));
+
+  // Anchor: top-left bounding box tetap
+  let newBlocks = newShape.map(([r, c]) => [
+    minR + (r - shapeMinR),
+    minC + (c - shapeMinC)
+  ]);
+
+  if (tetrisIsValid(grid, newBlocks)) {
+    return { ...piece, rotation: nextRot, blocks: newBlocks };
+  }
+
+  // Wall kicks: geser kanan/kiri 1 & 2 col
+  for (const shift of [1, -1, 2, -2]) {
+    const shifted = newBlocks.map(([r, c]) => [r, c + shift]);
+    if (tetrisIsValid(grid, shifted)) {
+      return { ...piece, rotation: nextRot, blocks: shifted };
+    }
+  }
+
+  return piece; // rotasi tidak bisa, tetap sama
+}
+
+// Hard drop: turunkan piece sampai tidak bisa lagi
+function tetrisHardDrop(piece, grid) {
+  let blocks = piece.blocks.map(([r, c]) => [r, c]);
+  while (tetrisIsValid(grid, blocks.map(([r, c]) => [r + 1, c]))) {
+    blocks = blocks.map(([r, c]) => [r + 1, c]);
+  }
+  return { ...piece, blocks };
+}
+
+// Hitung posisi ghost (bayangan piece di bawah)
+function tetrisGhostBlocks(piece, grid) {
+  let blocks = piece.blocks.map(([r, c]) => [r, c]);
+  while (tetrisIsValid(grid, blocks.map(([r, c]) => [r + 1, c]))) {
+    blocks = blocks.map(([r, c]) => [r + 1, c]);
+  }
+  return blocks;
+}
+
+// Render grid 10×10 jadi string emoji
+function tetrisRenderGrid(gs) {
+  const COLORS = ['', '🟦', '🟨', '🟪', '🟩', '🟥', '🔵', '🟠'];
+  const EMPTY  = '⬛';
+  const GHOST  = '🔲';
+
+  const display = [...gs.grid];
+
+  if (gs.piece) {
+    // Ghost piece (bayangan posisi landing)
+    const activeSet = new Set(gs.piece.blocks.map(([r, c]) => `${r},${c}`));
+    const ghost     = tetrisGhostBlocks(gs.piece, gs.grid);
+    ghost.forEach(([r, c]) => {
+      if (
+        r >= 0 && r < TETRIS_H &&
+        c >= 0 && c < TETRIS_W &&
+        display[r * TETRIS_W + c] === 0 &&
+        !activeSet.has(`${r},${c}`)
+      ) {
+        display[r * TETRIS_W + c] = -1; // marker ghost
+      }
+    });
+
+    // Active piece (override ghost)
+    const colorIdx = TETRIS_PIECES.indexOf(gs.piece.type) + 1;
+    gs.piece.blocks.forEach(([r, c]) => {
+      if (r >= 0 && r < TETRIS_H && c >= 0 && c < TETRIS_W) {
+        display[r * TETRIS_W + c] = colorIdx;
+      }
+    });
+  }
+
+  const rows = [];
+  for (let r = 0; r < TETRIS_H; r++) {
+    let row = '';
+    for (let c = 0; c < TETRIS_W; c++) {
+      const val = display[r * TETRIS_W + c];
+      if (val === -1)     row += GHOST;
+      else if (val === 0) row += EMPTY;
+      else                row += COLORS[val] || EMPTY;
+    }
+    rows.push(row);
+  }
+  return rows.join('\n');
+}
+
+// Build teks pesan game (grid + stats + next piece)
+function buildTetrisMsg(gs, username, extraLine = '') {
+  const grid   = tetrisRenderGrid(gs);
+  const color  = gs.nextPiece ? (TETRIS_COLORS[gs.nextPiece] || '❓') : '🔲';
+  const reward = gs.score * 50;
+
+  const lines = [
+    `🧱 **Tetris** | 👤 ${username} | 🏆 **${gs.score}** | Lines: **${gs.lines}** | Lv.**${gs.level}**`,
+    grid,
+    `> Next: ${color} **${gs.nextPiece || '?'}** | 🪙 **${reward.toLocaleString()}** | 🔲 = ghost`,
+  ];
+  if (extraLine) lines.push(extraLine);
+  return lines.join('\n');
+}
+
+// Build tombol kontrol Tetris (2 baris × 5 tombol)
+function buildTetrisButtons(ownerId) {
+  return [
+    {
+      type: 1,
+      components: [
+        { type: 2, style: 2, label: '⬜',        custom_id: `tetris:noop:${ownerId}`,   disabled: true },
+        { type: 2, style: 1, label: '↺ Rotate',  custom_id: `tetris:rotate:${ownerId}` },
+        { type: 2, style: 1, label: '⬇️ Soft',    custom_id: `tetris:down:${ownerId}`   },
+        { type: 2, style: 3, label: '💥 Drop',    custom_id: `tetris:drop:${ownerId}`   },
+        { type: 2, style: 4, label: '🚪 Quit',    custom_id: `tetris:quit:${ownerId}`   },
+      ]
+    },
+    {
+      type: 1,
+      components: [
+        { type: 2, style: 1, label: '⬅️ Left',    custom_id: `tetris:left:${ownerId}`   },
+        { type: 2, style: 2, label: '⬜',          custom_id: `tetris:noop2:${ownerId}`,  disabled: true },
+        { type: 2, style: 1, label: '➡️ Right',    custom_id: `tetris:right:${ownerId}`  },
+        { type: 2, style: 2, label: '⬜',          custom_id: `tetris:noop3:${ownerId}`,  disabled: true },
+        { type: 2, style: 2, label: '⬜',          custom_id: `tetris:noop4:${ownerId}`,  disabled: true },
+      ]
+    }
+  ];
 }
