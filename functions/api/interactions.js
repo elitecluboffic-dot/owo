@@ -1553,6 +1553,7 @@ if (isSpamming) {
     bucin2: { pesan: '💕 Gw udah lama mau bilang sesuatu... coba buka ini dulu',      link: 'https://crushku.pages.dev/' },
     bucin3: { pesan: '🥺 Lo pernah kepikiran kita cocok ga? Coba buka ini',           link: 'https://quizcinta.pages.dev/' },
     bucin4: { pesan: '💖 Sebelum kamu baca ini, tarik napas dulu... buka ini ya',     link: 'https://sebuah-persembahan.pages.dev/' },
+    tebaktebakan1: { pesan: '😉 Coba kamu tebak ini, tarik napas dulu... buka ini yaa',     link: 'https://kaloiniapa.pages.dev/' },
     curhatandev: { pesan: '😊 Tenang! ini curhatan biasa dalam bahasa malbolge... ga usah di buka yaa',     link: 'https://curhatandev.pages.dev/' },
   };
 
