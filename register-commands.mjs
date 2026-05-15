@@ -1486,7 +1486,28 @@ const commands = [
       ]
     }
   ]
-}
+},
+
+
+
+
+
+    {
+    name: 'tetris',
+    description: '🎮 Main Tetris (Ghost + Next + Hold)',
+    options: [
+      {
+        name: 'aksi',
+        description: 'Pilih aksi',
+        type: 3,
+        required: false,
+        choices: [
+          { name: '▶️ Play — Mulai game baru', value: 'play' },
+          { name: '🔄 Reset — Hapus sesi yang stuck', value: 'reset' }
+        ]
+      }
+    ]
+  }
 
 
   
