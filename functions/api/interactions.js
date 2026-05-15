@@ -13715,13 +13715,33 @@ if (cmd === 'stat-developer') {
 
 
 
+// ══════════════════════════════════════════════════════════════════════
+// TETRIS 10x10 — FULL PRO (Ghost Piece + Next Piece + Hold)
+// ══════════════════════════════════════════════════════════════════════
+
+// 1. TETROMINOES harus paling atas
+const TETROMINOES = {
+  I: { shape: [[1,1,1,1]], color: '🟦' },
+  O: { shape: [[1,1],[1,1]], color: '🟨' },
+  T: { shape: [[0,1,0],[1,1,1]], color: '🟪' },
+  S: { shape: [[0,1,1],[1,1,0]], color: '🟩' },
+  Z: { shape: [[1,1,0],[0,1,1]], color: '🟥' },
+  J: { shape: [[1,0,0],[1,1,1]], color: '🟫' },
+  L: { shape: [[0,0,1],[1,1,1]], color: '🟧' },
+};
+
+function randomTetromino() {
+  const keys = Object.keys(TETROMINOES);
+  const type = keys[Math.floor(Math.random() * keys.length)];
+  return { type, ...TETROMINOES[type] };
+}
+
+// Slash Command
 if (cmd === 'tetris') {
   return startTetris(interaction, env, username, discordId);
 }
-// ══════════════════════════════════════════════════════════════════════
-// TETRIS 10x10 — FULL PRO (Ghost + Next + Hold)
-// ══════════════════════════════════════════════════════════════════════
 
+// Start Game
 async function startTetris(interaction, env, username, discordId) {
   const headers = { 'Content-Type': 'application/json' };
 
@@ -13765,23 +13785,6 @@ async function startTetris(interaction, env, username, discordId) {
   }), { headers });
 }
 
-// ==================== TETROMINO & CORE FUNCTIONS ====================
-const TETROMINOES = {
-  I: { shape: [[1,1,1,1]], color: '🟦' },
-  O: { shape: [[1,1],[1,1]], color: '🟨' },
-  T: { shape: [[0,1,0],[1,1,1]], color: '🟪' },
-  S: { shape: [[0,1,1],[1,1,0]], color: '🟩' },
-  Z: { shape: [[1,1,0],[0,1,1]], color: '🟥' },
-  J: { shape: [[1,0,0],[1,1,1]], color: '🟫' },
-  L: { shape: [[0,0,1],[1,1,1]], color: '🟧' },
-};
-
-function randomTetromino() {
-  const keys = Object.keys(TETROMINOES);
-  const type = keys[Math.floor(Math.random() * keys.length)];
-  return { type, ...TETROMINOES[type] };
-}
-
 function spawnPiece(game) {
   game.currentPiece = game.nextPiece || randomTetromino();
   game.nextPiece = randomTetromino();
@@ -13794,8 +13797,8 @@ function spawnPiece(game) {
 function rotate(shape) {
   const n = shape.length, m = shape[0].length;
   const r = Array(m).fill().map(() => Array(n).fill(0));
-  for (let i = 0; i < n; i++) 
-    for (let j = 0; j < m; j++) 
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < m; j++)
       r[j][n-1-i] = shape[i][j];
   return r;
 }
@@ -13858,7 +13861,6 @@ function getGhostY(game) {
   return ghostY;
 }
 
-// ==================== RENDER & UI ====================
 function buildTetrisBoard(game) {
   let display = game.board.map(row => [...row]);
 
@@ -13938,7 +13940,6 @@ function buildTetrisButtons(userId) {
     }
   ];
 }
-
 
 
 
