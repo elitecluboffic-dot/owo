@@ -13709,6 +13709,241 @@ if (cmd === 'stat-developer') {
   });
 }
 
+
+
+
+
+
+
+if (cmd === 'tetris') {
+  return startTetris(interaction, env, username, discordId);
+}
+// ══════════════════════════════════════════════════════════════════════
+// TETRIS 10x10 — FULL PRO (Ghost + Next + Hold)
+// ══════════════════════════════════════════════════════════════════════
+
+async function startTetris(interaction, env, username, discordId) {
+  const headers = { 'Content-Type': 'application/json' };
+
+  if (await env.USERS_KV.get(`tetris_game:${discordId}`)) {
+    return new Response(JSON.stringify({ 
+      type: 4, 
+      data: { content: '❌ Sesi Tetris masih aktif!', flags: 64 } 
+    }), { headers });
+  }
+
+  const gameState = {
+    board: Array(10).fill().map(() => Array(10).fill(0)),
+    currentPiece: null,
+    currentX: 0,
+    currentY: 0,
+    rotation: 0,
+    nextPiece: null,
+    holdPiece: null,
+    canHold: true,
+    score: 0,
+    linesCleared: 0,
+    level: 1,
+    status: 'playing',
+    startTime: Date.now(),
+    lastDrop: Date.now(),
+    dropInterval: 800
+  };
+
+  gameState.currentPiece = randomTetromino();
+  gameState.nextPiece = randomTetromino();
+  spawnPiece(gameState);
+
+  await env.USERS_KV.put(`tetris_game:${discordId}`, JSON.stringify(gameState), { expirationTtl: 600 });
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      content: buildTetrisMessage(gameState, username),
+      components: buildTetrisButtons(discordId)
+    }
+  }), { headers });
+}
+
+// ==================== TETROMINO & CORE FUNCTIONS ====================
+const TETROMINOES = {
+  I: { shape: [[1,1,1,1]], color: '🟦' },
+  O: { shape: [[1,1],[1,1]], color: '🟨' },
+  T: { shape: [[0,1,0],[1,1,1]], color: '🟪' },
+  S: { shape: [[0,1,1],[1,1,0]], color: '🟩' },
+  Z: { shape: [[1,1,0],[0,1,1]], color: '🟥' },
+  J: { shape: [[1,0,0],[1,1,1]], color: '🟫' },
+  L: { shape: [[0,0,1],[1,1,1]], color: '🟧' },
+};
+
+function randomTetromino() {
+  const keys = Object.keys(TETROMINOES);
+  const type = keys[Math.floor(Math.random() * keys.length)];
+  return { type, ...TETROMINOES[type] };
+}
+
+function spawnPiece(game) {
+  game.currentPiece = game.nextPiece || randomTetromino();
+  game.nextPiece = randomTetromino();
+  game.currentX = Math.floor((10 - game.currentPiece.shape[0].length) / 2);
+  game.currentY = 0;
+  game.rotation = 0;
+  game.canHold = true;
+}
+
+function rotate(shape) {
+  const n = shape.length, m = shape[0].length;
+  const r = Array(m).fill().map(() => Array(n).fill(0));
+  for (let i = 0; i < n; i++) 
+    for (let j = 0; j < m; j++) 
+      r[j][n-1-i] = shape[i][j];
+  return r;
+}
+
+function isValidMove(game, dx=0, dy=0, newRot=null) {
+  const p = game.currentPiece;
+  let shape = p.shape;
+  const rot = newRot !== null ? newRot : game.rotation;
+  for (let i = 0; i < rot; i++) shape = rotate(shape);
+
+  for (let y = 0; y < shape.length; y++) {
+    for (let x = 0; x < shape[y].length; x++) {
+      if (!shape[y][x]) continue;
+      const nx = game.currentX + x + dx;
+      const ny = game.currentY + y + dy;
+      if (nx < 0 || nx >= 10 || ny >= 10) return false;
+      if (ny < 0) continue;
+      if (game.board[ny][nx] !== 0) return false;
+    }
+  }
+  return true;
+}
+
+function mergePiece(game) {
+  let shape = game.currentPiece.shape;
+  for (let i = 0; i < game.rotation; i++) shape = rotate(shape);
+  for (let y = 0; y < shape.length; y++) {
+    for (let x = 0; x < shape[y].length; x++) {
+      if (shape[y][x]) {
+        const py = game.currentY + y;
+        if (py >= 0) game.board[py][game.currentX + x] = game.currentPiece.color;
+      }
+    }
+  }
+}
+
+function clearLines(game) {
+  let lines = 0;
+  for (let y = 9; y >= 0; y--) {
+    if (game.board[y].every(c => c !== 0)) {
+      game.board.splice(y, 1);
+      game.board.unshift(Array(10).fill(0));
+      lines++;
+      y++;
+    }
+  }
+  if (lines) {
+    game.linesCleared += lines;
+    const points = [0, 100, 300, 500, 800];
+    game.score += points[lines] * game.level;
+    game.level = Math.floor(game.linesCleared / 8) + 1;
+    game.dropInterval = Math.max(150, 800 - (game.level-1)*65);
+  }
+  return lines;
+}
+
+function getGhostY(game) {
+  let ghostY = game.currentY;
+  while (isValidMove(game, 0, ghostY - game.currentY + 1)) ghostY++;
+  return ghostY;
+}
+
+// ==================== RENDER & UI ====================
+function buildTetrisBoard(game) {
+  let display = game.board.map(row => [...row]);
+
+  // Ghost Piece
+  const ghostY = getGhostY(game);
+  let shape = game.currentPiece.shape;
+  for (let i = 0; i < game.rotation; i++) shape = rotate(shape);
+  for (let y = 0; y < shape.length; y++) {
+    for (let x = 0; x < shape[y].length; x++) {
+      if (shape[y][x]) {
+        const py = ghostY + y;
+        const px = game.currentX + x;
+        if (py >= 0 && py < 10 && px >= 0 && px < 10 && display[py][px] === 0) {
+          display[py][px] = '⬜';
+        }
+      }
+    }
+  }
+
+  // Current Piece
+  for (let y = 0; y < shape.length; y++) {
+    for (let x = 0; x < shape[y].length; x++) {
+      if (shape[y][x]) {
+        const py = game.currentY + y;
+        const px = game.currentX + x;
+        if (py >= 0 && py < 10 && px >= 0 && px < 10) {
+          display[py][px] = game.currentPiece.color;
+        }
+      }
+    }
+  }
+
+  return display.map(row => row.join('')).join('\n');
+}
+
+function buildTetrisMessage(game, username) {
+  const board = buildTetrisBoard(game);
+  const reward = Math.floor(game.score * 80);
+
+  let nextDisplay = '';
+  if (game.nextPiece) {
+    let ns = game.nextPiece.shape;
+    nextDisplay = ns.map(row => row.map(v => v ? game.nextPiece.color : '⬛').join('')).join('\n');
+  }
+
+  return [
+    `🎮 **TETRIS 10×10 PRO** | 👤 ${username}`,
+    `🏆 **Score:** ${game.score.toLocaleString()} | 📊 Lines: ${game.linesCleared} | Lv.${game.level}`,
+    '',
+    board,
+    '',
+    `**Next:**`,
+    nextDisplay || '``` ```',
+    `> 🪙 Reward Quit: **${reward.toLocaleString()}** cowoncy`,
+    `> ⏳ Speed: **${(game.dropInterval/1000).toFixed(1)}s**`
+  ].join('\n');
+}
+
+function buildTetrisButtons(userId) {
+  return [
+    {
+      type: 1,
+      components: [
+        { type: 2, style: 1, label: '↺ Rotate', custom_id: `tetris:rotate:${userId}` },
+        { type: 2, style: 1, label: '⤵ Hold', custom_id: `tetris:hold:${userId}` },
+        { type: 2, style: 3, label: '⏬ Hard Drop', custom_id: `tetris:hard:${userId}` },
+      ]
+    },
+    {
+      type: 1,
+      components: [
+        { type: 2, style: 1, label: '⬅ Left', custom_id: `tetris:left:${userId}` },
+        { type: 2, style: 1, label: '⬇ Soft Drop', custom_id: `tetris:soft:${userId}` },
+        { type: 2, style: 1, label: '➡ Right', custom_id: `tetris:right:${userId}` },
+        { type: 2, style: 4, label: '🚪 Quit', custom_id: `tetris:quit:${userId}` },
+      ]
+    }
+  ];
+}
+
+
+
+
+    
+
     
     
     
