@@ -13827,6 +13827,16 @@ if (cmd === 'tetris') {
   }), { headers: { 'Content-Type': 'application/json' } });
 }
 
+
+
+
+    if (cmd === 'download-sticker-tele') {
+  return respond(
+    '🎯 **Sticker Downloader Telegram**\n' +
+    '> 🔗 https://sticker-downloader-telegram.elitecluboffic.workers.dev/'
+  );
+}
+
     
 
     
