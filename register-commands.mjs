@@ -1508,7 +1508,15 @@ const commands = [
         ]
       }
     ]
-  }
+  },
+
+
+
+
+  {
+  "name": "download-sticker-tele",
+  "description": "Dapatkan link Sticker Downloader Telegram"
+}
 
 
   
