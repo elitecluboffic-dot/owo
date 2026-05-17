@@ -15763,6 +15763,604 @@ if (cmd === 'sponsor') {
 
 
 
+
+
+
+
+
+
+    if (cmd === 'iklan') {
+  const EMOJI         = '<a:GifOwoBim:1492599199038967878>';
+  const COOLDOWN_MS   = 2 * 60 * 60 * 1000; // 2 jam
+  const KOIN_REWARD   = 50;
+  const TOKEN_TTL     = 10 * 60 * 1000;      // token valid 10 menit
+  const WORKER_URL    = 'https://iklan.internetdnsofficial.workers.dev'; // ganti sesuai domain Worker kamu
+  const BOT_SECRET    = env.BOT_SECRET;       // sama dengan di Worker
+
+  const cdKey   = `iklan:cd:${discordId}`;
+  const lastRaw = await env.USERS_KV.get(cdKey);
+  const lastCd  = lastRaw ? parseInt(lastRaw) : 0;
+  const now     = Date.now();
+  const sisaMs  = COOLDOWN_MS - (now - lastCd);
+
+  // ── Cek cooldown ──
+  if (sisaMs > 0) {
+    const sisaJam = Math.floor(sisaMs / 3600000);
+    const sisaMnt = Math.floor((sisaMs % 3600000) / 60000);
+    const sisaDtk = Math.floor((sisaMs % 60000) / 1000);
+
+    return respond([
+      `> ${EMOJI} ⏳ Kamu masih cooldown!`,
+      `> ⌛ Bisa klaim lagi dalam: **${sisaJam}j ${sisaMnt}m ${sisaDtk}d**`,
+      `> 💰 Reward: **${KOIN_REWARD} koin** per tonton.`
+    ].join('\n'));
+  }
+
+  // ── Cek apakah ada token lama yang belum diklaim ──
+  const tokenKey = `iklan:token:${discordId}`;
+  const tokenRaw = await env.USERS_KV.get(tokenKey);
+
+  if (tokenRaw) {
+    const oldToken = JSON.parse(tokenRaw);
+
+    // Kalau token lama sudah diklik tapi belum diklaim → kasih koin sekarang
+    if (oldToken.clicked) {
+      // Kasih koin
+      const userRaw  = await env.USERS_KV.get(`user:${discordId}`);
+      const userData = userRaw ? JSON.parse(userRaw) : {};
+      userData.coins = (userData.coins || 0) + KOIN_REWARD;
+      await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(userData));
+
+      // Update cooldown
+      await env.USERS_KV.put(cdKey, String(now));
+
+      // Hapus token lama
+      await env.USERS_KV.delete(tokenKey);
+
+      // Update log total
+      const logKey = `iklan:total:${discordId}`;
+      const logRaw = await env.USERS_KV.get(logKey);
+      const total  = (logRaw ? parseInt(logRaw) : 0) + 1;
+      await env.USERS_KV.put(logKey, String(total));
+
+      return respond([
+        `> ${EMOJI} ✅ Koin berhasil dikreditkan!`,
+        `> 💰 **+${KOIN_REWARD} koin** sudah masuk ke akunmu!`,
+        `> 📊 Total tonton: **${total}x**`,
+        `> ⏳ Bisa iklan lagi dalam **2 jam**.`
+      ].join('\n'));
+    }
+
+    // Token ada tapi belum diklik & belum expired
+    if (Date.now() < oldToken.expiresAt) {
+      const uid      = btoa(discordId);
+      const iklanUrl = `${WORKER_URL}/klik?uid=${uid}`;
+
+      return respond([
+        `> ${EMOJI} ⚠️ Kamu punya link iklan yang belum dibuka!`,
+        `> 🔗 Buka dulu linknya untuk dapat koin:`,
+        `> 📺 ${iklanUrl}`,
+        `> ⏰ Link expired dalam: **${Math.ceil((oldToken.expiresAt - now) / 60000)} menit**`
+      ].join('\n'));
+    }
+
+    // Token expired — hapus & buat baru
+    await env.USERS_KV.delete(tokenKey);
+  }
+
+  // ── Buat token baru ──
+  const uid      = btoa(discordId);
+  const iklanUrl = `${WORKER_URL}/klik?uid=${uid}`;
+
+  await env.USERS_KV.put(tokenKey, JSON.stringify({
+    discordId,
+    createdAt:  now,
+    expiresAt:  now + TOKEN_TTL,
+    clicked:    false,
+    clickedAt:  null
+  }));
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: {
+      embeds: [{
+        color: 0x2ECC71,
+        title: '📺 Tonton Iklan & Dapat Koin!',
+        description: [
+          '```ansi',
+          '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+          '\u001b[1;32m║  📺  TONTON IKLAN → DAPAT KOIN  📺  ║\u001b[0m',
+          '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+          '```',
+          `> ${EMOJI} Klik tombol di bawah untuk buka iklan!`,
+          `> 💰 Reward: **+${KOIN_REWARD} koin** setelah buka link`,
+          `> ⏳ Cooldown: **2 jam** per klaim`,
+          `> ⚠️ Link berlaku **10 menit** — jangan ditunda!`,
+          '',
+          `> 📌 Setelah buka iklan, jalankan \`/iklan\` lagi untuk klaim koin.`
+        ].join('\n'),
+        footer: { text: 'OWO BIM • Iklan System' },
+        timestamp: new Date().toISOString()
+      }],
+      components: [{
+        type: 1,
+        components: [{
+          type: 2,
+          style: 5,
+          label: '📺 Buka Iklan Sekarang',
+          url: iklanUrl
+        }]
+      }]
+    }
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+
+
+
+
+
+
+
+
+
+    if (cmd === 'tukar') {
+  const EMOJI    = '<a:GifOwoBim:1492599199038967878>';
+  const OWNER_ID = '1442230317455900823';
+  const isOwner  = discordId === OWNER_ID;
+
+  const sub      = getOption(options, 'aksi')     || 'list';
+  const jumlah   = getOption(options, 'jumlah');
+  const rekening = getOption(options, 'rekening');
+  const bank     = getOption(options, 'bank');
+  const reqId    = getOption(options, 'id');
+  const catatan  = getOption(options, 'catatan');
+
+  // ── Tabel konversi koin → rupiah ──
+  const RATE_TABLE = [
+    { koin: 5000,   rupiah: 3000  },
+    { koin: 7500,   rupiah: 6000  },
+    { koin: 10000,  rupiah: 9000  },
+    { koin: 12500,  rupiah: 12000 },
+    { koin: 15000, rupiah: 15000 },
+    { koin: 17500, rupiah: 18000 },
+    { koin: 20000, rupiah: 21000 },
+  ];
+
+  const MIN_TUKAR  = 5000;   // minimum koin
+  const MAX_PENDING = 1;    // max 1 request pending per user
+
+  const loadUser = async (id) => {
+    const raw = await env.USERS_KV.get(`user:${id}`);
+    return raw ? JSON.parse(raw) : {};
+  };
+
+  const saveUser = async (id, data) => {
+    await env.USERS_KV.put(`user:${id}`, JSON.stringify(data));
+  };
+
+  const loadPending = async () => {
+    const raw = await env.USERS_KV.get('tukar:pending');
+    return raw ? JSON.parse(raw) : [];
+  };
+
+  const savePending = async (list) => {
+    await env.USERS_KV.put('tukar:pending', JSON.stringify(list));
+  };
+
+  const loadHistory = async (id) => {
+    const raw = await env.USERS_KV.get(`tukar:history:${id}`);
+    return raw ? JSON.parse(raw) : [];
+  };
+
+  const saveHistory = async (id, list) => {
+    await env.USERS_KV.put(`tukar:history:${id}`, JSON.stringify(list));
+  };
+
+  const formatRp = (n) => `Rp ${n.toLocaleString('id-ID')}`;
+
+  // ════════════════════════════════════════════════════════
+  // SUB: list — Tabel konversi
+  // ════════════════════════════════════════════════════════
+  if (sub === 'list') {
+    const userData = await loadUser(discordId);
+    const koinku   = userData.coins || 0;
+
+    const rows = RATE_TABLE.map(r => {
+      const bisa = koinku >= r.koin ? '✅' : '❌';
+      return `\u001b[1;36m  ${String(r.koin).padStart(6)} koin\u001b[0m \u001b[2;37m→\u001b[0m \u001b[1;33m${formatRp(r.rupiah).padEnd(14)}\u001b[0m ${bisa}`;
+    }).join('\n');
+
+    return respond([
+      '```ansi',
+      '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;33m║  💸  TUKAR KOIN KE CASH  💸         ║\u001b[0m',
+      '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+      '',
+      '\u001b[1;33m━━━━━━━━ 📋 DAFTAR HARGA TUKAR ━━━━━━━\u001b[0m',
+      rows,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;32m  💰 Koin kamu: ${koinku} koin\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[0;37m  ✅ = Koin cukup  ❌ = Koin kurang\u001b[0m',
+      '```',
+      `> 💸 Cara tukar: \`/tukar aksi:cairkan jumlah:1000 rekening:08xxx bank:GoPay\``,
+      `> 📜 Riwayat: \`/tukar aksi:riwayat\``
+    ].join('\n'));
+  }
+
+  // ════════════════════════════════════════════════════════
+  // SUB: cairkan — Ajukan penukaran
+  // ════════════════════════════════════════════════════════
+  if (sub === 'cairkan') {
+    if (!jumlah || !rekening || !bank) {
+      return respond([
+        `> ${EMOJI} ❌ Semua field wajib diisi!`,
+        `> 💡 Format: \`/tukar aksi:cairkan jumlah:1000 rekening:08xxx bank:GoPay\``,
+        `> 📋 Lihat daftar harga: \`/tukar aksi:list\``
+      ].join('\n'));
+    }
+
+    // Validasi minimum
+    if (jumlah < MIN_TUKAR) {
+      return respond([
+        `> ${EMOJI} ❌ Minimum tukar **${MIN_TUKAR} koin**!`,
+        `> 💰 Kamu input: **${jumlah} koin**`
+      ].join('\n'));
+    }
+
+    // Cari rate yang sesuai
+    const rate = RATE_TABLE.find(r => r.koin === jumlah);
+    if (!rate) {
+      const valid = RATE_TABLE.map(r => `\`${r.koin}\``).join(', ');
+      return respond([
+        `> ${EMOJI} ❌ Jumlah koin tidak valid!`,
+        `> 💡 Pilihan yang tersedia: ${valid}`,
+        `> 📋 Lihat: \`/tukar aksi:list\``
+      ].join('\n'));
+    }
+
+    // Cek koin user
+    const userData = await loadUser(discordId);
+    const koinku   = userData.coins || 0;
+
+    if (koinku < jumlah) {
+      return respond([
+        `> ${EMOJI} ❌ Koin tidak cukup!`,
+        `> 💰 Koin kamu: **${koinku}** | Dibutuhkan: **${jumlah}**`,
+        `> 📺 Tonton iklan dulu: \`/iklan\``
+      ].join('\n'));
+    }
+
+    // Cek max pending
+    const pending    = await loadPending();
+    const myPending  = pending.filter(p => p.discordId === discordId && p.status === 'pending');
+
+    if (myPending.length >= MAX_PENDING) {
+      return respond([
+        `> ${EMOJI} ❌ Kamu sudah punya **${MAX_PENDING} request pending**!`,
+        `> ⏳ Tunggu request sebelumnya selesai diproses owner.`,
+        `> 📜 Cek status: \`/tukar aksi:riwayat\``
+      ].join('\n'));
+    }
+
+    // Kurangi koin (hold dulu)
+    userData.coins     = koinku - jumlah;
+    userData.coinsHold = (userData.coinsHold || 0) + jumlah;
+    await saveUser(discordId, userData);
+
+    // Buat request
+    const newId  = `TKR-${Date.now()}-${Math.random().toString(36).slice(2,5).toUpperCase()}`;
+    const tglStr = new Date().toLocaleDateString('id-ID', {
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta'
+    });
+
+    const newReq = {
+      id:        newId,
+      discordId,
+      koin:      jumlah,
+      rupiah:    rate.rupiah,
+      rekening:  rekening.slice(0, 50),
+      bank:      bank.slice(0, 30),
+      status:    'pending',
+      createdAt: Date.now(),
+      createdStr: tglStr
+    };
+
+    pending.push(newReq);
+    await savePending(pending);
+
+    // Tambah ke history user
+    const history = await loadHistory(discordId);
+    history.unshift({ ...newReq });
+    await saveHistory(discordId, history.slice(0, 20)); // simpan 20 terakhir
+
+    // Kirim notif ke owner via webhook
+    const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
+    if (WEBHOOK) {
+      await fetch(WEBHOOK, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `<@${OWNER_ID}> 💸 **REQUEST TUKAR KOIN BARU!**`,
+          embeds: [{
+            color: 0xF39C12,
+            title: '💸 Request Tukar Koin',
+            fields: [
+              { name: '👤 User',      value: `<@${discordId}>`,   inline: true  },
+              { name: '💰 Koin',      value: `${jumlah} koin`,    inline: true  },
+              { name: '💵 Rupiah',    value: formatRp(rate.rupiah), inline: true },
+              { name: '🏦 Bank',      value: bank,                inline: true  },
+              { name: '💳 Rekening',  value: rekening,            inline: true  },
+              { name: '🆔 Request ID',value: `\`${newId}\``,      inline: false },
+            ],
+            footer:    { text: 'OWO BIM Tukar System' },
+            timestamp: new Date().toISOString()
+          }]
+        })
+      });
+    }
+
+    return respond([
+      '```ansi',
+      '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;33m║  ⏳  REQUEST BERHASIL DIAJUKAN!  ⏳  ║\u001b[0m',
+      '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━━ 📋 DETAIL REQUEST ━━━━━━━\u001b[0m',
+      `\u001b[1;36m  🆔  Request ID :\u001b[0m \u001b[2;37m${newId}\u001b[0m`,
+      `\u001b[1;36m  💰  Koin       :\u001b[0m \u001b[1;37m${jumlah} koin\u001b[0m`,
+      `\u001b[1;36m  💵  Rupiah     :\u001b[0m \u001b[1;32m${formatRp(rate.rupiah)}\u001b[0m`,
+      `\u001b[1;36m  🏦  Bank       :\u001b[0m \u001b[0;37m${bank}\u001b[0m`,
+      `\u001b[1;36m  💳  Rekening   :\u001b[0m \u001b[0;37m${rekening}\u001b[0m`,
+      `\u001b[1;36m  📊  Status     :\u001b[0m \u001b[1;33m⏳ Pending\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> ⏳ Menunggu konfirmasi owner. Biasanya **1x24 jam**.`,
+      `> 📜 Cek status: \`/tukar aksi:riwayat\``,
+      `> ⚠️ Koin sudah di-hold, akan dikembalikan jika ditolak.`
+    ].join('\n'));
+  }
+
+  // ════════════════════════════════════════════════════════
+  // SUB: riwayat — Riwayat tukar user
+  // ════════════════════════════════════════════════════════
+  if (sub === 'riwayat') {
+    const history  = await loadHistory(discordId);
+    const userData = await loadUser(discordId);
+
+    if (history.length === 0) {
+      return respond([
+        `> ${EMOJI} 📜 Kamu belum pernah mengajukan tukar koin.`,
+        `> 💸 Mulai tukar: \`/tukar aksi:cairkan\``,
+        `> 📋 Lihat harga: \`/tukar aksi:list\``
+      ].join('\n'));
+    }
+
+    const statusIcon = { pending: '⏳', approved: '✅', rejected: '❌' };
+
+    const rows = history.slice(0, 5).map((h, i) => {
+      const icon = statusIcon[h.status] || '❓';
+      return [
+        `\u001b[1;33m  ─── ${i+1}. ${h.id} ───\u001b[0m`,
+        `\u001b[1;36m  💰 Koin    :\u001b[0m \u001b[0;37m${h.koin} koin → ${formatRp(h.rupiah)}\u001b[0m`,
+        `\u001b[1;36m  🏦 Bank    :\u001b[0m \u001b[0;37m${h.bank} (${h.rekening})\u001b[0m`,
+        `\u001b[1;36m  📊 Status  :\u001b[0m \u001b[1;37m${icon} ${h.status.toUpperCase()}\u001b[0m`,
+        h.rejectedReason ? `\u001b[1;36m  📝 Alasan  :\u001b[0m \u001b[0;31m${h.rejectedReason}\u001b[0m` : null,
+        `\u001b[1;36m  📅 Tanggal :\u001b[0m \u001b[2;37m${h.createdStr}\u001b[0m`,
+      ].filter(Boolean).join('\n');
+    }).join('\n');
+
+    return respond([
+      '```ansi',
+      '\u001b[2;36m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;36m║  📜  RIWAYAT TUKAR KOIN  📜         ║\u001b[0m',
+      '\u001b[2;36m╚══════════════════════════════════════╝\u001b[0m',
+      '',
+      `\u001b[1;32m  💰 Koin aktif : ${userData.coins || 0} koin\u001b[0m`,
+      `\u001b[1;33m  🔒 Koin hold  : ${userData.coinsHold || 0} koin\u001b[0m`,
+      '',
+      rows,
+      '```',
+      `> 📋 Lihat harga tukar: \`/tukar aksi:list\``
+    ].join('\n'));
+  }
+
+  // ════════════════════════════════════════════════════════
+  // SUB: pending — Semua request pending (OWNER)
+  // ════════════════════════════════════════════════════════
+  if (sub === 'pending') {
+    if (!isOwner) return respond(`> ${EMOJI} ❌ Hanya owner!`);
+
+    const pending = await loadPending();
+    const aktif   = pending.filter(p => p.status === 'pending');
+
+    if (aktif.length === 0) {
+      return respond(`> ${EMOJI} ✅ Tidak ada request pending saat ini.`);
+    }
+
+    const rows = aktif.map((p, i) => [
+      `\u001b[1;33m  ─── ${i+1}. ${p.id} ───\u001b[0m`,
+      `\u001b[1;36m  👤 User    :\u001b[0m \u001b[0;37m<@${p.discordId}> (${p.discordId})\u001b[0m`,
+      `\u001b[1;36m  💰 Koin    :\u001b[0m \u001b[0;37m${p.koin} koin → ${formatRp(p.rupiah)}\u001b[0m`,
+      `\u001b[1;36m  🏦 Bank    :\u001b[0m \u001b[0;37m${p.bank}\u001b[0m`,
+      `\u001b[1;36m  💳 Rek     :\u001b[0m \u001b[0;37m${p.rekening}\u001b[0m`,
+      `\u001b[1;36m  📅 Tgl     :\u001b[0m \u001b[2;37m${p.createdStr}\u001b[0m`,
+    ].join('\n')).join('\n');
+
+    return respond([
+      '```ansi',
+      '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;33m║  📊  REQUEST PENDING  📊            ║\u001b[0m',
+      '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+      '',
+      `\u001b[1;31m  Total pending: ${aktif.length} request\u001b[0m`,
+      '',
+      rows,
+      '```',
+      `> ✅ Approve: \`/tukar aksi:approve id:TKR-xxx\``,
+      `> ❌ Reject:  \`/tukar aksi:reject id:TKR-xxx catatan:alasan\``
+    ].join('\n'));
+  }
+
+  // ════════════════════════════════════════════════════════
+  // SUB: approve (OWNER)
+  // ════════════════════════════════════════════════════════
+  if (sub === 'approve') {
+    if (!isOwner) return respond(`> ${EMOJI} ❌ Hanya owner!`);
+    if (!reqId)   return respond(`> ${EMOJI} ❌ Masukkan Request ID!`);
+
+    const pending = await loadPending();
+    const idx     = pending.findIndex(p => p.id === reqId && p.status === 'pending');
+
+    if (idx === -1) return respond([
+      `> ${EMOJI} ❌ Request ID \`${reqId}\` tidak ditemukan atau sudah diproses!`,
+      `> 📊 Cek: \`/tukar aksi:pending\``
+    ].join('\n'));
+
+    const req = pending[idx];
+
+    // Update status
+    pending[idx].status     = 'approved';
+    pending[idx].approvedAt = Date.now();
+    await savePending(pending);
+
+    // Kurangi coinsHold user
+    const userData       = await loadUser(req.discordId);
+    userData.coinsHold   = Math.max(0, (userData.coinsHold || 0) - req.koin);
+    await saveUser(req.discordId, userData);
+
+    // Update history user
+    const history = await loadHistory(req.discordId);
+    const hIdx    = history.findIndex(h => h.id === reqId);
+    if (hIdx !== -1) {
+      history[hIdx].status     = 'approved';
+      history[hIdx].approvedAt = Date.now();
+      await saveHistory(req.discordId, history);
+    }
+
+    // Notif ke webhook
+    const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
+    if (WEBHOOK) {
+      await fetch(WEBHOOK, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `<@${req.discordId}> 💸 **REQUEST TUKAR KOIN DISETUJUI!**`,
+          embeds: [{
+            color: 0x2ECC71,
+            title: '✅ Request Disetujui!',
+            description: `Transfer **${formatRp(req.rupiah)}** sedang diproses ke rekening kamu.`,
+            fields: [
+              { name: '🆔 Request ID', value: `\`${req.id}\``,       inline: true  },
+              { name: '💰 Koin',       value: `${req.koin} koin`,     inline: true  },
+              { name: '💵 Rupiah',     value: formatRp(req.rupiah),   inline: true  },
+              { name: '🏦 Bank',       value: req.bank,               inline: true  },
+              { name: '💳 Rekening',   value: req.rekening,           inline: true  },
+            ],
+            footer:    { text: 'OWO BIM Tukar System' },
+            timestamp: new Date().toISOString()
+          }]
+        })
+      });
+    }
+
+    return respond([
+      `> ${EMOJI} ✅ Request \`${reqId}\` berhasil di-approve!`,
+      `> 👤 User: <@${req.discordId}>`,
+      `> 💵 Nominal: **${formatRp(req.rupiah)}** ke **${req.bank}** (${req.rekening})`,
+      `> 📢 User sudah dapat notifikasi via webhook.`
+    ].join('\n'));
+  }
+
+  // ════════════════════════════════════════════════════════
+  // SUB: reject (OWNER)
+  // ════════════════════════════════════════════════════════
+  if (sub === 'reject') {
+    if (!isOwner) return respond(`> ${EMOJI} ❌ Hanya owner!`);
+    if (!reqId)   return respond(`> ${EMOJI} ❌ Masukkan Request ID!`);
+
+    const pending = await loadPending();
+    const idx     = pending.findIndex(p => p.id === reqId && p.status === 'pending');
+
+    if (idx === -1) return respond([
+      `> ${EMOJI} ❌ Request ID \`${reqId}\` tidak ditemukan atau sudah diproses!`,
+      `> 📊 Cek: \`/tukar aksi:pending\``
+    ].join('\n'));
+
+    const req    = pending[idx];
+    const alasan = catatan || 'Tidak ada alasan';
+
+    // Update status
+    pending[idx].status         = 'rejected';
+    pending[idx].rejectedAt     = Date.now();
+    pending[idx].rejectedReason = alasan;
+    await savePending(pending);
+
+    // Kembalikan koin ke user
+    const userData       = await loadUser(req.discordId);
+    userData.coins       = (userData.coins || 0) + req.koin;
+    userData.coinsHold   = Math.max(0, (userData.coinsHold || 0) - req.koin);
+    await saveUser(req.discordId, userData);
+
+    // Update history
+    const history = await loadHistory(req.discordId);
+    const hIdx    = history.findIndex(h => h.id === reqId);
+    if (hIdx !== -1) {
+      history[hIdx].status         = 'rejected';
+      history[hIdx].rejectedReason = alasan;
+      history[hIdx].rejectedAt     = Date.now();
+      await saveHistory(req.discordId, history);
+    }
+
+    // Notif ke user
+    const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
+    if (WEBHOOK) {
+      await fetch(WEBHOOK, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `<@${req.discordId}> ❌ **REQUEST TUKAR KOIN DITOLAK**`,
+          embeds: [{
+            color: 0xE74C3C,
+            title: '❌ Request Ditolak',
+            description: `Koin **${req.koin}** telah dikembalikan ke akunmu.`,
+            fields: [
+              { name: '🆔 Request ID', value: `\`${req.id}\``, inline: true  },
+              { name: '💰 Koin',       value: `${req.koin}`,   inline: true  },
+              { name: '📝 Alasan',     value: alasan,          inline: false },
+            ],
+            footer:    { text: 'OWO BIM Tukar System' },
+            timestamp: new Date().toISOString()
+          }]
+        })
+      });
+    }
+
+    return respond([
+      `> ${EMOJI} ✅ Request \`${reqId}\` berhasil di-reject!`,
+      `> 👤 User: <@${req.discordId}>`,
+      `> 🔄 **${req.koin} koin** sudah dikembalikan ke user.`,
+      `> 📝 Alasan: ${alasan}`
+    ].join('\n'));
+  }
+
+  return respond(`> ❌ Aksi tidak dikenal! Gunakan: \`list\`, \`cairkan\`, \`riwayat\`, \`pending\`, \`approve\`, \`reject\``);
+}
+// ══════════════════════════════════════════════════════════════════════
+// END CMD: tukar
+// ══════════════════════════════════════════════════════════════════════
+
+
+
+
+
+
+    
+
+
+
     
 
     
