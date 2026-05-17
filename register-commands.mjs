@@ -1516,6 +1516,130 @@ const commands = [
   {
   "name": "download-sticker-tele",
   "description": "Dapatkan link Sticker Downloader Telegram"
+},
+
+
+
+
+
+  {
+  name: 'pastebin',
+  description: '📋 Pastebin Integration — buat, baca, hapus, & kelola paste!',
+  options: [
+    {
+      name: 'aksi',
+      description: 'Pilih aksi yang ingin dilakukan',
+      type: 3,
+      required: true,
+      choices: [
+        { name: '📝 create     — Buat paste baru',          value: 'create'     },
+        { name: '👁️ read       — Baca isi paste',           value: 'read'       },
+        { name: '🗑️ delete     — Hapus paste (butuh akun)', value: 'delete'     },
+        { name: '🔍 search     — Cari paste di history',    value: 'search'     },
+        { name: '📂 history    — 20 paste terakhirmu',      value: 'history'    },
+        { name: '⭐ favorite   — Tambah ke favorit',        value: 'favorite'   },
+        { name: '💔 unfavorite — Hapus dari favorit',       value: 'unfavorite' },
+        { name: '⭐ favorites  — Lihat daftar favorit',     value: 'favorites'  },
+        { name: '📊 stats      — Statistik penggunaan',     value: 'stats'      },
+        { name: 'ℹ️ info       — Daftar semua fitur',       value: 'info'       }
+      ]
+    },
+    {
+      name: 'konten',
+      description: '📄 Isi konten paste (untuk aksi: create)',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'judul',
+      description: '🏷️ Judul paste (untuk aksi: create) — default: OwoBim Paste',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'syntax',
+      description: '🔤 Syntax highlight — js | py | java | html | css | sql | dll (default: text)',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '📝 Text (default)', value: 'text'       },
+        { name: '🟨 JavaScript',     value: 'javascript' },
+        { name: '🔵 TypeScript',     value: 'typescript' },
+        { name: '🐍 Python',         value: 'python'     },
+        { name: '☕ Java',           value: 'java'       },
+        { name: '🟣 Kotlin',         value: 'kotlin'     },
+        { name: '💜 C#',             value: 'csharp'     },
+        { name: '⚙️ C++',            value: 'cpp'        },
+        { name: '🔵 C',              value: 'c'          },
+        { name: '🐹 Go',             value: 'go'         },
+        { name: '🦀 Rust',           value: 'rust'       },
+        { name: '🐘 PHP',            value: 'php'        },
+        { name: '💎 Ruby',           value: 'ruby'       },
+        { name: '🍎 Swift',          value: 'swift'      },
+        { name: '🐚 Bash/Shell',     value: 'bash'       },
+        { name: '🗄️ SQL',            value: 'sql'        },
+        { name: '🌐 HTML',           value: 'html'       },
+        { name: '🎨 CSS',            value: 'css'        },
+        { name: '📦 JSON',           value: 'json'       },
+        { name: '📋 XML',            value: 'xml'        },
+        { name: '🔧 YAML',           value: 'yaml'       },
+        { name: '📝 Markdown',       value: 'markdown'   },
+        { name: '🌙 Lua',            value: 'lua'        }
+      ]
+    },
+    {
+      name: 'expiry',
+      description: '⏳ Masa berlaku paste (untuk aksi: create) — default: never',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '♾️ Never — Tidak pernah (default)', value: 'never' },
+        { name: '⏱️ 10 Menit',                       value: '10m'   },
+        { name: '🕐 1 Jam',                           value: '1h'    },
+        { name: '📅 1 Hari',                          value: '1d'    },
+        { name: '📆 1 Minggu',                        value: '1w'    },
+        { name: '📆 2 Minggu',                        value: '2w'    },
+        { name: '🗓️ 1 Bulan',                        value: '1mo'   },
+        { name: '🗓️ 6 Bulan',                        value: '6mo'   },
+        { name: '🗓️ 1 Tahun',                        value: '1y'    }
+      ]
+    },
+    {
+      name: 'privacy',
+      description: '🔒 Privasi paste (untuk aksi: create) — default: unlisted',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '🌐 Public   — Semua bisa lihat & cari', value: 'public'   },
+        { name: '🔗 Unlisted — Hanya yang punya link',   value: 'unlisted' },
+        { name: '🔒 Private  — Hanya pemilik (+ akun)',  value: 'private'  }
+      ]
+    },
+    {
+      name: 'url',
+      description: '🔗 URL atau Paste ID — untuk aksi: read, delete, favorite, unfavorite',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'baris',
+      description: '🔢 Jumlah baris yang ditampilkan (untuk aksi: read) — max 50, default 20',
+      type: 4,
+      required: false
+    },
+    {
+      name: 'catatan',
+      description: '📝 Catatan untuk paste favorit (untuk aksi: favorite) — max 50 karakter',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'query',
+      description: '🔍 Kata kunci pencarian (untuk aksi: search)',
+      type: 3,
+      required: false
+    }
+  ]
 }
 
 
