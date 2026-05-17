@@ -15769,130 +15769,236 @@ if (cmd === 'sponsor') {
 
 
 
-    if (cmd === 'iklan') {
+if (cmd === 'iklan') {
   const EMOJI         = '<a:GifOwoBim:1492599199038967878>';
   const COOLDOWN_MS   = 2 * 60 * 60 * 1000; // 2 jam
   const KOIN_REWARD   = 50;
-  const TOKEN_TTL     = 10 * 60 * 1000;      // token valid 10 menit
-  const WORKER_URL    = 'https://iklan.internetdnsofficial.workers.dev'; // ganti sesuai domain Worker kamu
-  const BOT_SECRET    = env.BOT_SECRET;       // sama dengan di Worker
+  const TOKEN_TTL     = 10 * 60 * 1000;     // 10 menit
+  const WORKER_URL    = 'https://iklan.internetdnsofficial.workers.dev'; // ganti sesuai domain kamu
+  const BOT_SECRET    = env.BOT_SECRET;
 
-  const cdKey   = `iklan:cd:${discordId}`;
-  const lastRaw = await env.USERS_KV.get(cdKey);
-  const lastCd  = lastRaw ? parseInt(lastRaw) : 0;
-  const now     = Date.now();
-  const sisaMs  = COOLDOWN_MS - (now - lastCd);
+  const sub = getOption(options, 'aksi') || 'tonton';
 
-  // ── Cek cooldown ──
-  if (sisaMs > 0) {
-    const sisaJam = Math.floor(sisaMs / 3600000);
-    const sisaMnt = Math.floor((sisaMs % 3600000) / 60000);
-    const sisaDtk = Math.floor((sisaMs % 60000) / 1000);
+  const loadUser = async (id) => {
+    const raw = await env.USERS_KV.get(`user:${id}`);
+    return raw ? JSON.parse(raw) : {};
+  };
+  const saveUser = async (id, data) => {
+    await env.USERS_KV.put(`user:${id}`, JSON.stringify(data));
+  };
+
+  // ════════════════════════════════════════════════════════
+  // SUB: tonton — Dapat link iklan
+  // ════════════════════════════════════════════════════════
+  if (sub === 'tonton') {
+    const cdKey   = `iklan:cd:${discordId}`;
+    const lastRaw = await env.USERS_KV.get(cdKey);
+    const lastCd  = lastRaw ? parseInt(lastRaw) : 0;
+    const now     = Date.now();
+    const sisaMs  = COOLDOWN_MS - (now - lastCd);
+
+    // Masih cooldown
+    if (sisaMs > 0) {
+      const sisaJam = Math.floor(sisaMs / 3600000);
+      const sisaMnt = Math.floor((sisaMs % 3600000) / 60000);
+      const sisaDtk = Math.floor((sisaMs % 60000) / 1000);
+
+      return respond([
+        `> ${EMOJI} ⏳ Kamu masih cooldown!`,
+        `> ⌛ Bisa tonton lagi dalam: **${sisaJam}j ${sisaMnt}m ${sisaDtk}d**`,
+        `> 💰 Reward per tonton: **${KOIN_REWARD} koin**`
+      ].join('\n'));
+    }
+
+    // Cek token lama yang belum expired
+    const tokenKey = `iklan:token:${discordId}`;
+    const tokenRaw = await env.USERS_KV.get(tokenKey);
+
+    if (tokenRaw) {
+      const oldToken = JSON.parse(tokenRaw);
+      if (Date.now() < oldToken.expiresAt) {
+        const uid      = btoa(discordId);
+        const iklanUrl = `${WORKER_URL}/klik?uid=${uid}`;
+        const sisaMnt  = Math.ceil((oldToken.expiresAt - Date.now()) / 60000);
+
+        return respond([
+          `> ${EMOJI} ⚠️ Kamu punya link yang belum dibuka!`,
+          `> 📺 Buka dulu: ${iklanUrl}`,
+          `> ⏰ Link expired dalam **${sisaMnt} menit**`,
+          `> 🎁 Setelah buka, ketik \`/iklan aksi:klaim\``
+        ].join('\n'));
+      }
+      // Token expired, hapus
+      await env.USERS_KV.delete(tokenKey);
+    }
+
+    // Buat token baru
+    const uid      = btoa(discordId);
+    const iklanUrl = `${WORKER_URL}/klik?uid=${uid}`;
+    const now2     = Date.now();
+
+    await env.USERS_KV.put(tokenKey, JSON.stringify({
+      discordId,
+      createdAt: now2,
+      expiresAt: now2 + TOKEN_TTL,
+      clicked:   false,
+      clickedAt: null
+    }));
+
+    return new Response(JSON.stringify({
+      type: 4,
+      data: {
+        embeds: [{
+          color: 0x2ECC71,
+          title: '📺 Tonton Iklan & Dapat Koin!',
+          description: [
+            '```ansi',
+            '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;32m║  📺  TONTON IKLAN → DAPAT KOIN  📺  ║\u001b[0m',
+            '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `> ${EMOJI} Klik tombol di bawah untuk buka iklan!`,
+            `> 💰 Reward: **+${KOIN_REWARD} koin**`,
+            `> ⏰ Link berlaku **10 menit**`,
+            `> 🎁 Setelah buka iklan → ketik \`/iklan aksi:klaim\``
+          ].join('\n'),
+          footer: { text: 'OWO BIM • Iklan System' },
+          timestamp: new Date().toISOString()
+        }],
+        components: [{
+          type: 1,
+          components: [{
+            type: 2,
+            style: 5,
+            label: '📺 Buka Iklan Sekarang',
+            url: iklanUrl
+          }]
+        }]
+      }
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ════════════════════════════════════════════════════════
+  // SUB: klaim — Klaim koin setelah nonton
+  // ════════════════════════════════════════════════════════
+  if (sub === 'klaim') {
+    const tokenKey = `iklan:token:${discordId}`;
+    const tokenRaw = await env.USERS_KV.get(tokenKey);
+    const now      = Date.now();
+
+    // Tidak ada token
+    if (!tokenRaw) {
+      return respond([
+        `> ${EMOJI} ❌ Tidak ada iklan yang perlu diklaim!`,
+        `> 📺 Tonton dulu: \`/iklan aksi:tonton\``
+      ].join('\n'));
+    }
+
+    const tokenData = JSON.parse(tokenRaw);
+
+    // Token expired
+    if (now > tokenData.expiresAt) {
+      await env.USERS_KV.delete(tokenKey);
+      return respond([
+        `> ${EMOJI} ❌ Link iklan kamu sudah expired!`,
+        `> 📺 Tonton lagi: \`/iklan aksi:tonton\``
+      ].join('\n'));
+    }
+
+    // Belum diklik
+    if (!tokenData.clicked) {
+      const uid      = btoa(discordId);
+      const iklanUrl = `${WORKER_URL}/klik?uid=${uid}`;
+      const sisaMnt  = Math.ceil((tokenData.expiresAt - now) / 60000);
+
+      return respond([
+        `> ${EMOJI} ❌ Kamu belum buka iklannya!`,
+        `> 📺 Buka dulu: ${iklanUrl}`,
+        `> ⏰ Link expired dalam **${sisaMnt} menit**`
+      ].join('\n'));
+    }
+
+    // ✅ Sudah diklik — kasih koin!
+    const userData = await loadUser(discordId);
+    userData.coins = (userData.coins || 0) + KOIN_REWARD;
+    await saveUser(discordId, userData);
+
+    // Set cooldown
+    const cdKey = `iklan:cd:${discordId}`;
+    await env.USERS_KV.put(cdKey, String(now));
+
+    // Hapus token
+    await env.USERS_KV.delete(tokenKey);
+
+    // Update total klaim
+    const logKey = `iklan:total:${discordId}`;
+    const logRaw = await env.USERS_KV.get(logKey);
+    const total  = (logRaw ? parseInt(logRaw) : 0) + 1;
+    await env.USERS_KV.put(logKey, String(total));
 
     return respond([
-      `> ${EMOJI} ⏳ Kamu masih cooldown!`,
-      `> ⌛ Bisa klaim lagi dalam: **${sisaJam}j ${sisaMnt}m ${sisaDtk}d**`,
-      `> 💰 Reward: **${KOIN_REWARD} koin** per tonton.`
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  ✅  KOIN BERHASIL DIKLAIM!  ✅      ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} **+${KOIN_REWARD} koin** masuk ke akunmu!`,
+      `> 💰 Total koin: **${userData.coins} koin**`,
+      `> 📊 Total tonton: **${total}x**`,
+      `> ⏳ Tonton lagi dalam **2 jam**`
     ].join('\n'));
   }
 
-  // ── Cek apakah ada token lama yang belum diklaim ──
-  const tokenKey = `iklan:token:${discordId}`;
-  const tokenRaw = await env.USERS_KV.get(tokenKey);
+  // ════════════════════════════════════════════════════════
+  // SUB: info — Cek status & statistik
+  // ════════════════════════════════════════════════════════
+  if (sub === 'info') {
+    const now      = Date.now();
+    const cdKey    = `iklan:cd:${discordId}`;
+    const lastRaw  = await env.USERS_KV.get(cdKey);
+    const lastCd   = lastRaw ? parseInt(lastRaw) : 0;
+    const sisaMs   = COOLDOWN_MS - (now - lastCd);
 
-  if (tokenRaw) {
-    const oldToken = JSON.parse(tokenRaw);
+    const logKey   = `iklan:total:${discordId}`;
+    const logRaw   = await env.USERS_KV.get(logKey);
+    const total    = logRaw ? parseInt(logRaw) : 0;
 
-    // Kalau token lama sudah diklik tapi belum diklaim → kasih koin sekarang
-    if (oldToken.clicked) {
-      // Kasih koin
-      const userRaw  = await env.USERS_KV.get(`user:${discordId}`);
-      const userData = userRaw ? JSON.parse(userRaw) : {};
-      userData.coins = (userData.coins || 0) + KOIN_REWARD;
-      await env.USERS_KV.put(`user:${discordId}`, JSON.stringify(userData));
+    const userData = await loadUser(discordId);
+    const tokenKey = `iklan:token:${discordId}`;
+    const tokenRaw = await env.USERS_KV.get(tokenKey);
+    const hasToken = tokenRaw && JSON.parse(tokenRaw).clicked === false && Date.now() < JSON.parse(tokenRaw).expiresAt;
 
-      // Update cooldown
-      await env.USERS_KV.put(cdKey, String(now));
-
-      // Hapus token lama
-      await env.USERS_KV.delete(tokenKey);
-
-      // Update log total
-      const logKey = `iklan:total:${discordId}`;
-      const logRaw = await env.USERS_KV.get(logKey);
-      const total  = (logRaw ? parseInt(logRaw) : 0) + 1;
-      await env.USERS_KV.put(logKey, String(total));
-
-      return respond([
-        `> ${EMOJI} ✅ Koin berhasil dikreditkan!`,
-        `> 💰 **+${KOIN_REWARD} koin** sudah masuk ke akunmu!`,
-        `> 📊 Total tonton: **${total}x**`,
-        `> ⏳ Bisa iklan lagi dalam **2 jam**.`
-      ].join('\n'));
+    let statusLine;
+    if (sisaMs > 0) {
+      const sisaJam = Math.floor(sisaMs / 3600000);
+      const sisaMnt = Math.floor((sisaMs % 3600000) / 60000);
+      statusLine = `\u001b[1;31m  ⏳ Cooldown  : ${sisaJam}j ${sisaMnt}m lagi\u001b[0m`;
+    } else if (hasToken) {
+      statusLine = `\u001b[1;33m  📺 Status    : Link aktif, belum dibuka!\u001b[0m`;
+    } else {
+      statusLine = `\u001b[1;32m  ✅ Status    : Siap tonton!\u001b[0m`;
     }
 
-    // Token ada tapi belum diklik & belum expired
-    if (Date.now() < oldToken.expiresAt) {
-      const uid      = btoa(discordId);
-      const iklanUrl = `${WORKER_URL}/klik?uid=${uid}`;
-
-      return respond([
-        `> ${EMOJI} ⚠️ Kamu punya link iklan yang belum dibuka!`,
-        `> 🔗 Buka dulu linknya untuk dapat koin:`,
-        `> 📺 ${iklanUrl}`,
-        `> ⏰ Link expired dalam: **${Math.ceil((oldToken.expiresAt - now) / 60000)} menit**`
-      ].join('\n'));
-    }
-
-    // Token expired — hapus & buat baru
-    await env.USERS_KV.delete(tokenKey);
+    return respond([
+      '```ansi',
+      '\u001b[2;36m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;36m║  📊  INFO IKLAN KAMU  📊            ║\u001b[0m',
+      '\u001b[2;36m╚══════════════════════════════════════╝\u001b[0m',
+      '',
+      `\u001b[1;36m  💰 Koin      : ${userData.coins || 0} koin\u001b[0m`,
+      `\u001b[1;36m  📺 Total     : ${total}x tonton\u001b[0m`,
+      `\u001b[1;36m  🎁 Per tonton: ${KOIN_REWARD} koin\u001b[0m`,
+      statusLine,
+      '```',
+      hasToken
+        ? `> 📺 Buka iklan dulu lalu \`/iklan aksi:klaim\``
+        : sisaMs <= 0
+          ? `> 📺 Yuk tonton: \`/iklan aksi:tonton\``
+          : `> 💸 Tukar koin: \`/tukar aksi:list\``
+    ].join('\n'));
   }
 
-  // ── Buat token baru ──
-  const uid      = btoa(discordId);
-  const iklanUrl = `${WORKER_URL}/klik?uid=${uid}`;
-
-  await env.USERS_KV.put(tokenKey, JSON.stringify({
-    discordId,
-    createdAt:  now,
-    expiresAt:  now + TOKEN_TTL,
-    clicked:    false,
-    clickedAt:  null
-  }));
-
-  return new Response(JSON.stringify({
-    type: 4,
-    data: {
-      embeds: [{
-        color: 0x2ECC71,
-        title: '📺 Tonton Iklan & Dapat Koin!',
-        description: [
-          '```ansi',
-          '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
-          '\u001b[1;32m║  📺  TONTON IKLAN → DAPAT KOIN  📺  ║\u001b[0m',
-          '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
-          '```',
-          `> ${EMOJI} Klik tombol di bawah untuk buka iklan!`,
-          `> 💰 Reward: **+${KOIN_REWARD} koin** setelah buka link`,
-          `> ⏳ Cooldown: **2 jam** per klaim`,
-          `> ⚠️ Link berlaku **10 menit** — jangan ditunda!`,
-          '',
-          `> 📌 Setelah buka iklan, jalankan \`/iklan\` lagi untuk klaim koin.`
-        ].join('\n'),
-        footer: { text: 'OWO BIM • Iklan System' },
-        timestamp: new Date().toISOString()
-      }],
-      components: [{
-        type: 1,
-        components: [{
-          type: 2,
-          style: 5,
-          label: '📺 Buka Iklan Sekarang',
-          url: iklanUrl
-        }]
-      }]
-    }
-  }), { headers: { 'Content-Type': 'application/json' } });
+  return respond(`> ❌ Aksi tidak dikenal! Gunakan: \`tonton\`, \`klaim\`, \`info\``);
 }
 
 
