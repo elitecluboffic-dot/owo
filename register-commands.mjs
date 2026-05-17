@@ -1648,7 +1648,7 @@ const commands = [
   
 
 
-  {
+{
   name: 'ban',
   description: '🔨 Ban/Unban user dari menggunakan bot',
   options: [
@@ -1658,27 +1658,35 @@ const commands = [
       type: 3,
       required: true,
       choices: [
-        { name: '🔨 Ban — Larang user pakai bot',           value: 'ban'   },
-        { name: '✅ Unban — Izinkan user lagi',             value: 'unban' },
-        { name: '📋 List — Lihat semua user yang dibanned', value: 'list'  },
-        { name: '🛒 Beli — Beli akses fitur ban',           value: 'beli'  }
+        { name: '🔨 Ban     — Larang user pakai bot',           value: 'ban'     },
+        { name: '✅ Unban   — Izinkan user lagi',               value: 'unban'   },
+        { name: '📋 List    — Lihat semua user yang dibanned',  value: 'list'    },
+        { name: '🛒 Beli    — Beli akses fitur ban',            value: 'beli'    },
+        { name: '✅ Approve — (Owner) Approve pembelian akses', value: 'approve' },
+        { name: '❌ Reject  — (Owner) Tolak pembelian akses',   value: 'reject'  }
       ]
     },
     {
       name: 'user',
       description: 'Tag user yang mau di-ban/unban',
-      type: 6,
+      type: 6,       // USER
       required: false
     },
     {
       name: 'id',
       description: 'Discord ID user (alternatif kalau tidak bisa tag)',
-      type: 3,
+      type: 3,       // STRING
       required: false
     },
     {
       name: 'alasan',
       description: 'Alasan ban (opsional)',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'orderid',
+      description: 'Order ID untuk approve/reject (khusus owner)',
       type: 3,
       required: false
     }
