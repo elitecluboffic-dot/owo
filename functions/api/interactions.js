@@ -15437,6 +15437,332 @@ if (cmd === 'ban') {
 
 
 
+
+
+
+
+
+
+    if (cmd === 'sponsor') {
+  const EMOJI    = '<a:GifOwoBim:1492599199038967878>';
+  const OWNER_ID = '1442230317455900823';
+  const isOwner  = discordId === OWNER_ID;
+ 
+  const sub       = getOption(options, 'aksi') || 'list';
+  const nama      = getOption(options, 'nama');
+  const url       = getOption(options, 'url');
+  const banner    = getOption(options, 'banner');
+  const deskripsi = getOption(options, 'deskripsi');
+  const sponsorId = getOption(options, 'id');
+ 
+  const MAX_SPONSOR = 20;
+  const HARGA_PER_BULAN = 'Rp 500.000';
+ 
+  // ── Helper: load semua sponsor ──
+  const loadSponsors = async () => {
+    const raw = await env.USERS_KV.get('sponsors:list');
+    return raw ? JSON.parse(raw) : [];
+  };
+ 
+  // ── Helper: save semua sponsor ──
+  const saveSponsors = async (sponsors) => {
+    await env.USERS_KV.put('sponsors:list', JSON.stringify(sponsors));
+  };
+ 
+  // ════════════════════════════════════════════════════════
+  // SUB: list — Lihat semua sponsor aktif
+  // ════════════════════════════════════════════════════════
+  if (sub === 'list') {
+    const sponsors = await loadSponsors();
+ 
+    // Filter hanya yang masih aktif (belum expired)
+    const now    = Date.now();
+    const aktif  = sponsors.filter(s => !s.expiresAt || s.expiresAt > now);
+ 
+    // Kalau ada yang expired, bersihkan
+    if (aktif.length !== sponsors.length) {
+      await saveSponsors(aktif);
+    }
+ 
+    if (aktif.length === 0) {
+      return respond([
+        '```ansi',
+        '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[2;34m║  \u001b[1;33m💼  SPONSOR OWO BIM  💼\u001b[0m            \u001b[2;34m║\u001b[0m',
+        '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> ${EMOJI} Belum ada sponsor aktif saat ini.`,
+        `> 💼 Tertarik jadi sponsor? Ketik \`/sponsor aksi:info\``,
+        `> 📩 Atau langsung DM **@bimxr**`
+      ].join('\n'));
+    }
+ 
+    const waktu = new Date().toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+ 
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟',
+                    '1️⃣1️⃣','1️⃣2️⃣','1️⃣3️⃣','1️⃣4️⃣','1️⃣5️⃣','1️⃣6️⃣','1️⃣7️⃣','1️⃣8️⃣','1️⃣9️⃣','2️⃣0️⃣'];
+ 
+    // Build embed fields per sponsor
+    const fields = aktif.map((s, i) => {
+      const sisaHari = s.expiresAt
+        ? Math.ceil((s.expiresAt - now) / 86400000)
+        : '∞';
+      const expStr = s.expiresAt
+        ? new Date(s.expiresAt).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' })
+        : 'Permanen';
+ 
+      return {
+        name:  `${medals[i] || `${i+1}.`} ${s.nama}`,
+        value: [
+          s.deskripsi ? `> 📝 ${s.deskripsi}` : null,
+          `> 🔗 ${s.url}`,
+          `> ⏳ Aktif hingga: **${expStr}** (${typeof sisaHari === 'number' ? sisaHari + ' hari lagi' : sisaHari})`,
+          s.addedBy ? `> 👤 Ditambahkan oleh: <@${s.addedBy}>` : null,
+        ].filter(Boolean).join('\n'),
+        inline: false
+      };
+    });
+ 
+    return new Response(JSON.stringify({
+      type: 4,
+      data: {
+        embeds: [
+          {
+            color: 0xF1C40F,
+            title: '💼 Sponsor OWO BIM',
+            description: [
+              '```ansi',
+              '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+              '\u001b[1;33m║  💼  DAFTAR SPONSOR AKTIF  💼       ║\u001b[0m',
+              '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+              '```',
+              `> ${EMOJI} **${aktif.length}/${MAX_SPONSOR}** slot sponsor terisi`,
+              `> 🕐 Update: ${waktu} WIB`,
+              aktif.length < MAX_SPONSOR
+                ? `> 💼 Slot tersedia! Ketik \`/sponsor aksi:info\` untuk daftar.`
+                : `> ⚠️ Semua slot penuh! Hubungi **@bimxr** untuk waitlist.`
+            ].join('\n'),
+            fields,
+            footer: { text: `OWO BIM Sponsor System • ${aktif.length}/${MAX_SPONSOR} slot` },
+            timestamp: new Date().toISOString()
+          }
+        ]
+      }
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
+ 
+  // ════════════════════════════════════════════════════════
+  // SUB: info — Info harga & cara jadi sponsor
+  // ════════════════════════════════════════════════════════
+  if (sub === 'info') {
+    const sponsors = await loadSponsors();
+    const now      = Date.now();
+    const aktif    = sponsors.filter(s => !s.expiresAt || s.expiresAt > now);
+    const slotSisa = MAX_SPONSOR - aktif.length;
+ 
+    return respond([
+      '```ansi',
+      '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;33m║  💼  INFO SPONSOR OWO BIM  💼       ║\u001b[0m',
+      '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━━ 💰 PAKET SPONSOR ━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  💼  Durasi      :\u001b[0m \u001b[0;37mPer bulan (30 hari)\u001b[0m`,
+      `\u001b[1;36m  💰  Harga       :\u001b[0m \u001b[1;33m${HARGA_PER_BULAN} / bulan\u001b[0m`,
+      `\u001b[1;36m  📊  Slot Total  :\u001b[0m \u001b[0;37m${MAX_SPONSOR} slot\u001b[0m`,
+      `\u001b[1;36m  ✅  Slot Tersisa:\u001b[0m \u001b[1;32m${slotSisa} slot\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[1;32m━━━━━━━━━━━━ 🎁 APA YANG DIDAPAT ━━━━━\u001b[0m',
+      '\u001b[0;37m  ✅ Nama & link tampil di /sponsor\u001b[0m',
+      '\u001b[0;37m  ✅ Banner (opsional) ditampilkan\u001b[0m',
+      '\u001b[0;37m  ✅ Deskripsi brand/server\u001b[0m',
+      '\u001b[0;37m  ✅ Visible ke semua user bot\u001b[0m',
+      '\u001b[0;37m  ✅ Durasi 30 hari, bisa diperpanjang\u001b[0m',
+      '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[1;35m━━━━━━━━━━━━ 📩 CARA DAFTAR ━━━━━━━━━━\u001b[0m',
+      '\u001b[0;37m  1. DM owner: @bimxr di Discord\u001b[0m',
+      '\u001b[0;37m  2. Kirim: nama brand, URL, deskripsi\u001b[0m',
+      '\u001b[0;37m  3. Transfer Rp 700.000 ke rekening\u001b[0m',
+      '\u001b[0;37m  4. Kirim bukti transfer ke owner\u001b[0m',
+      '\u001b[0;37m  5. Owner akan aktifkan slot kamu!\u001b[0m',
+      '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> 💬 Hubungi: **@bimxr** | 🏦 SeaBank: **901513579165** (Bustanul Labib Alwasi)`,
+      `> 📋 Lihat sponsor aktif: \`/sponsor aksi:list\``
+    ].join('\n'));
+  }
+ 
+  // ════════════════════════════════════════════════════════
+  // SUB: daftar — Tambah sponsor baru (OWNER ONLY)
+  // ════════════════════════════════════════════════════════
+  if (sub === 'daftar') {
+    if (!isOwner) {
+      return respond([
+        `> ${EMOJI} ❌ Hanya owner yang bisa tambah sponsor!`,
+        `> 💼 Mau jadi sponsor? Ketik \`/sponsor aksi:info\``
+      ].join('\n'));
+    }
+ 
+    if (!nama || !url) {
+      return respond([
+        `> ${EMOJI} ❌ Nama dan URL sponsor wajib diisi!`,
+        `> 💡 Gunakan: \`/sponsor aksi:daftar nama:NamaBrand url:https://... deskripsi:...\``
+      ].join('\n'));
+    }
+ 
+    // Validasi URL
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return respond(`> ${EMOJI} ❌ URL harus dimulai dengan \`http://\` atau \`https://\`!`);
+    }
+ 
+    // Validasi banner URL kalau ada
+    if (banner && !banner.startsWith('http://') && !banner.startsWith('https://')) {
+      return respond(`> ${EMOJI} ❌ URL banner harus dimulai dengan \`http://\` atau \`https://\`!`);
+    }
+ 
+    const sponsors = await loadSponsors();
+    const now      = Date.now();
+    const aktif    = sponsors.filter(s => !s.expiresAt || s.expiresAt > now);
+ 
+    if (aktif.length >= MAX_SPONSOR) {
+      return respond([
+        `> ${EMOJI} ❌ Slot sponsor sudah penuh! (**${MAX_SPONSOR}/${MAX_SPONSOR}**)`,
+        `> ⏳ Tunggu slot ada yang expired atau hapus salah satu.`
+      ].join('\n'));
+    }
+ 
+    // Cek duplikat nama
+    const dupNama = aktif.find(s => s.nama.toLowerCase() === nama.toLowerCase());
+    if (dupNama) {
+      return respond(`> ${EMOJI} ❌ Sponsor dengan nama **"${nama}"** sudah ada!`);
+    }
+ 
+    const newSponsorId = `SPO-${Date.now()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
+    const expiresAt    = now + (30 * 24 * 60 * 60 * 1000); // 30 hari
+    const expTgl       = new Date(expiresAt).toLocaleDateString('id-ID', {
+      day: '2-digit', month: 'long', year: 'numeric'
+    });
+ 
+    const newSponsor = {
+      id:          newSponsorId,
+      nama:        nama.slice(0, 50),
+      url,
+      banner:      banner || null,
+      deskripsi:   deskripsi ? deskripsi.slice(0, 100) : null,
+      addedBy:     discordId,
+      addedAt:     now,
+      expiresAt,
+    };
+ 
+    // Gabungkan aktif + baru (jangan pakai sponsors lama yang expired)
+    const updatedSponsors = [...aktif, newSponsor];
+    await saveSponsors(updatedSponsors);
+ 
+    // Kirim notif ke webhook
+    const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
+    if (WEBHOOK) {
+      await fetch(WEBHOOK, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `<@${OWNER_ID}> 💼 **SPONSOR BARU DITAMBAHKAN!**`,
+          embeds: [{
+            color: 0xF1C40F,
+            title: '💼 Sponsor Baru',
+            fields: [
+              { name: '🏷️ Nama',      value: nama,                                     inline: true  },
+              { name: '🔗 URL',       value: url,                                      inline: false },
+              { name: '📝 Deskripsi', value: deskripsi || '—',                         inline: false },
+              { name: '🆔 Sponsor ID',value: `\`${newSponsorId}\``,                    inline: true  },
+              { name: '📅 Expired',   value: expTgl,                                   inline: true  },
+              { name: '📊 Slot',      value: `${updatedSponsors.length}/${MAX_SPONSOR}`, inline: true },
+            ],
+            image:     banner ? { url: banner } : undefined,
+            footer:    { text: 'OWO BIM Sponsor System' },
+            timestamp: new Date().toISOString()
+          }]
+        })
+      });
+    }
+ 
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  ✅  SPONSOR BERHASIL DITAMBAH!  ✅  ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━━ 📋 DETAIL ━━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  🏷️  Nama       :\u001b[0m \u001b[1;37m${nama}\u001b[0m`,
+      `\u001b[1;36m  🔗  URL        :\u001b[0m \u001b[0;37m${url}\u001b[0m`,
+      deskripsi ? `\u001b[1;36m  📝  Deskripsi  :\u001b[0m \u001b[0;37m${deskripsi.slice(0, 60)}\u001b[0m` : null,
+      banner    ? `\u001b[1;36m  🖼️  Banner     :\u001b[0m \u001b[0;37mAda\u001b[0m` : null,
+      `\u001b[1;36m  🆔  Sponsor ID :\u001b[0m \u001b[2;37m${newSponsorId}\u001b[0m`,
+      `\u001b[1;36m  📅  Expired    :\u001b[0m \u001b[1;33m${expTgl}\u001b[0m`,
+      `\u001b[1;36m  📊  Slot       :\u001b[0m \u001b[0;37m${updatedSponsors.length}/${MAX_SPONSOR}\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> 💡 Hapus: \`/sponsor aksi:hapus id:${newSponsorId}\``,
+      `> 📋 Lihat: \`/sponsor aksi:list\``
+    ].filter(l => l !== null).join('\n'));
+  }
+ 
+  // ════════════════════════════════════════════════════════
+  // SUB: hapus — Hapus sponsor (OWNER ONLY)
+  // ════════════════════════════════════════════════════════
+  if (sub === 'hapus') {
+    if (!isOwner) {
+      return respond(`> ${EMOJI} ❌ Hanya owner yang bisa hapus sponsor!`);
+    }
+ 
+    if (!sponsorId) {
+      return respond([
+        `> ${EMOJI} ❌ Masukkan Sponsor ID yang mau dihapus!`,
+        `> 💡 Lihat ID di \`/sponsor aksi:list\` (owner mode)`,
+        `> 💡 Gunakan: \`/sponsor aksi:hapus id:SPO-XXXX\``
+      ].join('\n'));
+    }
+ 
+    const sponsors = await loadSponsors();
+    const idx      = sponsors.findIndex(s => s.id === sponsorId);
+ 
+    if (idx === -1) {
+      return respond([
+        `> ${EMOJI} ❌ Sponsor ID \`${sponsorId}\` tidak ditemukan!`,
+        `> 💡 Cek ID yang benar di \`/sponsor aksi:list\``
+      ].join('\n'));
+    }
+ 
+    const removed   = sponsors[idx];
+    const newList   = sponsors.filter((_, i) => i !== idx);
+    await saveSponsors(newList);
+ 
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  ✅  SPONSOR BERHASIL DIHAPUS!  ✅   ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ${EMOJI} ✅ Sponsor **"${removed.nama}"** berhasil dihapus!`,
+      `> 🆔 ID: \`${sponsorId}\``,
+      `> 📊 Slot tersisa: **${newList.filter(s => !s.expiresAt || s.expiresAt > Date.now()).length}/${MAX_SPONSOR}**`,
+      `> 📋 Lihat: \`/sponsor aksi:list\``
+    ].join('\n'));
+  }
+ 
+  return respond(`> ❌ Aksi tidak dikenal! Gunakan: \`list\`, \`info\`, \`daftar\` (owner), \`hapus\` (owner)`);
+}
+// ══════════════════════════════════════════════════════════════════════
+// END CMD: sponsor
+// ══════════════════════════════════════════════════════════════════════
+
+
+
     
 
     
