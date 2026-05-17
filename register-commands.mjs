@@ -1640,10 +1640,50 @@ const commands = [
       required: false
     }
   ]
-}
+},
+
+
 
 
   
+
+
+  {
+  name: 'ban',
+  description: '🔨 Ban/Unban user dari menggunakan bot',
+  options: [
+    {
+      name: 'aksi',
+      description: 'Pilih aksi',
+      type: 3,
+      required: true,
+      choices: [
+        { name: '🔨 Ban — Larang user pakai bot',           value: 'ban'   },
+        { name: '✅ Unban — Izinkan user lagi',             value: 'unban' },
+        { name: '📋 List — Lihat semua user yang dibanned', value: 'list'  },
+        { name: '🛒 Beli — Beli akses fitur ban',           value: 'beli'  }
+      ]
+    },
+    {
+      name: 'user',
+      description: 'Tag user yang mau di-ban/unban',
+      type: 6,
+      required: false
+    },
+    {
+      name: 'id',
+      description: 'Discord ID user (alternatif kalau tidak bisa tag)',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'alasan',
+      description: 'Alasan ban (opsional)',
+      type: 3,
+      required: false
+    }
+  ]
+}
 
 
   
