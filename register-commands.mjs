@@ -1691,6 +1691,58 @@ const commands = [
       required: false
     }
   ]
+},
+
+
+
+
+  {
+  name: 'sponsor',
+  description: '💼 Lihat daftar sponsor OWO BIM bot',
+  options: [
+    {
+      name: 'aksi',
+      description: 'Pilih aksi',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '📋 List   — Lihat semua sponsor aktif',      value: 'list'   },
+        { name: '➕ Daftar — Daftar jadi sponsor (Owner)',     value: 'daftar' },
+        { name: '❌ Hapus  — Hapus sponsor (Owner)',           value: 'hapus'  },
+        { name: 'ℹ️ Info   — Info harga & cara jadi sponsor', value: 'info'   },
+      ]
+    },
+    {
+      name: 'nama',
+      description: 'Nama brand/server sponsor',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'url',
+      description: 'URL/link sponsor (invite server, website, dll)',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'banner',
+      description: 'URL gambar banner sponsor (opsional)',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'deskripsi',
+      description: 'Deskripsi singkat brand/server (maks 100 karakter)',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'id',
+      description: 'Sponsor ID untuk dihapus (khusus aksi:hapus)',
+      type: 3,
+      required: false
+    }
+  ]
 }
 
 
