@@ -1007,6 +1007,164 @@ if (customId.startsWith('tetris:')) {
   }), { headers });
 }
 
+
+
+  
+
+
+
+
+
+  // ── Approve akses ban ──
+if (customId.startsWith('banperm_approve:')) {
+  if (clickerId !== '1442230317455900823') {
+    return new Response(JSON.stringify({
+      type: 4, data: { content: '❌ Bukan owner!', flags: 64 }
+    }), { headers });
+  }
+
+  const parts   = customId.split(':');
+  const buyerId = parts[1];
+  const orderId = parts[2];
+
+  const orderRaw = await env.USERS_KV.get(`banperm_order:${orderId}`);
+  if (!orderRaw) {
+    return new Response(JSON.stringify({
+      type: 4, data: { content: '❌ Order tidak ditemukan atau sudah diproses!', flags: 64 }
+    }), { headers });
+  }
+
+  const order      = JSON.parse(orderRaw);
+  const expiresAt  = Date.now() + 30 * 86400000;
+  const expTgl     = new Date(expiresAt).toLocaleDateString('id-ID', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  });
+
+  await Promise.all([
+    env.USERS_KV.put(`banperm:${buyerId}`, JSON.stringify({
+      discordId:   buyerId,
+      username:    order.username,
+      expiresAt,
+      approvedBy:  clickerId,
+      approvedAt:  Date.now(),
+      orderId
+    }), { expirationTtl: 30 * 86400 + 3600 }),
+    env.USERS_KV.delete(`banperm_pending:${buyerId}`),
+    env.USERS_KV.delete(`banperm_order:${orderId}`)
+  ]);
+
+  // Kirim DM ke buyer
+  try {
+    const dmCh = await (await fetch('https://discord.com/api/v10/users/@me/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({ recipient_id: buyerId })
+    })).json();
+
+    if (dmCh.id) {
+      await fetch(`https://discord.com/api/v10/channels/${dmCh.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+        body: JSON.stringify({
+          content: [
+            '```ansi',
+            '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;32m║  ✅  AKSES BAN DISETUJUI!  ✅        ║\u001b[0m',
+            '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `> 🎉 Akses fitur \`/ban\` kamu sudah **aktif**!`,
+            `> 📅 Berlaku hingga: **${expTgl}**`,
+            `> 💡 Gunakan: \`/ban aksi:ban user:@target\``
+          ].join('\n')
+        })
+      });
+    }
+  } catch (_) {}
+
+  // Update pesan webhook
+  const msgId = interaction.message.id;
+  const chId  = interaction.message.channel_id;
+  await fetch(`https://discord.com/api/v10/channels/${chId}/messages/${msgId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+    body: JSON.stringify({
+      embeds: [{
+        color:       0x2ECC71,
+        title:       '✅ Akses Ban Diapprove',
+        description: `<@${buyerId}> (${order.username}) mendapat akses ban hingga **${expTgl}**`,
+        timestamp:   new Date().toISOString()
+      }],
+      components: []
+    })
+  });
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: { content: `✅ Akses ban untuk <@${buyerId}> berhasil diapprove! (30 hari)`, flags: 64 }
+  }), { headers });
+}
+
+// ── Reject akses ban ──
+if (customId.startsWith('banperm_reject:')) {
+  if (clickerId !== '1442230317455900823') {
+    return new Response(JSON.stringify({
+      type: 4, data: { content: '❌ Bukan owner!', flags: 64 }
+    }), { headers });
+  }
+
+  const parts   = customId.split(':');
+  const buyerId = parts[1];
+  const orderId = parts[2];
+
+  await Promise.all([
+    env.USERS_KV.delete(`banperm_pending:${buyerId}`),
+    env.USERS_KV.delete(`banperm_order:${orderId}`)
+  ]);
+
+  // Kirim DM notif reject
+  try {
+    const dmCh = await (await fetch('https://discord.com/api/v10/users/@me/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: JSON.stringify({ recipient_id: buyerId })
+    })).json();
+
+    if (dmCh.id) {
+      await fetch(`https://discord.com/api/v10/channels/${dmCh.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+        body: JSON.stringify({
+          content: [
+            `> ❌ Request akses ban kamu **ditolak** oleh owner.`,
+            `> 💬 Hubungi **@bimxr** untuk info lebih lanjut.`
+          ].join('\n')
+        })
+      });
+    }
+  } catch (_) {}
+
+  const msgId = interaction.message.id;
+  const chId  = interaction.message.channel_id;
+  await fetch(`https://discord.com/api/v10/channels/${chId}/messages/${msgId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+    body: JSON.stringify({
+      embeds: [{ color: 0xFF4444, title: '❌ Request Ditolak', description: `<@${buyerId}> ditolak oleh owner.` }],
+      components: []
+    })
+  });
+
+  return new Response(JSON.stringify({
+    type: 4,
+    data: { content: `❌ Request akses ban untuk <@${buyerId}> ditolak.`, flags: 64 }
+  }), { headers });
+}
+
+
+
+
+
+  
   
 
   
@@ -1586,6 +1744,35 @@ if (isSpamming) {
     const userStr = await env.USERS_KV.get(`user:${discordId}`);
     if (!userStr) return respond('❌ Data tidak ditemukan.');
     let user = JSON.parse(userStr);
+
+
+    // ── Cek apakah user dibanned dari bot ──
+if (cmd !== 'register') {
+  const banRaw = await env.USERS_KV.get(`botban:${discordId}`);
+  if (banRaw) {
+    const banData = JSON.parse(banRaw);
+    const tanggal = new Date(banData.bannedAt).toLocaleDateString('id-ID', {
+      day: '2-digit', month: 'long', year: 'numeric'
+    });
+    return respond([
+      '```ansi',
+      '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;31m║  🔨  AKSES BOT DIBLOKIR  🔨          ║\u001b[0m',
+      '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '```ansi',
+      '\u001b[1;31m━━━━━━━━━━━━ ⛔ INFO BAN ━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  📋  Alasan      :\u001b[0m \u001b[1;37m${banData.alasan || 'Tidak ada alasan'}\u001b[0m`,
+      `\u001b[1;36m  📅  Dibanned    :\u001b[0m \u001b[0;37m${tanggal}\u001b[0m`,
+      `\u001b[1;36m  👤  Oleh        :\u001b[0m \u001b[0;37m${banData.bannedByName || 'Owner'}\u001b[0m`,
+      '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> ❌ Kamu **tidak dapat** menggunakan bot ini.`,
+      `> 💬 Ingin lepas dari ban? Hubungi owner:`,
+      `> 👤 **@bimxr** di Discord`
+    ].join('\n'));
+  }
+}
 
 
 
@@ -14677,6 +14864,411 @@ if (cmd === 'pastebin') {
 }
 // ══════════════════════════════════════════════════════════════════════
 // END CMD: pastebin
+// ══════════════════════════════════════════════════════════════════════
+
+
+
+
+
+
+
+
+
+
+    if (cmd === 'ban') {
+  const EMOJI    = '<a:GifOwoBim:1492599199038967878>';
+  const OWNER_ID = '1442230317455900823';
+  const OWNER_UN = 'bimxr';
+  const isOwner  = discordId === OWNER_ID;
+
+  const sub    = getOption(options, 'aksi') || 'ban';
+  const alasan = getOption(options, 'alasan') || 'Tidak ada alasan';
+
+  // ── Ambil target (dari mention atau ID manual) ──
+  const targetOption = options.find(o => o.name === 'user');
+  const manualId     = getOption(options, 'id')?.trim();
+  const targetId     = targetOption ? String(targetOption.value) : manualId || null;
+
+  // ── Cek izin ban untuk non-owner ──
+  const hasBanPerm = async () => {
+    if (isOwner) return true;
+    const permRaw = await env.USERS_KV.get(`banperm:${discordId}`);
+    if (!permRaw) return false;
+    const perm = JSON.parse(permRaw);
+    // Cek expired (30 hari)
+    if (Date.now() > perm.expiresAt) {
+      await env.USERS_KV.delete(`banperm:${discordId}`);
+      return false;
+    }
+    return true;
+  };
+
+  // ════════════════════════════════════════
+  // SUB: beli — Beli akses fitur ban
+  // ════════════════════════════════════════
+  if (sub === 'beli') {
+    if (isOwner) {
+      return respond(`> ${EMOJI} 👑 Kamu owner, akses ban sudah gratis!`);
+    }
+
+    // Cek sudah punya izin
+    const permRaw = await env.USERS_KV.get(`banperm:${discordId}`);
+    if (permRaw) {
+      const perm  = JSON.parse(permRaw);
+      const sisa  = Math.ceil((perm.expiresAt - Date.now()) / 86400000);
+      const expTgl = new Date(perm.expiresAt).toLocaleDateString('id-ID', {
+        day: '2-digit', month: 'long', year: 'numeric'
+      });
+      return respond([
+        `> ${EMOJI} ✅ Kamu sudah punya **akses ban aktif**!`,
+        `> 📅 Berlaku hingga: **${expTgl}** (sisa **${sisa} hari**)`,
+        `> 💡 Gunakan: \`/ban aksi:ban user:@target\``
+      ].join('\n'));
+    }
+
+    // Cek ada order pending
+    const pendingRaw = await env.USERS_KV.get(`banperm_pending:${discordId}`);
+    if (pendingRaw) {
+      const pending = JSON.parse(pendingRaw);
+      return respond([
+        '```ansi',
+        '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+        '\u001b[1;33m║  ⚠️   ORDER MASIH PENDING!  ⚠️        ║\u001b[0m',
+        '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+        '```',
+        `> 🆔 Order aktif: \`${pending.orderId}\``,
+        `> ⏳ Tunggu konfirmasi owner sebelum order baru.`
+      ].join('\n'));
+    }
+
+    // Buat order baru
+    const orderId = `BANPERM-${Date.now()}-${discordId.slice(-4)}`;
+    const waktu   = new Date().toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+
+    await Promise.all([
+      env.USERS_KV.put(`banperm_pending:${discordId}`, JSON.stringify({
+        orderId, discordId, username,
+        createdAt: Date.now()
+      }), { expirationTtl: 86400 }),
+      env.USERS_KV.put(`banperm_order:${orderId}`, JSON.stringify({
+        orderId, discordId, username,
+        status: 'pending', createdAt: Date.now()
+      }), { expirationTtl: 86400 * 7 })
+    ]);
+
+    // Kirim notif ke owner via webhook
+    const WEBHOOK = env.FEEDBACK_WEBHOOK_URL;
+    if (WEBHOOK) {
+      await fetch(WEBHOOK, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `<@${OWNER_ID}> 💰 **REQUEST BELI AKSES BAN!**`,
+          embeds: [{
+            color: 0xF1C40F,
+            title: '🛒 Request Akses Ban',
+            fields: [
+              { name: '👤 User',     value: `<@${discordId}> (\`${username}\` | \`${discordId}\`)`, inline: false },
+              { name: '💰 Harga',    value: '**Rp 1.000.000** (30 hari)',                           inline: true  },
+              { name: '🆔 Order ID', value: `\`${orderId}\``,                                       inline: true  },
+              { name: '🕐 Waktu',    value: `${waktu} WIB`,                                         inline: false },
+              {
+                name:  '⚡ Approve Command',
+                value: `\`\`\`/ban-approve id:${discordId} orderid:${orderId}\`\`\``,
+                inline: false
+              }
+            ],
+            footer: { text: 'OwoBim Ban Permission System' },
+            timestamp: new Date().toISOString()
+          }],
+          components: [{
+            type: 1,
+            components: [
+              {
+                type: 2, style: 3,
+                label: '✅ Approve Akses',
+                custom_id: `banperm_approve:${discordId}:${orderId}`
+              },
+              {
+                type: 2, style: 4,
+                label: '❌ Tolak',
+                custom_id: `banperm_reject:${discordId}:${orderId}`
+              }
+            ]
+          }]
+        })
+      });
+    }
+
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  🛒  REQUEST TERKIRIM!  🛒            ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '```ansi',
+      '\u001b[1;33m━━━━━━━━━━━━ 💰 DETAIL ━━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  🆔  Order ID  :\u001b[0m \u001b[0;37m${orderId}\u001b[0m`,
+      `\u001b[1;36m  💰  Harga     :\u001b[0m \u001b[1;33mRp 1.000.000\u001b[0m`,
+      `\u001b[1;36m  ⏳  Durasi    :\u001b[0m \u001b[0;37m30 hari akses penuh\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> 📬 Request sudah dikirim ke owner!`,
+      `> 💬 Hubungi **@${OWNER_UN}** untuk konfirmasi pembayaran.`,
+      `> ⏳ Setelah transfer, owner akan approve otomatis.`
+    ].join('\n'));
+  }
+
+  // ════════════════════════════════════════
+  // SUB: list — Lihat semua user yang dibanned
+  // ════════════════════════════════════════
+  if (sub === 'list') {
+    // Hanya owner & yang punya izin
+    const perm = await hasBanPerm();
+    if (!perm) {
+      return respond([
+        `> ${EMOJI} ❌ Kamu tidak punya **akses ban**!`,
+        `> 🛒 Beli akses: \`/ban aksi:beli\` (Rp 1.000.000 / 30 hari)`
+      ].join('\n'));
+    }
+
+    const { keys } = await env.USERS_KV.list({ prefix: 'botban:' });
+
+    if (keys.length === 0) {
+      return respond(`> ${EMOJI} ✅ Tidak ada user yang dibanned saat ini.`);
+    }
+
+    const banList = [];
+    for (const key of keys) {
+      const raw = await env.USERS_KV.get(key.name);
+      if (raw) {
+        const data = JSON.parse(raw);
+        const uid  = key.name.replace('botban:', '');
+        banList.push({ uid, ...data });
+      }
+    }
+
+    banList.sort((a, b) => b.bannedAt - a.bannedAt);
+
+    const rows = banList.map((b, i) => {
+      const tgl = new Date(b.bannedAt).toLocaleDateString('id-ID', {
+        day: '2-digit', month: 'short', year: 'numeric'
+      });
+      return [
+        `\u001b[1;31m ${String(i+1).padStart(2)}.\u001b[0m \u001b[1;37m${b.username || 'Unknown'}\u001b[0m \u001b[2;37m(${b.uid})\u001b[0m`,
+        `\u001b[2;37m     📋 ${(b.alasan || '-').slice(0, 40)} | 📅 ${tgl} | 👤 ${b.bannedByName || '?'}\u001b[0m`,
+      ].join('\n');
+    }).join('\n');
+
+    return respond([
+      '```ansi',
+      '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;31m║  🔨  BANNED USER LIST  🔨            ║\u001b[0m',
+      '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+      '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      rows,
+      '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  🔨  Total Banned :\u001b[0m \u001b[1;37m${banList.length} user\u001b[0m`,
+      '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> 💡 Unban: \`/ban aksi:unban id:USER_ID\``
+    ].join('\n'));
+  }
+
+  // ── Validasi targetId untuk ban & unban ──
+  if (!targetId) {
+    return respond([
+      `> ${EMOJI} ❌ Masukkan target user!`,
+      `> 💡 Gunakan \`user:@mention\` atau \`id:DISCORD_ID\``
+    ].join('\n'));
+  }
+
+  if (targetId === discordId) {
+    return respond(`> ${EMOJI} ❌ Tidak bisa ban diri sendiri!`);
+  }
+
+  if (targetId === OWNER_ID) {
+    return respond(`> ${EMOJI} ❌ Tidak bisa ban owner bot!`);
+  }
+
+  // ── Cek izin ──
+  const perm = await hasBanPerm();
+  if (!perm) {
+    return respond([
+      `> ${EMOJI} ❌ Kamu tidak punya **akses ban**!`,
+      `> 🛒 Beli akses: \`/ban aksi:beli\` (Rp 1.000.000 / 30 hari)`
+    ].join('\n'));
+  }
+
+  // ════════════════════════════════════════
+  // SUB: ban
+  // ════════════════════════════════════════
+  if (sub === 'ban') {
+    // Cek sudah dibanned
+    const existing = await env.USERS_KV.get(`botban:${targetId}`);
+    if (existing) {
+      const ex  = JSON.parse(existing);
+      const tgl = new Date(ex.bannedAt).toLocaleDateString('id-ID', {
+        day: '2-digit', month: 'long', year: 'numeric'
+      });
+      return respond([
+        `> ${EMOJI} ⚠️ User **${ex.username || targetId}** sudah dibanned sejak **${tgl}**!`,
+        `> 📋 Alasan: **${ex.alasan || '-'}**`,
+        `> 💡 Unban: \`/ban aksi:unban id:${targetId}\``
+      ].join('\n'));
+    }
+
+    // Ambil username target
+    let targetName = 'Unknown';
+    if (targetOption) {
+      const resolved = interaction.data.resolved?.users?.[targetId];
+      if (resolved) targetName = resolved.username;
+    } else {
+      try {
+        const res  = await fetch(`https://discord.com/api/v10/users/${targetId}`, {
+          headers: { 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` }
+        });
+        if (res.ok) {
+          const u  = await res.json();
+          targetName = u.username || 'Unknown';
+        }
+      } catch (_) {}
+    }
+
+    // Simpan data ban
+    const banData = {
+      username:      targetName,
+      alasan,
+      bannedAt:      Date.now(),
+      bannedBy:      discordId,
+      bannedByName:  username,
+    };
+
+    await env.USERS_KV.put(`botban:${targetId}`, JSON.stringify(banData));
+
+    // Kirim DM ke user yang dibanned
+    try {
+      const dmCh = await (await fetch('https://discord.com/api/v10/users/@me/channels', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+        body:    JSON.stringify({ recipient_id: targetId })
+      })).json();
+
+      if (dmCh.id) {
+        await fetch(`https://discord.com/api/v10/channels/${dmCh.id}/messages`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+          body: JSON.stringify({
+            content: [
+              '```ansi',
+              '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+              '\u001b[1;31m║  🔨  KAMU TELAH DIBANNED!  🔨        ║\u001b[0m',
+              '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+              '```',
+              '```ansi',
+              '\u001b[1;31m━━━━━━━━━━━━ ⛔ INFO BAN ━━━━━━━━━━━━━\u001b[0m',
+              `\u001b[1;36m  📋  Alasan      :\u001b[0m \u001b[1;37m${alasan}\u001b[0m`,
+              `\u001b[1;36m  👤  Dibanned    :\u001b[0m \u001b[0;37m${username}\u001b[0m`,
+              '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+              '```',
+              '> ❌ Kamu **tidak dapat** menggunakan **OWO BIM** lagi.',
+              '> 💬 Ingin lepas dari ban? Hubungi owner:',
+              `> 👤 **@${OWNER_UN}** di Discord`
+            ].join('\n')
+          })
+        });
+      }
+    } catch (_) {}
+
+    const waktu = new Date().toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+
+    return respond([
+      '```ansi',
+      '\u001b[2;31m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;31m║  🔨  USER BERHASIL DIBANNED!  🔨     ║\u001b[0m',
+      '\u001b[2;31m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      '```ansi',
+      '\u001b[1;31m━━━━━━━━━━━━ 📋 DETAIL BAN ━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  👤  Target     :\u001b[0m \u001b[1;37m${targetName}\u001b[0m`,
+      `\u001b[1;36m  🆔  ID         :\u001b[0m \u001b[2;37m${targetId}\u001b[0m`,
+      `\u001b[1;36m  📋  Alasan     :\u001b[0m \u001b[0;37m${alasan}\u001b[0m`,
+      `\u001b[1;36m  🕐  Waktu      :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+      `\u001b[1;36m  👮  Oleh       :\u001b[0m \u001b[0;37m${username}\u001b[0m`,
+      '\u001b[1;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> ✅ **${targetName}** tidak bisa menggunakan bot lagi.`,
+      `> 📩 DM peringatan sudah dikirim ke user.`,
+      `> 💡 Unban: \`/ban aksi:unban id:${targetId}\``
+    ].join('\n'));
+  }
+
+  // ════════════════════════════════════════
+  // SUB: unban
+  // ════════════════════════════════════════
+  if (sub === 'unban') {
+    const existing = await env.USERS_KV.get(`botban:${targetId}`);
+    if (!existing) {
+      return respond([
+        `> ${EMOJI} ❌ User \`${targetId}\` tidak dalam daftar banned!`
+      ].join('\n'));
+    }
+
+    const ex = JSON.parse(existing);
+    await env.USERS_KV.delete(`botban:${targetId}`);
+
+    // Kirim DM notif unban
+    try {
+      const dmCh = await (await fetch('https://discord.com/api/v10/users/@me/channels', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+        body:    JSON.stringify({ recipient_id: targetId })
+      })).json();
+
+      if (dmCh.id) {
+        await fetch(`https://discord.com/api/v10/channels/${dmCh.id}/messages`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bot ${env.DISCORD_BOT_TOKEN}` },
+          body: JSON.stringify({
+            content: [
+              '```ansi',
+              '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+              '\u001b[1;32m║  ✅  BAN KAMU DICABUT!  ✅            ║\u001b[0m',
+              '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+              '```',
+              '> 🎉 Ban kamu dari **OWO BIM** sudah dicabut!',
+              '> ✅ Kamu **sudah bisa** menggunakan bot lagi.',
+              `> 👤 Dicabut oleh: **${username}**`
+            ].join('\n')
+          })
+        });
+      }
+    } catch (_) {}
+
+    return respond([
+      '```ansi',
+      '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;32m║  ✅  USER BERHASIL DIUNBAN!  ✅       ║\u001b[0m',
+      '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+      '```',
+      `> ✅ **${ex.username || targetId}** (\`${targetId}\`) sudah diunban!`,
+      `> 🎉 User sekarang bisa menggunakan bot lagi.`,
+      `> 📩 DM notifikasi sudah dikirim ke user.`
+    ].join('\n'));
+  }
+
+  return respond(`> ❌ Aksi tidak dikenal! Gunakan: \`ban\`, \`unban\`, \`list\`, \`beli\``);
+}
+// ══════════════════════════════════════════════════════════════════════
+// END CMD: ban
 // ══════════════════════════════════════════════════════════════════════
 
 
