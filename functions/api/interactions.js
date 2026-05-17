@@ -15772,7 +15772,7 @@ if (cmd === 'sponsor') {
 if (cmd === 'iklan') {
   const EMOJI         = '<a:GifOwoBim:1492599199038967878>';
   const COOLDOWN_MS   = 2 * 60 * 60 * 1000; // 2 jam
-  const KOIN_REWARD   = 50;
+  const KOIN_REWARD   = 5;
   const TOKEN_TTL     = 10 * 60 * 1000;     // 10 menit
   const WORKER_URL    = 'https://iklan.internetdnsofficial.workers.dev'; // ganti sesuai domain kamu
   const BOT_SECRET    = env.BOT_SECRET;
