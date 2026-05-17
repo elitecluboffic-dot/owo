@@ -1747,10 +1747,22 @@ const commands = [
 
 
 
-  {
+{
   name: 'iklan',
   description: '📺 Tonton iklan & dapatkan koin!',
-  options: []
+  options: [
+    {
+      name: 'aksi',
+      description: 'Pilih aksi',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '📺 Tonton — Dapat link iklan',      value: 'tonton' },
+        { name: '🎁 Klaim  — Klaim koin setelah nonton', value: 'klaim'  },
+        { name: '📊 Info   — Cek status & total koin',   value: 'info'   },
+      ]
+    }
+  ]
 },
 
 
