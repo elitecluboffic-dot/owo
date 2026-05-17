@@ -1743,6 +1743,67 @@ const commands = [
       required: false
     }
   ]
+},
+
+
+
+  {
+  name: 'iklan',
+  description: '📺 Tonton iklan & dapatkan koin!',
+  options: []
+},
+
+
+
+  {
+  name: 'tukar',
+  description: '💸 Tukar koin ke uang asli',
+  options: [
+    {
+      name: 'aksi',
+      description: 'Pilih aksi',
+      type: 3,
+      required: false,
+      choices: [
+        { name: '📋 List     — Lihat daftar harga tukar',        value: 'list'    },
+        { name: '💸 Cairkan  — Ajukan penukaran koin ke cash',   value: 'cairkan' },
+        { name: '📜 Riwayat  — Lihat riwayat tukar kamu',       value: 'riwayat' },
+        { name: '✅ Approve  — Setujui request (Owner)',         value: 'approve' },
+        { name: '❌ Reject   — Tolak request (Owner)',           value: 'reject'  },
+        { name: '📊 Pending  — Lihat semua request (Owner)',     value: 'pending' },
+      ]
+    },
+    {
+      name: 'jumlah',
+      description: 'Jumlah koin yang mau ditukar',
+      type: 4, // INTEGER
+      required: false
+    },
+    {
+      name: 'rekening',
+      description: 'Nomor rekening/GoPay/OVO/DANA/DLL tujuan',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'bank',
+      description: 'Nama bank/e-wallet (SeaBank, GoPay, OVO, dll)',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'id',
+      description: 'Request ID untuk approve/reject (Owner)',
+      type: 3,
+      required: false
+    },
+    {
+      name: 'catatan',
+      description: 'Catatan untuk reject (opsional)',
+      type: 3,
+      required: false
+    }
+  ]
 }
 
 
