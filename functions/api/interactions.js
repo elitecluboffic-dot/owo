@@ -14974,7 +14974,7 @@ if (cmd === 'ban') {
             title: '🛒 Request Akses Ban',
             fields: [
               { name: '👤 User',     value: `<@${discordId}> (\`${username}\` | \`${discordId}\`)`, inline: false },
-              { name: '💰 Harga',    value: '**Rp 100.000** (30 hari)',                           inline: true  },
+              { name: '💰 Harga',    value: '**Rp 500.000** (30 hari)',                             inline: true  },
               { name: '🆔 Order ID', value: `\`${newOrderId}\``,                                    inline: true  },
               { name: '🕐 Waktu',    value: `${waktu} WIB`,                                         inline: false },
               {
@@ -15011,7 +15011,7 @@ if (cmd === 'ban') {
       '```ansi',
       '\u001b[1;33m━━━━━━━━━━━━ 💰 DETAIL ORDER ━━━━━━━━━━\u001b[0m',
       `\u001b[1;36m  🆔  Order ID  :\u001b[0m \u001b[0;37m${newOrderId}\u001b[0m`,
-      `\u001b[1;36m  💰  Harga     :\u001b[0m \u001b[1;33mRp 100.000\u001b[0m`,
+      `\u001b[1;36m  💰  Harga     :\u001b[0m \u001b[1;33mRp 500.000\u001b[0m`,
       `\u001b[1;36m  ⏳  Durasi    :\u001b[0m \u001b[0;37m30 hari akses penuh\u001b[0m`,
       '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
       '```',
@@ -15202,7 +15202,7 @@ if (cmd === 'ban') {
     if (!perm) {
       return respond([
         `> ${EMOJI} ❌ Kamu tidak punya **akses ban**!`,
-        `> 🛒 Beli akses: \`/ban aksi:beli\` (Rp 100.000 / 30 hari)`
+        `> 🛒 Beli akses: \`/ban aksi:beli\` (Rp 500.000 / 30 hari)`
       ].join('\n'));
     }
  
@@ -15268,7 +15268,7 @@ if (cmd === 'ban') {
   if (!perm) {
     return respond([
       `> ${EMOJI} ❌ Kamu tidak punya **akses ban**!`,
-      `> 🛒 Beli akses: \`/ban aksi:beli\` (Rp 100.000 / 30 hari)`
+      `> 🛒 Beli akses: \`/ban aksi:beli\` (Rp 500.000 / 30 hari)`
     ].join('\n'));
   }
  
