@@ -14875,7 +14875,7 @@ if (cmd === 'pastebin') {
 
 
 
-    if (cmd === 'ban') {
+if (cmd === 'ban') {
   const EMOJI    = '<a:GifOwoBim:1492599199038967878>';
   const OWNER_ID = '1442230317455900823';
   const OWNER_UN = 'bimxr';
@@ -14968,6 +14968,7 @@ if (cmd === 'pastebin') {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: `<@${OWNER_ID}> 💰 **REQUEST BELI AKSES BAN!**`,
+          allowed_mentions: { users: [OWNER_ID] },
           embeds: [{
             color: 0xF1C40F,
             title: '🛒 Request Akses Ban',
@@ -15018,7 +15019,7 @@ if (cmd === 'pastebin') {
       '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
       '```',
       `> 📬 Request sudah dikirim ke owner!`,
-      `> 💬 Hubungi **@${OWNER_UN}** untuk konfirmasi pembayaran.`,
+      `> 💬 Hubungi <@${OWNER_ID}> untuk konfirmasi pembayaran.`,
       `> ⏳ Setelah transfer, owner akan approve otomatis.`
     ].join('\n'));
   }
@@ -15177,7 +15178,7 @@ if (cmd === 'pastebin') {
               '```',
               '> ❌ Kamu **tidak dapat** menggunakan **OWO BIM** lagi.',
               '> 💬 Ingin lepas dari ban? Hubungi owner:',
-              `> 👤 **@${OWNER_UN}** di Discord`
+              `> 👤 <@${OWNER_ID}> di Discord`
             ].join('\n')
           })
         });
@@ -15270,7 +15271,6 @@ if (cmd === 'pastebin') {
 // ══════════════════════════════════════════════════════════════════════
 // END CMD: ban
 // ══════════════════════════════════════════════════════════════════════
-
 
 
 
