@@ -13837,6 +13837,853 @@ if (cmd === 'tetris') {
   );
 }
 
+
+
+
+
+
+
+
+
+    // ══════════════════════════════════════════════════════════════════════
+// CMD: pastebin — Pastebin Integration Full Pro
+// Provider: Pastebin API v2
+// Env: PASTEBIN_API_KEY (wajib), PASTEBIN_USERNAME, PASTEBIN_PASSWORD (untuk login)
+// KV Keys:
+//   pastebin:history:{userId}   → riwayat paste user (max 20)
+//   pastebin:stats:{userId}     → statistik penggunaan
+//   pastebin:favorites:{userId} → paste favorit user
+//   pastebin:cd:{userId}        → cooldown anti-spam
+// ══════════════════════════════════════════════════════════════════════
+if (cmd === 'pastebin') {
+  const EMOJI = '<a:GifOwoBim:1492599199038967878>';
+  const sub   = getOption(options, 'aksi') || 'create';
+
+  if (!env.PASTEBIN_API_KEY) {
+    return respond(`> ${EMOJI} ❌ \`PASTEBIN_API_KEY\` belum diset di Cloudflare env!\n> 💡 Daftar gratis di https://pastebin.com/api`);
+  }
+
+  // ── Cooldown 10 detik per user ──
+  const cdKey  = `pastebin:cd:${discordId}`;
+  const lastCd = await env.USERS_KV.get(cdKey);
+  if (lastCd && sub !== 'history' && sub !== 'stats' && sub !== 'favorites') {
+    const sisa = 10000 - (Date.now() - parseInt(lastCd));
+    if (sisa > 0) {
+      return respond(`> ${EMOJI} ⏳ Cooldown! Tunggu **${Math.ceil(sisa / 1000)} detik** lagi.`);
+    }
+  }
+
+  // ── Pastebin API helper ──
+  const pbPost = async (formData) => {
+    const res = await fetch('https://pastebin.com/api/api_post.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body:    new URLSearchParams({ api_dev_key: env.PASTEBIN_API_KEY, ...formData })
+    });
+    const text = await res.text();
+    return text;
+  };
+
+  // ── Login untuk akun paste (opsional) ──
+  const getUserKey = async () => {
+    if (!env.PASTEBIN_USERNAME || !env.PASTEBIN_PASSWORD) return null;
+    const cacheKey = `pastebin:userkey:${discordId}`;
+    const cached   = await env.USERS_KV.get(cacheKey);
+    if (cached) return cached;
+    try {
+      const res = await fetch('https://pastebin.com/api/api_login.php', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:    new URLSearchParams({
+          api_dev_key:       env.PASTEBIN_API_KEY,
+          api_user_login:    env.PASTEBIN_USERNAME,
+          api_user_password: env.PASTEBIN_PASSWORD
+        })
+      });
+      const key = await res.text();
+      if (key.startsWith('Bad API request')) return null;
+      await env.USERS_KV.put(cacheKey, key, { expirationTtl: 86400 });
+      return key;
+    } catch (_) { return null; }
+  };
+
+  // ── Format waktu relatif ──
+  const timeAgo = (ts) => {
+    const diff = Date.now() - ts;
+    if (diff < 60000)   return `${Math.floor(diff/1000)}d lalu`;
+    if (diff < 3600000) return `${Math.floor(diff/60000)}m lalu`;
+    if (diff < 86400000) return `${Math.floor(diff/3600000)}j lalu`;
+    return `${Math.floor(diff/86400000)} hari lalu`;
+  };
+
+  // ── Syntax highlight mapping ──
+  const SYNTAX_MAP = {
+    js:         'javascript', javascript: 'javascript',
+    ts:         'typescript', typescript: 'typescript',
+    py:         'python',     python:     'python',
+    java:       'java',       kt:         'kotlin',
+    kotlin:     'kotlin',     cs:         'csharp',
+    csharp:     'csharp',     cpp:        'cpp',
+    c:          'c',          go:         'go',
+    rs:         'rust',       rust:       'rust',
+    php:        'php',        rb:         'ruby',
+    ruby:       'ruby',       swift:      'swift',
+    sh:         'bash',       bash:       'bash',
+    sql:        'sql',        html:       'html5',
+    css:        'css',        json:       'javascript',
+    xml:        'xml',        yaml:       'yaml',
+    md:         'markdown',   markdown:   'markdown',
+    lua:        'lua',        r:          'rsplus',
+    txt:        'text',       text:       'text',
+    none:       'text',       auto:       'text',
+  };
+
+  // ── Expiry mapping ──
+  const EXPIRY_MAP = {
+    never: 'N',  '10m': '10M', '1h': '1H',  '1d': '1D',
+    '1w': '1W',  '2w':  '2W', '1mo': '1M', '6mo': '6M', '1y': '1Y'
+  };
+
+  // ── Privacy mapping ──
+  const PRIVACY_MAP = {
+    public: '0', unlisted: '1', private: '2'
+  };
+
+  // ══════════════════════════════════════════════════════════
+  // SUB: create — Buat paste baru
+  // ══════════════════════════════════════════════════════════
+  if (sub === 'create') {
+    const konten  = getOption(options, 'konten');
+    const judul   = getOption(options, 'judul')   || `OwoBim Paste — ${username}`;
+    const syntax  = (getOption(options, 'syntax')  || 'text').toLowerCase();
+    const expiry  = (getOption(options, 'expiry')  || 'never').toLowerCase();
+    const privacy = (getOption(options, 'privacy') || 'unlisted').toLowerCase();
+
+    if (!konten || konten.trim() === '') {
+      return respond(`> ${EMOJI} ❌ Konten paste tidak boleh kosong!\n> 💡 Contoh: \`/pastebin aksi:create konten:console.log('Hello!')\``);
+    }
+    if (konten.length > 500000) {
+      return respond(`> ${EMOJI} ❌ Konten terlalu panjang! Maksimal **500.000 karakter**. (kamu: **${konten.length.toLocaleString('id-ID')}**)`);
+    }
+
+    const apiSyntax  = SYNTAX_MAP[syntax]  || 'text';
+    const apiExpiry  = EXPIRY_MAP[expiry]  || 'N';
+    const apiPrivacy = PRIVACY_MAP[privacy] || '1';
+
+    await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
+
+    waitUntil((async () => {
+      const editMsg = async (content, embeds) => {
+        await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(embeds ? { content: content || '', embeds } : { content })
+        });
+      };
+
+      try {
+        const userKey = await getUserKey();
+
+        const formData = {
+          api_option:           'paste',
+          api_paste_code:       konten,
+          api_paste_name:       judul.slice(0, 100),
+          api_paste_format:     apiSyntax,
+          api_paste_expire_date: apiExpiry,
+          api_paste_private:    apiPrivacy,
+        };
+        if (userKey) formData.api_user_key = userKey;
+
+        const result = await pbPost(formData);
+
+        if (result.startsWith('Bad API request') || result.startsWith('Post limit')) {
+          // Cek apakah ini limit per hari
+          if (result.includes('limit')) {
+            return await editMsg(`> ${EMOJI} ❌ Limit harian Pastebin tercapai! (Free: 10 paste/hari)\n> 💡 Coba lagi besok atau upgrade ke Pastebin Pro.`);
+          }
+          return await editMsg(`> ${EMOJI} ❌ Pastebin API Error: \`${result}\``);
+        }
+
+        if (!result.startsWith('https://')) {
+          return await editMsg(`> ${EMOJI} ❌ Response tidak valid dari Pastebin: \`${result.slice(0, 100)}\``);
+        }
+
+        // ── Ambil raw URL ──
+        const pasteId  = result.replace('https://pastebin.com/', '');
+        const rawUrl   = `https://pastebin.com/raw/${pasteId}`;
+        const cloneUrl = `https://pastebin.com/clone/${pasteId}`;
+
+        // ── Simpan ke history ──
+        const histKey  = `pastebin:history:${discordId}`;
+        const histRaw  = await env.USERS_KV.get(histKey);
+        const history  = histRaw ? JSON.parse(histRaw) : [];
+        history.unshift({
+          id:        pasteId,
+          url:       result,
+          rawUrl,
+          judul:     judul.slice(0, 60),
+          syntax:    apiSyntax,
+          expiry,
+          privacy,
+          charCount: konten.length,
+          createdAt: Date.now(),
+        });
+        if (history.length > 20) history.pop();
+        await env.USERS_KV.put(histKey, JSON.stringify(history), { expirationTtl: 86400 * 365 });
+
+        // ── Update stats ──
+        const statsKey = `pastebin:stats:${discordId}`;
+        const statsRaw = await env.USERS_KV.get(statsKey);
+        const stats    = statsRaw
+          ? JSON.parse(statsRaw)
+          : { total: 0, totalChars: 0, bySyntax: {}, byPrivacy: {}, firstPaste: Date.now() };
+        stats.total++;
+        stats.totalChars                += konten.length;
+        stats.bySyntax[apiSyntax]        = (stats.bySyntax[apiSyntax]  || 0) + 1;
+        stats.byPrivacy[privacy]         = (stats.byPrivacy[privacy]   || 0) + 1;
+        if (!stats.firstPaste) stats.firstPaste = Date.now();
+        await env.USERS_KV.put(statsKey, JSON.stringify(stats), { expirationTtl: 86400 * 365 });
+
+        // ── Privasi label ──
+        const privacyLabel = {
+          public:   '🌐 Public', unlisted: '🔗 Unlisted', private: '🔒 Private'
+        }[privacy] || '🔗 Unlisted';
+
+        const waktu = new Date().toLocaleString('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          day: '2-digit', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        });
+
+        // ── Preview konten (50 char pertama) ──
+        const preview = konten.trim().slice(0, 80).replace(/\n/g, ' ');
+        const previewDisplay = preview + (konten.length > 80 ? '...' : '');
+
+        await editMsg('', [{
+          color: 0x57AB5A,
+          title: `📋 Paste Berhasil Dibuat!`,
+          url:   result,
+          description: [
+            '```ansi',
+            '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;32m║  📋  PASTE CREATED!  📋             ║\u001b[0m',
+            '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━━ 📋 DETAIL PASTE ━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m  📝  Judul     :\u001b[0m \u001b[1;37m${judul.slice(0, 50)}\u001b[0m`,
+            `\u001b[1;36m  🆔  Paste ID  :\u001b[0m \u001b[2;37m${pasteId}\u001b[0m`,
+            `\u001b[1;36m  🔤  Syntax    :\u001b[0m \u001b[0;37m${apiSyntax}\u001b[0m`,
+            `\u001b[1;36m  📏  Ukuran    :\u001b[0m \u001b[0;37m${konten.length.toLocaleString('id-ID')} karakter\u001b[0m`,
+            `\u001b[1;36m  🔒  Privasi   :\u001b[0m \u001b[0;37m${privacyLabel}\u001b[0m`,
+            `\u001b[1;36m  ⏳  Expired   :\u001b[0m \u001b[0;37m${expiry === 'never' ? 'Tidak pernah' : expiry}\u001b[0m`,
+            `\u001b[1;36m  🕐  Dibuat    :\u001b[0m \u001b[0;37m${waktu} WIB\u001b[0m`,
+            `\u001b[1;36m  👤  Oleh      :\u001b[0m \u001b[0;37m${username}\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '\u001b[1;32m━━━━━━━━━━━━ 🔗 LINKS ━━━━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m  🌐  URL       :\u001b[0m \u001b[0;37m${result}\u001b[0m`,
+            `\u001b[1;36m  📄  Raw       :\u001b[0m \u001b[0;37m${rawUrl}\u001b[0m`,
+            '\u001b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            previewDisplay ? `> 💬 Preview: *${previewDisplay}*` : null,
+            `> 📊 Total paste kamu: **${stats.total}**`,
+            `> 🤖 *Powered by OwoBim Pastebin Engine × Pastebin.com* ${EMOJI}`,
+          ].filter(Boolean).join('\n'),
+          footer:    { text: `OwoBim Pastebin • ${pasteId} • ${privacyLabel}` },
+          timestamp: new Date().toISOString(),
+        }]);
+
+      } catch (err) {
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // SUB: read — Baca konten paste
+  // ══════════════════════════════════════════════════════════
+  if (sub === 'read') {
+    const urlOrId = getOption(options, 'url')?.trim();
+    const limit   = Math.min(parseInt(getOption(options, 'baris') || '20'), 50);
+
+    if (!urlOrId) {
+      return respond(`> ${EMOJI} ❌ Masukkan URL atau ID paste!\n> 💡 Contoh: \`/pastebin aksi:read url:https://pastebin.com/XXXXXXXX\``);
+    }
+
+    // Ekstrak paste ID dari URL atau langsung pakai
+    const pasteId = urlOrId
+      .replace('https://pastebin.com/raw/', '')
+      .replace('https://pastebin.com/', '')
+      .replace(/\/$/, '')
+      .trim();
+
+    if (!pasteId || pasteId.length < 3 || pasteId.length > 12) {
+      return respond(`> ${EMOJI} ❌ Paste ID tidak valid! (${pasteId})`);
+    }
+
+    await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
+
+    waitUntil((async () => {
+      const editMsg = async (content, embeds) => {
+        await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(embeds ? { content: content || '', embeds } : { content })
+        });
+      };
+
+      try {
+        const rawUrl = `https://pastebin.com/raw/${pasteId}`;
+        const res    = await fetch(rawUrl, {
+          headers: { 'User-Agent': 'OwoBimBot/1.0' },
+          signal:  AbortSignal.timeout(10000)
+        });
+
+        if (!res.ok) {
+          if (res.status === 404) {
+            return await editMsg(`> ${EMOJI} ❌ Paste **\`${pasteId}\`** tidak ditemukan! Mungkin private atau sudah dihapus.`);
+          }
+          if (res.status === 403) {
+            return await editMsg(`> ${EMOJI} ❌ Paste **\`${pasteId}\`** bersifat **Private** dan tidak bisa dibaca publik.`);
+          }
+          return await editMsg(`> ${EMOJI} ❌ Gagal membaca paste! Status: ${res.status}`);
+        }
+
+        const content  = await res.text();
+        const lines    = content.split('\n');
+        const lineCount = lines.length;
+        const charCount = content.length;
+
+        // Ambil N baris pertama
+        const preview = lines.slice(0, limit).join('\n');
+        const truncated = lineCount > limit;
+
+        // Cek apakah content binary (non-text)
+        const isBinary = /[\x00-\x08\x0E-\x1F\x7F-\x9F]/.test(content.slice(0, 500));
+
+        if (isBinary) {
+          return await editMsg(`> ${EMOJI} ❌ Paste ini berisi konten binary/non-teks dan tidak bisa ditampilkan.`);
+        }
+
+        // Potong kalau terlalu panjang untuk Discord (max 1800 char di code block)
+        let displayContent = preview;
+        if (displayContent.length > 1500) {
+          displayContent = displayContent.slice(0, 1500) + '\n... [dipotong]';
+        }
+
+        const pasteUrl = `https://pastebin.com/${pasteId}`;
+
+        await editMsg('', [{
+          color: 0x3498DB,
+          title: `📄 Paste: ${pasteId}`,
+          url:   pasteUrl,
+          description: [
+            '```ansi',
+            '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[2;34m║  \u001b[1;34m📄  PASTE VIEWER  📄\u001b[0m                \u001b[2;34m║\u001b[0m',
+            '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            '```ansi',
+            '\u001b[1;33m━━━━━━━━━━━━ 📊 INFO ━━━━━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m  🆔  Paste ID  :\u001b[0m \u001b[0;37m${pasteId}\u001b[0m`,
+            `\u001b[1;36m  📏  Karakter  :\u001b[0m \u001b[0;37m${charCount.toLocaleString('id-ID')}\u001b[0m`,
+            `\u001b[1;36m  📋  Baris     :\u001b[0m \u001b[0;37m${lineCount.toLocaleString('id-ID')}\u001b[0m`,
+            `\u001b[1;36m  👁️   Tampilkan :\u001b[0m \u001b[0;37m${Math.min(limit, lineCount)} baris\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            '```',
+            '```',
+            displayContent,
+            '```',
+            truncated ? `> ⚠️ Menampilkan **${limit}/${lineCount}** baris. Gunakan \`baris:50\` untuk lebih banyak.` : null,
+            `> 🔗 [Buka di Pastebin](${pasteUrl}) | [Raw](${rawUrl})`,
+          ].filter(Boolean).join('\n'),
+          footer:    { text: `OwoBim Pastebin • ${pasteId} • ${charCount.toLocaleString('id-ID')} chars` },
+          timestamp: new Date().toISOString(),
+        }]);
+
+      } catch (err) {
+        if (err.name === 'TimeoutError') {
+          return await editMsg(`> ${EMOJI} ❌ Timeout! Paste terlalu lama diambil. Coba lagi.`);
+        }
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // SUB: delete — Hapus paste milik sendiri
+  // ══════════════════════════════════════════════════════════
+  if (sub === 'delete') {
+    const urlOrId = getOption(options, 'url')?.trim();
+    if (!urlOrId) {
+      return respond(`> ${EMOJI} ❌ Masukkan URL atau ID paste yang mau dihapus!`);
+    }
+
+    const pasteId = urlOrId
+      .replace('https://pastebin.com/raw/', '')
+      .replace('https://pastebin.com/', '')
+      .replace(/\/$/, '')
+      .trim();
+
+    await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
+
+    waitUntil((async () => {
+      const editMsg = async (content) => {
+        await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ content })
+        });
+      };
+
+      try {
+        const userKey = await getUserKey();
+        if (!userKey) {
+          return await editMsg(`> ${EMOJI} ❌ Fitur delete butuh \`PASTEBIN_USERNAME\` & \`PASTEBIN_PASSWORD\` di Cloudflare env!\n> 💡 Ini untuk verifikasi bahwa paste adalah milikmu.`);
+        }
+
+        const result = await pbPost({
+          api_option:    'delete',
+          api_user_key:  userKey,
+          api_paste_key: pasteId,
+        });
+
+        // ── Hapus dari history lokal ──
+        const histKey = `pastebin:history:${discordId}`;
+        const histRaw = await env.USERS_KV.get(histKey);
+        if (histRaw) {
+          const history = JSON.parse(histRaw).filter(p => p.id !== pasteId);
+          await env.USERS_KV.put(histKey, JSON.stringify(history), { expirationTtl: 86400 * 365 });
+        }
+
+        // ── Hapus dari favorites juga kalau ada ──
+        const favKey = `pastebin:favorites:${discordId}`;
+        const favRaw = await env.USERS_KV.get(favKey);
+        if (favRaw) {
+          const favs = JSON.parse(favRaw).filter(p => p.id !== pasteId);
+          await env.USERS_KV.put(favKey, JSON.stringify(favs), { expirationTtl: 86400 * 365 });
+        }
+
+        if (result === 'Paste Removed') {
+          return await editMsg([
+            '```ansi',
+            '\u001b[2;32m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[1;32m║  ✅  PASTE DIHAPUS!  ✅             ║\u001b[0m',
+            '\u001b[2;32m╚══════════════════════════════════════╝\u001b[0m',
+            '```',
+            `> ${EMOJI} ✅ Paste **\`${pasteId}\`** berhasil dihapus dari Pastebin!`,
+            `> 📋 History lokal juga diperbarui.`
+          ].join('\n'));
+        } else {
+          return await editMsg(`> ${EMOJI} ❌ Gagal hapus paste: \`${result}\`\n> 💡 Pastikan paste ini milik akunmu.`);
+        }
+      } catch (err) {
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // SUB: history — Riwayat paste user
+  // ══════════════════════════════════════════════════════════
+  if (sub === 'history') {
+    const histKey = `pastebin:history:${discordId}`;
+    const histRaw = await env.USERS_KV.get(histKey);
+    const history = histRaw ? JSON.parse(histRaw) : [];
+
+    if (history.length === 0) {
+      return respond([
+        `> ${EMOJI} 📭 Belum ada riwayat paste!`,
+        `> 💡 Buat paste pertamamu: \`/pastebin aksi:create konten:Hello World!\``,
+      ].join('\n'));
+    }
+
+    const privacyEmoji = { public: '🌐', unlisted: '🔗', private: '🔒' };
+    const rows = history.slice(0, 10).map((p, i) => {
+      const pe = privacyEmoji[p.privacy] || '🔗';
+      const age = timeAgo(p.createdAt);
+      return [
+        `\u001b[1;36m ${String(i+1).padStart(2)}.\u001b[0m \u001b[1;37m${p.judul.slice(0, 35)}\u001b[0m`,
+        `\u001b[2;37m     ${pe} ${p.privacy.padEnd(8)} | ${p.syntax.padEnd(12)} | ${p.charCount.toLocaleString('id-ID')} chars | ${age}\u001b[0m`,
+        `\u001b[2;37m     🔗 pastebin.com/${p.id}\u001b[0m`
+      ].join('\n');
+    }).join('\n');
+
+    const totalChars = history.reduce((s, p) => s + p.charCount, 0);
+
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      `\u001b[2;34m║  \u001b[1;34m📋  RIWAYAT PASTE — ${username.slice(0,12).padEnd(12)}\u001b[0m   \u001b[2;34m║\u001b[0m`,
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      rows,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  📊  Total Paste  :\u001b[0m \u001b[0;37m${history.length}/20 tersimpan\u001b[0m`,
+      `\u001b[1;36m  📏  Total Chars  :\u001b[0m \u001b[0;37m${totalChars.toLocaleString('id-ID')}\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
+      '```',
+      `> 💡 Buka paste: \`/pastebin aksi:read url:https://pastebin.com/XXXX\``,
+      `> ⭐ Favorit: \`/pastebin aksi:favorite url:https://pastebin.com/XXXX\``,
+    ].join('\n'));
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // SUB: favorite — Tambah paste ke favorit
+  // ══════════════════════════════════════════════════════════
+  if (sub === 'favorite') {
+    const urlOrId = getOption(options, 'url')?.trim();
+    const catatan = getOption(options, 'catatan') || '';
+
+    if (!urlOrId) {
+      return respond(`> ${EMOJI} ❌ Masukkan URL atau ID paste!`);
+    }
+
+    const pasteId = urlOrId
+      .replace('https://pastebin.com/raw/', '')
+      .replace('https://pastebin.com/', '')
+      .replace(/\/$/, '')
+      .trim();
+
+    const favKey = `pastebin:favorites:${discordId}`;
+    const favRaw = await env.USERS_KV.get(favKey);
+    const favs   = favRaw ? JSON.parse(favRaw) : [];
+
+    // Cek duplikat
+    if (favs.some(f => f.id === pasteId)) {
+      return respond(`> ${EMOJI} ⭐ Paste **\`${pasteId}\`** sudah ada di favoritmu!\n> 💡 Lihat: \`/pastebin aksi:favorites\``);
+    }
+
+    if (favs.length >= 20) {
+      return respond(`> ${EMOJI} ❌ Daftar favorit penuh! Maksimal **20 paste**.\n> 💡 Hapus dulu yang lama dengan \`/pastebin aksi:unfavorite\``);
+    }
+
+    favs.unshift({
+      id:       pasteId,
+      url:      `https://pastebin.com/${pasteId}`,
+      catatan:  catatan.slice(0, 50),
+      addedAt:  Date.now(),
+    });
+
+    await env.USERS_KV.put(favKey, JSON.stringify(favs), { expirationTtl: 86400 * 365 });
+
+    return respond([
+      `> ${EMOJI} ⭐ Paste **\`${pasteId}\`** berhasil ditambahkan ke favorit!`,
+      catatan ? `> 📝 Catatan: *${catatan.slice(0, 50)}*` : null,
+      `> 📋 Total favorit: **${favs.length}/20**`,
+    ].filter(Boolean).join('\n'));
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // SUB: unfavorite — Hapus dari favorit
+  // ══════════════════════════════════════════════════════════
+  if (sub === 'unfavorite') {
+    const urlOrId = getOption(options, 'url')?.trim();
+    if (!urlOrId) return respond(`> ${EMOJI} ❌ Masukkan URL atau ID paste!`);
+
+    const pasteId = urlOrId
+      .replace('https://pastebin.com/raw/', '')
+      .replace('https://pastebin.com/', '')
+      .replace(/\/$/, '')
+      .trim();
+
+    const favKey = `pastebin:favorites:${discordId}`;
+    const favRaw = await env.USERS_KV.get(favKey);
+    const favs   = favRaw ? JSON.parse(favRaw) : [];
+    const before = favs.length;
+    const newFavs = favs.filter(f => f.id !== pasteId);
+
+    if (newFavs.length === before) {
+      return respond(`> ${EMOJI} ❌ Paste **\`${pasteId}\`** tidak ada di favoritmu!`);
+    }
+
+    await env.USERS_KV.put(favKey, JSON.stringify(newFavs), { expirationTtl: 86400 * 365 });
+    return respond(`> ${EMOJI} ✅ Paste **\`${pasteId}\`** dihapus dari favorit! Sisa: **${newFavs.length}/20**`);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // SUB: favorites — Lihat daftar favorit
+  // ══════════════════════════════════════════════════════════
+  if (sub === 'favorites') {
+    const favKey = `pastebin:favorites:${discordId}`;
+    const favRaw = await env.USERS_KV.get(favKey);
+    const favs   = favRaw ? JSON.parse(favRaw) : [];
+
+    if (favs.length === 0) {
+      return respond([
+        `> ${EMOJI} ⭐ Belum ada paste favorit!`,
+        `> 💡 Tambahkan: \`/pastebin aksi:favorite url:https://pastebin.com/XXXX\``,
+      ].join('\n'));
+    }
+
+    const rows = favs.map((f, i) => {
+      const age = timeAgo(f.addedAt);
+      return [
+        `\u001b[1;33m ${String(i+1).padStart(2)}. \u001b[1;37m${f.catatan || f.id}\u001b[0m`,
+        `\u001b[2;37m     pastebin.com/${f.id} | ditambahkan ${age}\u001b[0m`,
+      ].join('\n');
+    }).join('\n');
+
+    return respond([
+      '```ansi',
+      '\u001b[2;33m╔══════════════════════════════════════╗\u001b[0m',
+      `\u001b[2;33m║  \u001b[1;33m⭐  PASTE FAVORIT — ${username.slice(0,12).padEnd(12)}\u001b[0m   \u001b[2;33m║\u001b[0m`,
+      '\u001b[2;33m╚══════════════════════════════════════╝\u001b[0m',
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      rows,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  ⭐  Total  :\u001b[0m \u001b[0;37m${favs.length}/20 favorit\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> 👁️ Baca: \`/pastebin aksi:read url:https://pastebin.com/ID\``,
+      `> 🗑️ Hapus: \`/pastebin aksi:unfavorite url:https://pastebin.com/ID\``,
+    ].join('\n'));
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // SUB: stats — Statistik penggunaan pastebin
+  // ══════════════════════════════════════════════════════════
+  if (sub === 'stats') {
+    const statsKey = `pastebin:stats:${discordId}`;
+    const statsRaw = await env.USERS_KV.get(statsKey);
+
+    if (!statsRaw) {
+      return respond([
+        `> ${EMOJI} 📭 Belum ada statistik! Belum pernah buat paste.`,
+        `> 💡 Mulai: \`/pastebin aksi:create konten:Hello World!\``,
+      ].join('\n'));
+    }
+
+    const stats = JSON.parse(statsRaw);
+    const aktiveSejak = stats.firstPaste
+      ? Math.floor((Date.now() - stats.firstPaste) / 86400000)
+      : 0;
+    const avgChars = stats.total > 0 ? Math.floor(stats.totalChars / stats.total) : 0;
+
+    // Top syntax
+    const topSyntax = Object.entries(stats.bySyntax || {})
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([s, n]) => `\`${s}\`: ${n}x`)
+      .join(' · ') || '—';
+
+    // Privacy breakdown
+    const privBreak = Object.entries(stats.byPrivacy || {})
+      .map(([p, n]) => `${p}: ${n}x`)
+      .join(' · ') || '—';
+
+    const histKey = `pastebin:history:${discordId}`;
+    const histRaw = await env.USERS_KV.get(histKey);
+    const histCount = histRaw ? JSON.parse(histRaw).length : 0;
+
+    const favKey = `pastebin:favorites:${discordId}`;
+    const favRaw = await env.USERS_KV.get(favKey);
+    const favCount = favRaw ? JSON.parse(favRaw).length : 0;
+
+    return respond([
+      '```ansi',
+      '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[1;35m║  📊  PASTEBIN STATS  📊             ║\u001b[0m',
+      '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
+      '\u001b[1;33m━━━━━━━━━━━━ 📋 OVERALL ━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[1;36m  📋  Total Paste   :\u001b[0m \u001b[1;37m${stats.total}x dibuat\u001b[0m`,
+      `\u001b[1;36m  📏  Total Chars   :\u001b[0m \u001b[0;37m${(stats.totalChars || 0).toLocaleString('id-ID')}\u001b[0m`,
+      `\u001b[1;36m  📊  Avg Chars     :\u001b[0m \u001b[0;37m${avgChars.toLocaleString('id-ID')}/paste\u001b[0m`,
+      `\u001b[1;36m  📅  Aktif Sejak   :\u001b[0m \u001b[0;37m${aktiveSejak} hari lalu\u001b[0m`,
+      `\u001b[1;36m  📂  History       :\u001b[0m \u001b[0;37m${histCount}/20 tersimpan\u001b[0m`,
+      `\u001b[1;36m  ⭐  Favorit       :\u001b[0m \u001b[0;37m${favCount}/20 paste\u001b[0m`,
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[1;32m━━━━━━━━━━━━ 🔤 TOP SYNTAX ━━━━━━━━━━━\u001b[0m',
+      `\u001b[0;37m  ${topSyntax}\u001b[0m`,
+      '\u001b[1;35m━━━━━━━━━━━━ 🔒 PRIVASI ━━━━━━━━━━━━━━\u001b[0m',
+      `\u001b[0;37m  ${privBreak}\u001b[0m`,
+      '\u001b[1;35m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      `> 💡 Riwayat: \`/pastebin aksi:history\` | Favorit: \`/pastebin aksi:favorites\``,
+    ].join('\n'));
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // SUB: search — Cari paste di Pastebin trending/public
+  // (Pastebin API trending hanya tersedia akun Pro, fallback ke scrape)
+  // ══════════════════════════════════════════════════════════
+  if (sub === 'search') {
+    const query = getOption(options, 'query')?.trim();
+    if (!query) {
+      return respond(`> ${EMOJI} ❌ Masukkan kata kunci pencarian!\n> 💡 Contoh: \`/pastebin aksi:search query:python script\``);
+    }
+
+    await env.USERS_KV.put(cdKey, String(Date.now()), { expirationTtl: 60 });
+
+    waitUntil((async () => {
+      const editMsg = async (content, embeds) => {
+        await fetch(`https://discord.com/api/v10/webhooks/${env.APP_ID}/${interaction.token}/messages/@original`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(embeds ? { content: content || '', embeds } : { content })
+        });
+      };
+
+      try {
+        // Pastebin tidak punya public search API untuk free tier
+        // Kita gunakan archive/trending sebagai pengganti
+        const userKey = await getUserKey();
+
+        let pasteList = [];
+
+        if (userKey) {
+          // Kalau ada akun → ambil paste milik sendiri
+          const result = await pbPost({
+            api_option:       'list',
+            api_user_key:     userKey,
+            api_results_limit: '100',
+          });
+
+          if (!result.startsWith('No pastes found') && !result.startsWith('Bad API')) {
+            // Parse XML response Pastebin
+            const pasteMatches = result.matchAll(/<paste_key>(.*?)<\/paste_key>.*?<paste_title>(.*?)<\/paste_title>.*?<paste_format_short>(.*?)<\/paste_format_short>.*?<paste_date>(.*?)<\/paste_date>.*?<paste_size>(.*?)<\/paste_size>/gs);
+            for (const m of pasteMatches) {
+              const [, id, title, format, date, size] = m;
+              const decodedTitle = title.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
+              if (
+                decodedTitle.toLowerCase().includes(query.toLowerCase()) ||
+                format.toLowerCase().includes(query.toLowerCase())
+              ) {
+                pasteList.push({ id, title: decodedTitle, format, date: parseInt(date), size: parseInt(size) });
+              }
+            }
+          }
+        }
+
+        if (pasteList.length === 0) {
+          // Fallback: cek history lokal user
+          const histKey = `pastebin:history:${discordId}`;
+          const histRaw = await env.USERS_KV.get(histKey);
+          const history = histRaw ? JSON.parse(histRaw) : [];
+          const q = query.toLowerCase();
+          pasteList = history
+            .filter(p => p.judul.toLowerCase().includes(q) || p.syntax.toLowerCase().includes(q))
+            .map(p => ({
+              id:     p.id,
+              title:  p.judul,
+              format: p.syntax,
+              date:   Math.floor(p.createdAt / 1000),
+              size:   p.charCount,
+              isLocal: true,
+            }));
+        }
+
+        if (pasteList.length === 0) {
+          return await editMsg([
+            `> ${EMOJI} 🔍 Tidak ada paste yang cocok untuk **"${query}"**!`,
+            userKey
+              ? `> 💡 Dicari di paste milikmu & history lokal.`
+              : `> 💡 Untuk cari paste akunmu, set \`PASTEBIN_USERNAME\` & \`PASTEBIN_PASSWORD\` di Cloudflare env.`,
+            `> 📋 Lihat history: \`/pastebin aksi:history\``,
+          ].join('\n'));
+        }
+
+        const rows = pasteList.slice(0, 8).map((p, i) => {
+          const waktu = new Date(p.date * 1000).toLocaleDateString('id-ID');
+          const source = p.isLocal ? '📂 Lokal' : '🌐 Akun';
+          return [
+            `\u001b[1;33m ${i+1}. \u001b[1;37m${(p.title || 'Untitled').slice(0, 40)}\u001b[0m`,
+            `\u001b[2;37m     ${source} | ${p.format || 'text'} | ${(p.size || 0).toLocaleString()} chars | ${waktu}\u001b[0m`,
+            `\u001b[2;37m     pastebin.com/${p.id}\u001b[0m`,
+          ].join('\n');
+        }).join('\n');
+
+        return await editMsg('', [{
+          color: 0x9B59B6,
+          title: `🔍 Hasil Pencarian: "${query}"`,
+          description: [
+            '```ansi',
+            '\u001b[2;35m╔══════════════════════════════════════╗\u001b[0m',
+            '\u001b[2;35m║  \u001b[1;35m🔍  SEARCH RESULTS  🔍\u001b[0m             \u001b[2;35m║\u001b[0m',
+            '\u001b[2;35m╚══════════════════════════════════════╝\u001b[0m',
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            rows,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+            `\u001b[1;36m  🔍  Query         :\u001b[0m \u001b[0;37m${query}\u001b[0m`,
+            `\u001b[1;36m  📊  Ditemukan     :\u001b[0m \u001b[0;37m${pasteList.length} paste\u001b[0m`,
+            '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m`,
+            '```',
+            `> 👁️ Baca: \`/pastebin aksi:read url:https://pastebin.com/ID\``,
+          ].join('\n'),
+          footer:    { text: `OwoBim Pastebin Search • ${pasteList.length} hasil` },
+          timestamp: new Date().toISOString(),
+        }]);
+
+      } catch (err) {
+        await editMsg(`> ${EMOJI} ❌ Error: \`${err.message}\``);
+      }
+    })());
+
+    return new Response(JSON.stringify({ type: 5 }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // SUB: info — Info fitur pastebin
+  // ══════════════════════════════════════════════════════════
+  if (sub === 'info') {
+    return respond([
+      '```ansi',
+      '\u001b[2;34m╔══════════════════════════════════════╗\u001b[0m',
+      '\u001b[2;34m║  \u001b[1;34m📋  PASTEBIN COMMANDS  📋\u001b[0m           \u001b[2;34m║\u001b[0m',
+      '\u001b[2;34m╚══════════════════════════════════════╝\u001b[0m',
+      '\u001b[1;33m━━━━━━━━━━━━ 📋 AKSI TERSEDIA ━━━━━━━━━\u001b[0m',
+      '\u001b[1;36m  📝  create     :\u001b[0m \u001b[0;37mBuat paste baru\u001b[0m',
+      '\u001b[1;36m  👁️   read       :\u001b[0m \u001b[0;37mBaca isi paste\u001b[0m',
+      '\u001b[1;36m  🗑️   delete     :\u001b[0m \u001b[0;37mHapus paste (butuh akun)\u001b[0m',
+      '\u001b[1;36m  🔍  search     :\u001b[0m \u001b[0;37mCari paste di history\u001b[0m',
+      '\u001b[1;36m  📂  history    :\u001b[0m \u001b[0;37mLihat 20 paste terakhir\u001b[0m',
+      '\u001b[1;36m  ⭐  favorite   :\u001b[0m \u001b[0;37mTambah paste ke favorit\u001b[0m',
+      '\u001b[1;36m  🗑️   unfavorite :\u001b[0m \u001b[0;37mHapus dari favorit\u001b[0m',
+      '\u001b[1;36m  ⭐  favorites  :\u001b[0m \u001b[0;37mLihat daftar favorit\u001b[0m',
+      '\u001b[1;36m  📊  stats      :\u001b[0m \u001b[0;37mLihat statistik pastebin\u001b[0m',
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[1;32m━━━━━━━━━━━━ 🔤 SYNTAX TERSEDIA ━━━━━━━\u001b[0m',
+      '\u001b[0;37m  js ts py java kt cs cpp c go rs php rb\u001b[0m',
+      '\u001b[0;37m  swift sh bash sql html css json xml yaml\u001b[0m',
+      '\u001b[0;37m  md lua r txt (dan lebih banyak!)\u001b[0m',
+      '\u001b[1;35m━━━━━━━━━━━━ ⏳ EXPIRY TERSEDIA ━━━━━━━━\u001b[0m',
+      '\u001b[0;37m  never 10m 1h 1d 1w 2w 1mo 6mo 1y\u001b[0m',
+      '\u001b[1;31m━━━━━━━━━━━━ 🔒 PRIVASI ━━━━━━━━━━━━━━━\u001b[0m',
+      '\u001b[0;37m  public  → semua bisa lihat & cari\u001b[0m',
+      '\u001b[0;37m  unlisted → hanya yang punya link\u001b[0m',
+      '\u001b[0;37m  private → hanya pemilik (butuh akun)\u001b[0m',
+      '\u001b[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m',
+      '```',
+      '> 💡 Contoh: `/pastebin aksi:create konten:print("Hello") syntax:py expiry:1d privacy:unlisted`',
+      '> 🌐 API: **Pastebin.com API v2**',
+    ].join('\n'));
+  }
+
+  return respond(`> ❌ Aksi tidak dikenal! Gunakan: \`create\`, \`read\`, \`delete\`, \`search\`, \`history\`, \`favorite\`, \`unfavorite\`, \`favorites\`, \`stats\`, \`info\``);
+}
+// ══════════════════════════════════════════════════════════════════════
+// END CMD: pastebin
+// ══════════════════════════════════════════════════════════════════════
+
+
+
+
+    
+
     
 
     
